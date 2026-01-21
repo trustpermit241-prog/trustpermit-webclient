@@ -1,0 +1,259 @@
+/* ========================
+   General Layout
+   ======================== */
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: #f5f5f5;
+  color: #2c3e50;
+}
+
+.account-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ========================
+   Side Menu
+   ======================== */
+.side-menu {
+  width: 240px;
+  background-color: #2c3e50;
+  color: #fff;
+  padding: 20px 0;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.side-menu .logo {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.side-menu .logo img {
+  width: 80px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  padding: 4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.side-menu ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+}
+
+.side-menu ul li {
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.side-menu ul li:hover {
+  background-color: #34495e;
+  border-radius: 6px;
+}
+
+/* ========================
+   Main Content Area
+   ======================== */
+.content-area {
+  flex-grow: 1;
+  padding: 30px;
+  background-color: #e9f0f7; /* soft background */
+  min-height: 100vh;
+}
+
+/* ========================
+   Cards
+   ======================== */
+.card {
+  background-color: #fff; 
+  padding: 25px;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.card h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
+.card h4 {
+  margin-top: 20px;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+/* ========================
+   Form Inputs & Selects
+   ======================== */
+.card input,
+.card select {
+  display: block;          /* stack vertically */
+  width: 100%;
+  max-width: 400px;        /* optional max width */
+  padding: 8px 12px;
+  margin: 12px 0;          /* spacing */
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+/* ========================
+   Buttons
+   ======================== */
+.btn {
+  background-color: #2c3e50;
+  color: #fff;
+  padding: 8px 18px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-top: 10px;
+  transition: 0.2s;
+}
+
+.btn:hover {
+  background-color: #34495e;
+}
+
+.btn.primary {
+  background-color: #27ae60;
+}
+
+.btn.primary:hover {
+  background-color: #2ecc71;
+}
+
+/* ========================
+   Tables
+   ======================== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+table th, table td {
+  text-align: left;
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+.status.pending {
+  color: #f39c12;
+}
+
+.status.approved {
+  color: #27ae60;
+}
+
+.status.failed {
+  color: #e74c3c;
+}
+
+/* ========================
+   Highlight Text
+   ======================== */
+.highlight {
+  font-size: 18px;
+  font-weight: bold;
+  color: #27ae60;
+}
+
+.approved {
+  color: #27ae60;
+  font-weight: bold;
+}
+
+/* ========================
+   Company List
+   ======================== */
+.company-list {
+  list-style: none;
+  padding: 0;
+}
+
+.company-list li {
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+}
+
+/* ========================
+   Apply Permit Upload Buttons
+   ======================== */
+.document-upload {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.document-upload input[type="file"] {
+  display: none; /* hide default file input */
+}
+
+.upload-btn {
+  background-color: #2c3e50;
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-left: 10px;
+  transition: all 0.2s ease;
+}
+
+.upload-btn:hover {
+  background-color: #34495e;
+}
+
+.file-name {
+  margin-left: 10px;
+  font-style: italic;
+  color: #555;
+  word-break: break-word;
+}
+
+/* ========================
+   Responsive
+   ======================== */
+@media (max-width: 768px) {
+  .account-container {
+    flex-direction: column;
+  }
+
+  .side-menu {
+    width: 100%;
+    display: flex;
+    overflow-x: auto;
+    flex-direction: row;
+    justify-content: space-around;
+  }
+
+  .side-menu ul {
+    display: flex;
+    flex-direction: row;
+    width: auto;
+  }
+
+  .side-menu ul li {
+    flex: 1;
+    text-align: center;
+    padding: 12px 10px;
+  }
+
+  .card input,
+  .card select {
+    width: 100%; /* full width on mobile */
+    max-width: 100%;
+  }
+}

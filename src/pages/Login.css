@@ -1,0 +1,78 @@
+/* Login.css */
+
+/* Transparent Card */
+.login-card {
+  background-color: rgba(255, 255, 255, 0.2); /* semi-transparent */
+  backdrop-filter: blur(10px); /* optional blur for readability */
+  padding: 40px 50px;
+  border-radius: 10px;
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.2); /* softer shadow */
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+  color: #fff; /* text color white for readability */
+}
+
+/* Title */
+.login-card h1 {
+  margin-bottom: 25px;
+  color: #fff; /* white title */
+}
+
+/* Inputs */
+.login-card input {
+  width: 100%;
+  padding: 12px 15px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.6); /* semi-transparent border */
+  border-radius: 5px;
+  font-size: 16px;
+  transition: border 0.3s, background-color 0.3s;
+  background-color: rgba(255, 255, 255, 0.4); /* slightly opaque input */
+  color: #000; /* input text readable */
+}
+
+.login-card input:focus {
+  border-color: #0984e3;
+  outline: none;
+  background-color: rgba(255, 255, 255, 0.6); /* highlight input on focus */
+}
+
+/* Button */
+.login-card button {
+  width: 100%;
+  padding: 12px;
+  background-color: #0984e3;
+  border: none;
+  border-radius: 5px;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.login-card button:hover {
+  background-color: #74b9ff;
+}
+
+/* Error */
+.login-card .error {
+  color: #ff6b6b; /* bright red for visibility */
+  margin-bottom: 15px;
+}
+
+/* Paragraph & links */
+.login-card p {
+  margin-top: 15px;
+  font-size: 14px;
+  color: #fff; /* white text */
+}
+
+.login-card a {
+  color: #0984e3;
+  text-decoration: none;
+}
+
+.login-card a:hover {
+  text-decoration: underline;
+}

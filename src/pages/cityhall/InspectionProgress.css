@@ -1,0 +1,157 @@
+/* Card container */
+.inspection-card {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 10px;
+  max-width: 1100px;
+  margin: 20px auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Title */
+.inspection-card h3 {
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 22px;
+  color: #333;
+}
+
+/* Table layout */
+.inspection-card table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* Table header */
+.inspection-card th {
+  background: #f4f6f8;
+  padding: 12px;
+  text-align: center;
+  font-weight: 600;
+  color: #444;
+  border-bottom: 2px solid #ddd;
+}
+
+/* Table cells */
+.inspection-card td {
+  padding: 10px;
+  text-align: center;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* Date & Time inputs */
+.inspection-card input[type="date"],
+.inspection-card input[type="time"] {
+  padding: 6px 8px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+
+/* Time + Submit container */
+.time-submit-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Submit button beside time */
+.submit-btn {
+  padding: 6px 12px;
+  background: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.submit-btn:disabled {
+  background: #aaa;
+  cursor: not-allowed;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: #125aa0;
+}
+
+/* Approve / Reject buttons */
+.approve-btn,
+.reject-btn {
+  display: block;
+  width: 100px;
+  margin: 5px auto;
+  padding: 6px;
+  border: none;
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.approve-btn {
+  background: #2e7d32;
+}
+
+.approve-btn:hover {
+  background: #1b5e20;
+}
+
+.reject-btn {
+  background: #c62828;
+}
+
+.reject-btn:hover {
+  background: #8e0000;
+}
+
+/* Status column */
+.status-cell {
+  font-weight: 600;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .inspection-card table,
+  .inspection-card thead,
+  .inspection-card tbody,
+  .inspection-card th,
+  .inspection-card td,
+  .inspection-card tr {
+    display: block;
+  }
+
+  .inspection-card tr {
+    margin-bottom: 15px;
+    border-bottom: 2px solid #eee;
+  }
+
+  .inspection-card td {
+    text-align: right;
+    position: relative;
+    padding-left: 50%;
+  }
+
+  .inspection-card td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 10px;
+    width: 45%;
+    text-align: left;
+    font-weight: bold;
+  }
+
+  /* Time + Submit on small screens */
+  .time-submit-cell {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .submit-btn,
+  .approve-btn,
+  .reject-btn {
+    width: 100%;
+  }
+}

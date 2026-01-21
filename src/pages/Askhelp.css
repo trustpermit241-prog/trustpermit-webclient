@@ -1,0 +1,163 @@
+/* Askhelp.css - Modern Chat Agent Style */
+
+.askhelp-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px 20px 20px; /* Increased top padding for header visibility */
+  background-color: #f2f5f7;
+  min-height: 100vh;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.top-nav {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.nav-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.nav-buttons button {
+  background-color: #ffffff;
+  color: #2c3e50;
+  border: 1.5px solid #2c3e50;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.nav-buttons button:hover {
+  background-color: #2c3e50;
+  color: #ffffff;
+}
+
+.askhelp-chat.card {
+  background-color: #ffffff;
+  border-radius: 15px;
+  width: 100%;
+  max-width: 600px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  padding: 30px 20px 20px 20px; /* More top padding for header */
+  margin-top: 20px;
+}
+
+.askhelp-chat h2 {
+  text-align: center;
+  margin-bottom: 15px;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.chat-window {
+  background-color: #e5e9f0;
+  border-radius: 15px;
+  padding: 15px;
+  height: 450px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-message {
+  display: flex;
+  align-items: flex-end;
+  max-width: 80%;
+}
+
+.chat-message.agent { justify-content: flex-start; }
+.chat-message.user { justify-content: flex-end; }
+
+.chat-message.agent .message-content {
+  background-color: #ffffff;
+  color: #2c3e50;
+  border-radius: 15px 15px 15px 0;
+  padding: 10px 15px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.chat-message.user .message-content {
+  background-color: #2c3e50;
+  color: #ffffff;
+  border-radius: 15px 15px 0 15px;
+  padding: 10px 15px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.chat-message .avatar {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.message-content .text { word-wrap: break-word; }
+.message-content .time { font-size: 10px; color: #999; text-align: right; margin-top: 3px; }
+
+/* Typing Indicator */
+.chat-message.agent.typing .dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: 0 2px;
+  background-color: #2c3e50;
+  border-radius: 50%;
+  animation: blink 1s infinite;
+}
+.chat-message.agent.typing .dot:nth-child(2) { animation-delay: 0.2s; }
+.chat-message.agent.typing .dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink { 0%, 80%, 100% { opacity: 0; } 40% { opacity: 1; } }
+
+.chat-input-form { display: flex; margin-top: 15px; gap: 10px; }
+.chat-input-form input {
+  flex: 1;
+  padding: 12px 18px;
+  border-radius: 25px;
+  border: 1.5px solid #d1d9e6;
+  font-size: 14px;
+  outline: none;
+  transition: border 0.3s ease;
+}
+.chat-input-form input:focus { border-color: #2c3e50; }
+.chat-input-form button {
+  background-color: #2c3e50;
+  color: #ffffff;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 25px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.3s ease;
+}
+.chat-input-form button:hover { background-color: #1b2a3a; }
+
+.action-buttons { display: flex; gap: 10px; margin-top: 8px; }
+.refresh-chat-btn { background-color: #e74c3c; color: #fff; border: none; padding: 8px 20px; border-radius: 25px; cursor: pointer; }
+.refresh-chat-btn:hover { background-color: #c0392b; }
+.continue-chat-btn { background-color: #2c3e50; color: #fff; border: none; padding: 8px 20px; border-radius: 25px; cursor: pointer; }
+.continue-chat-btn:hover { background-color: #1b2a3a; }
+
+.chat-window::-webkit-scrollbar { width: 6px; }
+.chat-window::-webkit-scrollbar-thumb { background-color: #c1c8d4; border-radius: 3px; }
+.chat-window::-webkit-scrollbar-track { background-color: #e5e9f0; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .askhelp-chat.card { width: 95%; padding: 25px 15px 15px 15px; }
+  .chat-window { height: 350px; }
+  .nav-buttons { gap: 6px; }
+  .nav-buttons button { padding: 5px 12px; font-size: 12px; }
+}
