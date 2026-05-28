@@ -3,7 +3,7 @@ import QRCode from "react-qr-code";
 import "./Payment.css";
 
 const API_BASE_URL = "https://trustpermit-backend.onrender.com";
-const FRONTEND_URL = "https://trustpermit.com";
+const FRONTEND_URL = "https://trustpermit-webclient.vercel.app";
 
 export default function Payment() {
   const [payments, setPayments] = useState([]);
