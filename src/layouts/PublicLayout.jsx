@@ -55,7 +55,7 @@ export default function PublicLayout() {
   };
 
   useEffect(() => {
-    const savedSeen = JSON.parse(localStorage.getItem(seenStorageKey) || "[]");
+    const savedSeen = JSON.parse(localStorage.getItem(seenStorageKey) || "[fetchNotificationData, seenStorageKey]");
     setSeenNotificationIds(savedSeen);
 
     fetchNotificationData();
