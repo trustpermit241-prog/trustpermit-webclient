@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./PublicLayout.css";
 
 const API_BASE_URL = "https://trustpermit-backend.onrender.com";
@@ -15,20 +15,19 @@ export default function PublicLayout() {
   const [seenNotificationIds, setSeenNotificationIds] = useState([]);
 
   const token = localStorage.getItem("token");
-  const userEmail =
-    localStorage.getItem("email") ||
-    JSON.parse(localStorage.getItem("user") || "{}")?.email ||
-    "";
 
-  let seenNotifications = [];
+  let storedUser = {};
+  try {
+    const rawUser = localStorage.getItem("user");
+    storedUser = rawUser ? JSON.parse(rawUser) : {};
+  } catch (error) {
+    console.error("Invalid user JSON:", error);
+    localStorage.removeItem("user");
+    storedUser = {};
+  }
 
-try {
-  const stored = localStorage.getItem(seenStorageKey);
-  seenNotifications = stored ? JSON.parse(stored) : [];
-} catch (error) {
-  console.error("Invalid notification JSON:", error);
-  localStorage.removeItem(seenStorageKey);
-}
+  const userEmail = localStorage.getItem("email") || storedUser?.email || "";
+  const seenStorageKey = `seenNotifications_${userEmail || "guest"}`;
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -36,7 +35,7 @@ try {
     navigate("/");
   };
 
-  const fetchNotificationData = async () => {
+  const fetchNotificationData = useCallback(async () => {
     if (!token) return;
 
     try {
@@ -60,11 +59,21 @@ try {
     } catch (err) {
       console.error("Failed to fetch notifications:", err);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
-    const savedSeen = JSON.parse(localStorage.getItem(seenStorageKey) || "[fetchNotificationData, seenStorageKey]");
-    setSeenNotificationIds(savedSeen);
+    let savedSeen = [];
+
+    try {
+      const storedSeen = localStorage.getItem(seenStorageKey);
+      savedSeen = storedSeen ? JSON.parse(storedSeen) : [];
+    } catch (error) {
+      console.error("Invalid seen notifications JSON:", error);
+      localStorage.removeItem(seenStorageKey);
+      savedSeen = [];
+    }
+
+    setSeenNotificationIds(Array.isArray(savedSeen) ? savedSeen : []);
 
     fetchNotificationData();
 
@@ -73,7 +82,7 @@ try {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [token, userEmail]);
+  }, [fetchNotificationData, seenStorageKey]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -102,7 +111,7 @@ try {
           id: `payment-${payment._id}`,
           type: "payment",
           status: "approved",
-          message: `Your payment was approved and your permit has been released.`,
+          message: "Your payment was approved and your permit has been released.",
           timestamp:
             payment.permitReleasedAt ||
             payment.updatedAt ||
