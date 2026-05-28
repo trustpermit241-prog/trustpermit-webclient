@@ -20,7 +20,15 @@ export default function PublicLayout() {
     JSON.parse(localStorage.getItem("user") || "{}")?.email ||
     "";
 
-  const seenStorageKey = `seenNotifications_${userEmail}`;
+  let seenNotifications = [];
+
+try {
+  const stored = localStorage.getItem(seenStorageKey);
+  seenNotifications = stored ? JSON.parse(stored) : [];
+} catch (error) {
+  console.error("Invalid notification JSON:", error);
+  localStorage.removeItem(seenStorageKey);
+}
 
   const handleLogout = () => {
     localStorage.removeItem("token");
