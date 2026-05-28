@@ -1,252 +1,519 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
+import io from "socket.io-client";
 import "./Askhelp.css";
 
+const API_URL = "https://trustpermit-backend.onrender.com";
+
+const socket = io(API_URL, {
+  transports: ["websocket", "polling"],
+});
+
 export default function AskHelp() {
-  const navigate = useNavigate();
+  const messagesEndRef = useRef(null);
+  const idleTimeoutRef = useRef(null);
 
-  // Time helper
-  const getTime = () => {
-    const now = new Date();
-    return now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  };
+  const getTime = () =>
+    new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
-  // Chat state
-  const [messages, setMessages] = useState([
-    {
-      sender: "agent",
-      text: "Hello! I’m your City Hall assistant. How can I help you today?",
-      time: getTime(),
-    },
-  ]);
+  const user = JSON.parse(localStorage.getItem("user"));
+  const userId = user?._id || user?.id || "guest";
+
+  const CHAT_MESSAGES_KEY = `askhelp_messages_${userId}`;
+  const CHAT_ROOM_KEY = `askhelp_roomId_${userId}`;
+  const CHAT_APPROVED_KEY = `askhelp_approved_${userId}`;
+
+  const [roomId, setRoomId] = useState(
+    localStorage.getItem(CHAT_ROOM_KEY) || ""
+  );
+
+  const [messages, setMessages] = useState(() => {
+    const savedMessages = localStorage.getItem(CHAT_MESSAGES_KEY);
+
+    if (savedMessages) {
+      return JSON.parse(savedMessages);
+    }
+
+    return [
+      {
+        sender: "agent",
+        text: "Hello! I am your Trust Permit Assistant. How may I help you today?",
+        showMenu: true,
+        time: getTime(),
+      },
+    ];
+  });
+
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [context, setContext] = useState({ topic: null, step: 0, subtopic: null });
 
-  const messagesEndRef = useRef(null);
-  const inactivityTimer = useRef(null);
+  const [humanConnected, setHumanConnected] = useState(
+    !!localStorage.getItem(CHAT_ROOM_KEY)
+  );
 
-  // --- Inactivity Timer (FIXED) ---
-  const startInactivityTimer = useCallback(() => {
-    inactivityTimer.current = setTimeout(() => {
+  const [chatApproved, setChatApproved] = useState(
+    localStorage.getItem(CHAT_APPROVED_KEY) === "true"
+  );
+
+  const [idlePromptVisible, setIdlePromptVisible] = useState(false);
+
+  const formatBackendMessages = (backendMessages = []) => {
+    return backendMessages.map((msg) => ({
+      sender:
+        msg.sender === "staff"
+          ? "agent"
+          : msg.sender === "system"
+          ? "agent"
+          : "user",
+      text: msg.text,
+      time:
+        msg.time ||
+        new Date(msg.createdAt || Date.now()).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      showMenu: false,
+    }));
+  };
+
+  const fetchChatHistory = async (currentRoomId) => {
+    if (!currentRoomId) return;
+
+    try {
+      const res = await fetch(`${API_URL}/api/chats/${currentRoomId}`);
+
+      if (!res.ok) return;
+
+      const chat = await res.json();
+
+      if (chat?.messages) {
+        const restoredMessages = formatBackendMessages(chat.messages);
+
+        setMessages(restoredMessages);
+        setHumanConnected(true);
+        setChatApproved(chat.status === "approved");
+
+        localStorage.setItem(
+          CHAT_MESSAGES_KEY,
+          JSON.stringify(restoredMessages)
+        );
+
+        localStorage.setItem(CHAT_ROOM_KEY, currentRoomId);
+
+        localStorage.setItem(
+          CHAT_APPROVED_KEY,
+          chat.status === "approved" ? "true" : "false"
+        );
+      }
+    } catch (err) {
+      console.error("Error fetching chat history:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (roomId) {
+      socket.emit("join_chat_room", {
+        roomId,
+      });
+
+      fetchChatHistory(roomId);
+    }
+
+    socket.on("chat_approved", (data) => {
+      setChatApproved(true);
+      localStorage.setItem(CHAT_APPROVED_KEY, "true");
+
       setMessages((prev) => [
         ...prev,
         {
           sender: "agent",
-          text: "It seems you haven't replied yet. You can choose to continue chatting or refresh the conversation.",
+          text: data.message || "City Hall staff approved your chat.",
           time: getTime(),
-          actionButtons: true,
+          showMenu: false,
         },
       ]);
-    }, Math.floor(Math.random() * 5000) + 5000);
-  }, []);
+    });
+
+    socket.on("receive_chat_message", (msg) => {
+      if (msg.sender === "staff" && msg.roomId === roomId) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            sender: "agent",
+            text: msg.text,
+            time: getTime(),
+            showMenu: false,
+          },
+        ]);
+      }
+    });
+
+    socket.on("chat_updated", (chat) => {
+      if (chat?.roomId === roomId && chat?.messages) {
+        const updatedMessages = formatBackendMessages(chat.messages);
+
+        setMessages(updatedMessages);
+        setChatApproved(chat.status === "approved");
+
+        localStorage.setItem(
+          CHAT_MESSAGES_KEY,
+          JSON.stringify(updatedMessages)
+        );
+
+        localStorage.setItem(
+          CHAT_APPROVED_KEY,
+          chat.status === "approved" ? "true" : "false"
+        );
+      }
+    });
+
+    return () => {
+      socket.off("chat_approved");
+      socket.off("receive_chat_message");
+      socket.off("chat_updated");
+    };
+  }, [roomId, CHAT_APPROVED_KEY, CHAT_MESSAGES_KEY]);
 
   useEffect(() => {
-    startInactivityTimer();
-    return () => clearTimeout(inactivityTimer.current);
-  }, [startInactivityTimer]);
+    localStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify(messages));
 
-  // --- Send Message ---
-  const sendMessage = (e) => {
-    e.preventDefault();
-    if (!input.trim()) return;
+    if (roomId) {
+      localStorage.setItem(CHAT_ROOM_KEY, roomId);
+    }
+  }, [messages, roomId, CHAT_MESSAGES_KEY, CHAT_ROOM_KEY]);
 
-    const userMessage = {
-      sender: "user",
-      text: input,
-      time: getTime(),
-    };
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
 
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setIsTyping(true);
+    if (idleTimeoutRef.current) {
+      clearTimeout(idleTimeoutRef.current);
+    }
 
-    clearTimeout(inactivityTimer.current);
-    startInactivityTimer();
+    if (humanConnected) {
+      idleTimeoutRef.current = setTimeout(() => {
+        setIdlePromptVisible(true);
+      }, 10000);
+    }
+  }, [messages, isTyping, humanConnected]);
 
-    setTimeout(() => {
-      const reply = generateAgentReply(input, context);
-      setMessages((prev) => [
-        ...prev,
-        { sender: "agent", text: reply, time: getTime() },
-      ]);
-      setIsTyping(false);
-    }, 800);
+  const connectToStaff = () => {
+    if (!user || userId === "guest") {
+      alert("Please login first.");
+      return;
+    }
+
+    const userName =
+      user.name || user.fullName || user.email || "User";
+
+    const newRoomId = `chat_${userId}`;
+
+    setRoomId(newRoomId);
+    setHumanConnected(true);
+    setChatApproved(false);
+    setIdlePromptVisible(false);
+
+    localStorage.setItem(CHAT_ROOM_KEY, newRoomId);
+    localStorage.setItem(CHAT_APPROVED_KEY, "false");
+
+    socket.emit("join_chat_room", {
+      roomId: newRoomId,
+    });
+
+    socket.emit("user_request_staff", {
+      userId,
+      userName,
+      roomId: newRoomId,
+      lastMessage: "User wants to connect to staff",
+    });
+
+    setMessages((prev) => [
+      ...prev.map((msg) => ({
+        ...msg,
+        showMenu: false,
+      })),
+      {
+        sender: "agent",
+        text: "Waiting for staff approval...",
+        time: getTime(),
+        showMenu: false,
+      },
+    ]);
   };
 
-  // --- Refresh Chat ---
+  const restoreChat = () => {
+    const savedRoomId = localStorage.getItem(CHAT_ROOM_KEY);
+
+    if (!savedRoomId) {
+      alert("No previous chat found for this account.");
+      return;
+    }
+
+    setRoomId(savedRoomId);
+    setHumanConnected(true);
+    setIdlePromptVisible(false);
+
+    socket.emit("join_chat_room", {
+      roomId: savedRoomId,
+    });
+
+    fetchChatHistory(savedRoomId);
+  };
+
   const refreshChat = () => {
+    localStorage.removeItem(CHAT_MESSAGES_KEY);
+    localStorage.removeItem(CHAT_ROOM_KEY);
+    localStorage.removeItem(CHAT_APPROVED_KEY);
+
+    setRoomId("");
+    setHumanConnected(false);
+    setChatApproved(false);
+    setIdlePromptVisible(false);
+
     setMessages([
       {
         sender: "agent",
-        text: "Hello! I’m your City Hall assistant. How can I help you today?",
+        text: "Chat has been refreshed. How may I help you today?",
+        time: getTime(),
+        showMenu: true,
+      },
+    ]);
+  };
+
+  const handleIdleChoice = (choice) => {
+    setIdlePromptVisible(false);
+
+    if (choice === "refresh") {
+      refreshChat();
+    }
+
+    if (choice === "continue") {
+      setMessages((prev) => [
+        ...prev,
+        {
+          sender: "agent",
+          text: "Okay, you can continue your chat.",
+          time: getTime(),
+          showMenu: false,
+        },
+      ]);
+    }
+
+    if (choice === "restore") {
+      restoreChat();
+    }
+  };
+
+  const sendMessage = (text) => {
+    if (!text.trim()) return;
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        sender: "user",
+        text,
         time: getTime(),
       },
     ]);
-    setContext({ topic: null, step: 0, subtopic: null });
+
     setInput("");
-    clearTimeout(inactivityTimer.current);
-    startInactivityTimer();
+
+    if (humanConnected && roomId) {
+      socket.emit("send_chat_message", {
+        roomId,
+        sender: "user",
+        text,
+        time: getTime(),
+      });
+
+      return;
+    }
+
+    setIsTyping(true);
+
+    setTimeout(() => {
+      generateAutomatedResponse(text.toLowerCase());
+      setIsTyping(false);
+    }, 300);
   };
 
-  // --- Continue Chat ---
-  const continueChat = () => {
+  const generateAutomatedResponse = (input) => {
+    let response = "";
+    let showMenu = false;
+
+    if (input.includes("inspection")) {
+      response =
+        "Inspection Types:\n• Fire Safety Inspection\n• Sanitary Inspection\n• Building & Electrical\n• Locational / Zoning\n• Environmental";
+    } else if (input.includes("report")) {
+      response =
+        "Please describe the issue you are experiencing. A representative will be notified.";
+    } else if (input.includes("billing") || input.includes("payment")) {
+      response =
+        "Billing Services:\n• Open your Account page\n• Go to Payment section\n• Select GCash or Bank/Card\n• Submit your payment details";
+    } else if (input.includes("permit")) {
+      response =
+        "Permit Requirements:\n• Barangay Clearance\n• DTI / SEC Registration\n• Lease Contract\n• Valid ID";
+    } else if (input.includes("back")) {
+      response = "How may I help you today?";
+      showMenu = true;
+    } else {
+      response = `I've received your request regarding "${input}".`;
+      showMenu = false;
+    }
+
     setMessages((prev) => [
       ...prev,
       {
         sender: "agent",
-        text: "Sure! Please continue typing your concern.",
+        text: response,
         time: getTime(),
+        showMenu,
       },
     ]);
-    clearTimeout(inactivityTimer.current);
-    startInactivityTimer();
   };
 
-  // --- Assistant Logic ---
-  const random = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const AutomatedMenu = () => (
+    <div className="automated-menu">
+      {!humanConnected && (
+        <>
+          <button
+            type="button"
+            onClick={() => sendMessage("Billing Services")}
+          >
+            Billing Services
+          </button>
 
-  const setContextReturn = (topic, step, subtopic, reply) => {
-    setContext({ topic, step, subtopic });
-    return reply;
-  };
+          <button
+            type="button"
+            onClick={() => sendMessage("Report a Problem")}
+          >
+            Report a Problem
+          </button>
 
-  const generateAgentReply = (text, ctx) => {
-    const lower = text.toLowerCase();
+          <button
+            type="button"
+            onClick={() => sendMessage("Permit Requirements")}
+          >
+            Permit Requirements
+          </button>
 
-    if (/(hello|hi|hey)/.test(lower))
-      return random([
-        "Hello! How can I assist you today?",
-        "Hi there! Need help with City Hall services?",
-        "Hey! I’m here to guide you through permits, inspections, and more.",
-      ]);
+          <button
+            type="button"
+            onClick={() => sendMessage("Inspection Help")}
+          >
+            Inspection Help
+          </button>
 
-    if (/(bye|goodbye)/.test(lower))
-      return random([
-        "Goodbye! Have a great day!",
-        "See you later! City Hall is always here to assist.",
-      ]);
+          <button type="button" onClick={connectToStaff}>
+            Connect to Human Staff
+          </button>
+        </>
+      )}
 
-    if (!ctx.topic) {
-      if (lower.includes("permit"))
-        return setContextReturn(
-          "permit",
-          1,
-          null,
-          "I can help with permits. Are you applying for a business permit, building permit, or other?"
-        );
-      if (lower.includes("inspection"))
-        return setContextReturn(
-          "inspection",
-          1,
-          null,
-          "I can assist with inspections. Do you want to schedule one or check status?"
-        );
-      if (lower.includes("fee") || lower.includes("cost"))
-        return setContextReturn(
-          "fee",
-          1,
-          null,
-          "Which service or permit's fees do you want to know?"
-        );
-      if (lower.includes("requirement") || lower.includes("documents"))
-        return setContextReturn(
-          "requirement",
-          1,
-          null,
-          "Please tell me which permit or service you need requirements for."
-        );
-      if (lower.includes("status") || lower.includes("track"))
-        return setContextReturn(
-          "status",
-          1,
-          null,
-          "Which application or service status would you like to check?"
-        );
-      return "Could you specify if you need help with permits, inspections, fees, requirements, or status tracking?";
-    }
-
-    return "I’ve provided all guidance I can. Click 'Refresh Chat' if you want to start a new conversation.";
-  };
-
-  // --- Auto-scroll ---
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isTyping]);
-
-  // --- Logo style ---
-  const logoStyle = {
-    width: "60px",
-    height: "60px",
-    backgroundImage: "url('/images/lugoo.jpg')",
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    backgroundRepeat: "no-repeat",
-    borderRadius: "50%",
-    cursor: "pointer",
-    border: "2px solid #2c3e50",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-  };
+      <button type="button" className="restore-btn" onClick={restoreChat}>
+        Restore Chat
+      </button>
+    </div>
+  );
 
   return (
-    <div className="askhelp-container">
-      <div className="top-nav">
-        <div style={logoStyle} onClick={() => navigate("/home")} />
-        <div className="nav-buttons">
-          <button onClick={() => navigate("/home")}>Home</button>
-          <button onClick={() => navigate("/about")}>About</button>
-          <button onClick={() => navigate("/contact")}>Contact</button>
-          <button onClick={() => navigate("/")}>Logout</button>
-        </div>
+    <div className="askhelp-chat card">
+      <h2>City Hall Chat Assistant</h2>
+
+      <div className="chat-window">
+        {messages.map((msg, i) => (
+          <div key={i} className={`chat-message ${msg.sender}`}>
+            <div className="avatar">
+              {msg.sender === "agent" ? "🏛️" : "🧑"}
+            </div>
+
+            <div className="message-content">
+              <div className="text">{msg.text}</div>
+
+              <div className="time">{msg.time}</div>
+
+              {msg.showMenu && <AutomatedMenu />}
+            </div>
+          </div>
+        ))}
+
+        {isTyping && (
+          <div className="chat-message agent typing">
+            <div className="avatar">🏛️</div>
+
+            <div className="message-content">
+              <span className="dot"></span>
+              <span className="dot"></span>
+              <span className="dot"></span>
+            </div>
+          </div>
+        )}
+
+        {idlePromptVisible && (
+          <div className="idle-prompt">
+            <p>
+              You haven't responded for a while. What would you like to do?
+            </p>
+
+            <div className="idle-buttons">
+              <button
+                type="button"
+                onClick={() => handleIdleChoice("refresh")}
+              >
+                Refresh Chat
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleIdleChoice("continue")}
+              >
+                Continue Chat
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleIdleChoice("restore")}
+              >
+                Restore Chat
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
       </div>
 
-      <div className="askhelp-chat card">
-        <h2>🏛️ City Hall Chat Assistant</h2>
+      {humanConnected && !chatApproved && (
+        <p className="chat-status">Waiting for staff approval...</p>
+      )}
 
-        <div className="chat-window">
-          {messages.map((msg, idx) => (
-            <div key={idx} className={`chat-message ${msg.sender}`}>
-              <div className="avatar">{msg.sender === "agent" ? "🏛️" : "🧑"}</div>
-              <div className="message-content">
-                <div className="text">{msg.text}</div>
-                <div className="time">{msg.time}</div>
+      {humanConnected && chatApproved && (
+        <p className="chat-status approved">Staff approved your chat.</p>
+      )}
 
-                {msg.actionButtons && (
-                  <div className="action-buttons">
-                    <button onClick={refreshChat}>Refresh Chat</button>
-                    <button onClick={continueChat}>Continue Chat</button>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+      <form
+        className="chat-input-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          sendMessage(input);
+        }}
+      >
+        <input
+          type="text"
+          placeholder={
+            humanConnected && !chatApproved
+              ? "You can type while waiting for approval..."
+              : "Type a message..."
+          }
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+        />
 
-          {isTyping && (
-            <div className="chat-message agent typing">
-              <div className="avatar">🏛️</div>
-              <div className="message-content">
-                <div className="text">
-                  <span className="dot"></span>
-                  <span className="dot"></span>
-                  <span className="dot"></span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-
-        <form className="chat-input-form" onSubmit={sendMessage}>
-          <input
-            type="text"
-            placeholder="Type your concern..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-          />
-          <button type="submit">Send</button>
-        </form>
-      </div>
+        <button type="submit">Send</button>
+      </form>
     </div>
   );
 }

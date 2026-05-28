@@ -1,194 +1,269 @@
-/* ======================== GENERAL RESET ======================== */
-body, html, #root {
-  margin: 0;
-  padding: 0;
-  font-family: Arial, sans-serif;
+/* ======================== LAYOUT ======================== */
+.staff-dashboard {
+  display: flex;
+  min-height: 100vh;
   background-color: #f5f6fa;
 }
 
-/* ======================== STAFF DASHBOARD LAYOUT ======================== */
-.staff-dashboard {
+/* ======================== SIDEBAR ======================== */
+.sidebar {
+  width: 240px;
+  background-color: #0f1117;
+  color: #fff;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-}
-
-/* ======================== TOP NAVBAR ======================== */
-.top-nav {
-  display: flex;
-  justify-content: flex-start; /* Align all items to left */
-  align-items: center;
-  background-color: #2f3640;
-  color: #fff;
-  padding: 15px 20px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  position: fixed;   /* Keep navbar fixed at top */
+  padding: 0;
+  position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
+  bottom: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
   z-index: 1000;
-  flex-wrap: wrap; /* Prevent cutting off buttons/user area */
-  gap: 20px;      /* Space between logo, nav buttons, and user area */
 }
 
-.top-nav .logo {
-  font-size: 24px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-.top-nav .nav-buttons {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.top-nav .nav-buttons button {
-  background-color: transparent;
-  border: none;
-  color: #fff;
-  font-size: 16px;
-  cursor: pointer;
-  padding: 8px 12px;
-  border-radius: 6px;
-  transition: background-color 0.2s ease;
-}
-
-.top-nav .nav-buttons button:hover {
-  background-color: #57606f;
-}
-
-.user-area {
+/* ======================== LOGO ======================== */
+.logo-container {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-shrink: 0; /* Prevent shrinking */
-}
-
-.user-area .notification {
-  font-size: 18px;
+  padding: 18px 16px;
   cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
 }
 
-.user-area .profile {
-  background-color: #718093;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.logo-text h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #f1f5f9;
+  line-height: 1.2;
+}
+
+.logo-text span {
+  font-size: 10.5px;
+  color: #64748b;
+  letter-spacing: 0.02em;
+}
+
+/* ======================== NAV ======================== */
+.nav-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 10px 8px;
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.nav-buttons::-webkit-scrollbar {
+  display: none;
+}
+
+.nav-section-label {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #334155;
+  padding: 10px 8px 5px;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.nav-buttons button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 9px 12px;
+  border-radius: 8px;
+  text-align: left;
+  width: 100%;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nav-buttons button svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.nav-buttons button:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #f1f5f9;
+}
+
+.nav-buttons button.active {
+  background-color: #2563eb;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+.nav-buttons button.active svg {
+  opacity: 1;
+}
+
+/* ======================== MISSION CARD ======================== */
+.mission-card {
+  margin: 4px 10px 10px;
+  padding: 12px;
+  background: #1e2330;
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  border-radius: 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.mission-icon-wrap {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: bold;
+  width: 30px;
+  height: 30px;
+  background: rgba(37, 99, 235, 0.15);
+  border-radius: 7px;
+  color: #60a5fa;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.mission-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mission-text strong {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #f1f5f9;
+  line-height: 1.2;
+}
+
+.mission-text span {
+  font-size: 10px;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+/* ======================== FOOTER ======================== */
+.sidebar-footer {
+  margin-top: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 10px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.user-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+}
+
+.user-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #1d4ed8;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: 0.03em;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.user-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-role {
+  font-size: 10.5px;
+  color: #64748b;
 }
 
 .logout-btn {
-  background-color: #e84118;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: transparent;
   border: none;
-  color: #fff;
-  padding: 6px 12px;
-  border-radius: 6px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-align: left;
   cursor: pointer;
-  transition: background-color 0.2s ease;
-  white-space: nowrap; /* Prevent breaking text */
+  width: 100%;
+  transition: background 0.15s ease;
 }
 
 .logout-btn:hover {
-  background-color: #c23616;
+  background-color: rgba(239, 68, 68, 0.1);
 }
 
-/* ======================== MAIN CONTENT ======================== */
-.content {
-  flex: 1;
-  padding: 30px 20px;
-  padding-top: 80px; /* Space for fixed navbar */
+/* ======================== CONTENT ======================== */
+.content,
+.staff-content {
+  margin-left: 240px !important;
+  width: calc(100vw - 240px) !important;
+  min-height: 100vh !important;
+  padding: 30px !important;
+  background: #f5f6fa !important;
+  box-sizing: border-box !important;
+  overflow-y: auto !important;
+  position: relative !important;
+  z-index: 1 !important;
 }
 
-/* ======================== DASHBOARD OVERVIEW ======================== */
-.dashboard-overview {
-  margin-bottom: 30px;
+/* ======================== PAYMENT PAGE ======================== */
+.staff-content .payments-overview {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 100% !important;
+  min-height: 100vh !important;
+  padding: 32px !important;
+  box-sizing: border-box !important;
+  background: #f5f6fa !important;
+  color: #111827 !important;
 }
 
-.dashboard-overview h1 {
-  margin-bottom: 10px;
-  color: #2f3640;
-}
-
-.dashboard-overview p {
-  margin-bottom: 20px;
-  color: #718093;
-}
-
-/* ======================== CARDS CONTAINER ======================== */
-.cards {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-/* ======================== INDIVIDUAL CARD STYLES ======================== */
-.card {
-  flex: 1 1 200px;
-  background-color: #fff;
-  padding: 25px 15px;
-  border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-  text-align: center;
-  font-size: 16px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.card span {
-  display: block;
-  margin-top: 12px;
-  font-size: 28px;
-  font-weight: bold;
-  color: #2f3640;
-}
-
-.card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-}
-
-.card.total {
-  border-top: 5px solid #0097e6;
-}
-
-.card.pending {
-  border-top: 5px solid #fbc531;
-}
-
-.card.approved {
-  border-top: 5px solid #4cd137;
-}
-
-.card.rejected {
-  border-top: 5px solid #e84118;
-}
-
-
-/* ======================== RESPONSIVE DESIGN ======================== */
-@media (max-width: 768px) {
-  .cards {
-    flex-direction: column;
-  }
-
-  .top-nav {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-
-  .top-nav .nav-buttons {
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .user-area {
-    align-self: flex-start;
-  }
-
-  .content {
-    padding-top: 120px; /* Space for multi-line navbar on mobile */
-  }
+.payments-overview * {
+  visibility: visible !important;
+  opacity: 1 !important;
 }
