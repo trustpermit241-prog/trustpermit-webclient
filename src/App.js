@@ -27,9 +27,10 @@ import AdminDashboard from "./pages/SuperAdmin/AdminDashboard";
 import ApproveDocuments from "./pages/ApproveDocuments";
 import ReleasePermit from "./pages/ReleasePermit";
 import UpdateInspection from "./pages/UpdateInspection";
-import ApplicationView from "./pages/ApplicationView";
-import PaymentView from "./pages/PaymentView";
-import DocumentsView from "./pages/DocumentsView";
+
+import ApplicationFormView from "./pages/Dropdown/ApplicationFormView";
+import PaymentView from "./pages/Dropdown/PaymentView";
+import UploadedDocumentsView from "./pages/Dropdown/UploadedDocumentsView";
 
 import StaffDashboard from "./pages/cityhall/StaffDashboard";
 
@@ -161,7 +162,7 @@ function App() {
           path="/application/view/:applicationId"
           element={
             <PrivateRoute>
-              <ApplicationView />
+              <ApplicationFormView />
             </PrivateRoute>
           }
         />
@@ -179,7 +180,7 @@ function App() {
           path="/documents/view/:applicationId"
           element={
             <PrivateRoute>
-              <DocumentsView />
+              <UploadedDocumentsView />
             </PrivateRoute>
           }
         />

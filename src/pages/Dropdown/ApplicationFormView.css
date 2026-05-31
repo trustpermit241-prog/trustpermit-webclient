@@ -1,194 +1,193 @@
-﻿:root {
-  --surface: #ffffff;
-  --surface-strong: #f8fbff;
-  --surface-muted: #eef4ff;
-  --border: #dbe1ee;
-  --text: #111827;
-  --text-muted: #475569;
-  --accent: #2563eb;
-  --accent-strong: #1e40af;
-  --shadow: 0 24px 65px rgba(15, 23, 42, 0.12);
+﻿.application-form-view-page {
+  min-height: 100vh;
+  background: #f3f6fb;
+  padding: 32px;
+  font-family: Arial, sans-serif;
+  color: #111827;
 }
 
-.view-section {
-  max-width: 980px;
-  margin: 36px auto;
-  padding: 34px 36px;
-  background: linear-gradient(180deg, var(--surface-strong) 0%, var(--surface) 100%);
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: 28px;
-  box-shadow: var(--shadow);
-  color: var(--text);
-  font-family: 'Inter', system-ui, sans-serif;
+.application-form-card {
+  max-width: 1100px;
+  margin: 0 auto;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 32px;
+  box-shadow: 0 12px 35px rgba(15, 23, 42, 0.08);
+  border: 1px solid #e5e7eb;
 }
 
-.view-section h4 {
+.application-form-header {
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 18px;
   margin-bottom: 24px;
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--accent-strong);
-  letter-spacing: -0.02em;
-  border-bottom: 2px solid #e2e8f0;
-  padding-bottom: 12px;
 }
 
-.details-grid,
-.payment-panel {
+.application-form-header h1 {
+  margin: 0;
+  font-size: 28px;
+  color: #0f172a;
+}
+
+.application-form-header p {
+  margin: 8px 0 0;
+  color: #64748b;
+}
+
+.application-section {
+  margin-top: 28px;
+  padding: 22px;
+  border: 1px solid #dbe3ef;
+  border-radius: 16px;
+  background: #fbfdff;
+}
+
+.application-section h2 {
+  margin: 0 0 18px;
+  font-size: 19px;
+  color: #1d4ed8;
+}
+
+.form-grid {
   display: grid;
-  gap: 18px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
 
-.detail-row,
-.payment-card,
-.document-card {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 22px 24px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+.form-field {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px 14px;
 }
 
-.detail-row:hover,
-.payment-card:hover,
-.document-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-}
-
-.detail-key,
-.payment-key {
+.form-field label {
+  display: block;
+  font-size: 12px;
   font-weight: 700;
-  color: var(--text);
-  min-width: 180px;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 6px;
+  letter-spacing: 0.04em;
 }
 
-.detail-value,
-.payment-value,
-.document-card span {
-  color: var(--text-muted);
-  flex: 1;
-  text-align: right;
+.form-field div {
+  font-size: 15px;
+  color: #0f172a;
+  font-weight: 600;
   word-break: break-word;
 }
 
-.json-panel {
-  padding: 26px;
-  border-radius: 24px;
-  background: var(--surface-muted);
-  border: 1px solid #dbeafe;
+.signature-preview {
+  max-width: 360px;
+  width: 100%;
+  height: auto;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 12px;
 }
 
-.json-label {
-  margin-bottom: 14px;
-  color: var(--accent-strong);
+.empty-signature {
+  padding: 18px;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px dashed #cbd5e1;
+}
+
+.raw-data-box {
+  max-height: 340px;
+  overflow: auto;
+  background: #0f172a;
+  color: #e5e7eb;
+  padding: 18px;
+  border-radius: 12px;
+  font-size: 13px;
+}
+
+.application-view-loading,
+.application-view-error {
+  margin: 40px auto;
+  max-width: 700px;
+  background: #ffffff;
+  padding: 24px;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  text-align: center;
   font-weight: 700;
 }
 
-.json-panel pre {
-  margin: 0;
-  padding: 20px;
-  background: var(--surface);
-  border-radius: 18px;
-  border: 1px solid #e2e8f0;
-  overflow-x: auto;
-  font-size: 0.95rem;
-  line-height: 1.7;
-}
-
-.document-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 16px;
-}
-
-.document-card {
-  align-items: center;
-  background: #f7f9ff;
-  border: 1px solid #d8e2f5;
-}
-
-.document-card span {
-  font-size: 1rem;
-  color: var(--text);
-  font-weight: 600;
-}
-
-.document-card a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 11px 20px;
-  border-radius: 999px;
-  background: var(--accent);
-  color: #ffffff;
-  text-decoration: none;
-  transition: transform 0.2s ease, background-color 0.2s ease;
-}
-
-.document-card a:hover {
-  background: var(--accent-strong);
-  transform: translateY(-1px);
-}
-
-.error-message,
-.loading {
-  margin: 0 auto;
-  padding: 20px 22px;
-  max-width: 980px;
-  border-radius: 18px;
-  font-weight: 600;
-}
-
-.error-message {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
-}
-
-.loading {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  color: #1e3a8a;
+.application-view-error {
+  color: #dc2626;
 }
 
 @media (max-width: 768px) {
-  .view-section {
-    margin: 20px 16px;
-    padding: 24px;
+  .application-form-view-page {
+    padding: 16px;
   }
 
-  .view-section h4 {
-    font-size: 1.75rem;
+  .application-form-card {
+    padding: 20px;
   }
 
-  .detail-row,
-  .payment-card,
-  .document-card {
-    flex-direction: column;
-    align-items: stretch;
-    text-align: left;
+  .form-grid {
+    grid-template-columns: 1fr;
   }
+}
+.application-form-card {
+  max-width: 900px;
+  margin: 30px auto;
+  background: white;
+  padding: 40px;
+  border: 1px solid #111;
+  font-family: "Times New Roman", serif;
+}
 
-  .detail-key,
-  .payment-key {
-    min-width: auto;
-  }
+.application-form-header {
+  text-align: center;
+  border-bottom: 2px solid #111;
+  padding-bottom: 15px;
+  margin-bottom: 25px;
+}
 
-  .detail-value,
-  .payment-value {
-    text-align: left;
-  }
+.application-section {
+  border: 1px solid #333;
+  margin-bottom: 18px;
+  padding: 14px;
+}
 
-  .document-card a {
-    width: 100%;
-  }
+.application-section h2 {
+  font-size: 16px;
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  border-bottom: 1px solid #333;
+  padding-bottom: 6px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0;
+  border-top: 1px solid #ddd;
+  border-left: 1px solid #ddd;
+}
+
+.form-field {
+  padding: 10px;
+  border-right: 1px solid #ddd;
+  border-bottom: 1px solid #ddd;
+}
+
+.form-field label {
+  display: block;
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: #333;
+}
+
+.form-field div {
+  margin-top: 5px;
+  font-size: 14px;
+  min-height: 18px;
 }
