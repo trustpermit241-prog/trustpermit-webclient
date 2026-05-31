@@ -123,8 +123,10 @@ export default function Review() {
       }
 
       if (applicationId) {
-        setApplication(data);
-        setDocumentStatus(data?.documentStatuses || {});
+        const appData = data.application || data.data || data;
+
+        setApplication(appData);
+        setDocumentStatus(appData?.documentStatuses || {});
 
         const docs = await fetchUploadedDocuments(applicationId);
         setUploadedDocs(docs);
@@ -137,7 +139,11 @@ export default function Review() {
           ? data.data
           : [];
 
-        setAllApplications(apps);
+        const activeApps = apps.filter(
+          (app) => String(app.status || "").toLowerCase() !== "completed"
+        );
+
+        setAllApplications(activeApps);
       }
     } catch (err) {
       console.error(err);
@@ -172,6 +178,11 @@ export default function Review() {
     }));
   };
 
+  const getCurrentDocStatus = (doc, index) => {
+    const docName = doc.documentName || `Document ${index + 1}`;
+    return documentStatus[docName] || doc.status || "Pending";
+  };
+
   const finalizeReview = async () => {
     try {
       const token = getToken();
@@ -181,23 +192,30 @@ export default function Review() {
         return;
       }
 
-      const allApproved =
-        uploadedDocs.length > 0 &&
-        uploadedDocs.every(
-          (doc) =>
-            (documentStatus[doc.documentName] || doc.status || "Pending") ===
-            "Approved"
-        );
+      if (uploadedDocs.length === 0) {
+        alert("Cannot finalize review. No documents uploaded.");
+        return;
+      }
 
       const anyRejected = uploadedDocs.some(
-        (doc) =>
-          (documentStatus[doc.documentName] || doc.status || "Pending") ===
-          "Rejected"
+        (doc, index) => getCurrentDocStatus(doc, index) === "Rejected"
       );
 
-      let newStatus = "Pending";
-      if (allApproved) newStatus = "Approved";
-      else if (anyRejected) newStatus = "Rejected";
+      if (anyRejected) {
+        alert(
+          "Cannot finalize review because one or more documents are rejected. The user must reupload the rejected document first."
+        );
+        return;
+      }
+
+      const allApproved = uploadedDocs.every(
+        (doc, index) => getCurrentDocStatus(doc, index) === "Approved"
+      );
+
+      if (!allApproved) {
+        alert("Cannot finalize review. Please approve all documents first.");
+        return;
+      }
 
       const res = await fetch(
         `${API_BASE_URL}/api/applications/${application._id}/status`,
@@ -208,7 +226,7 @@ export default function Review() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            status: newStatus,
+            status: "Completed",
             documentStatuses: documentStatus,
           }),
         }
@@ -220,8 +238,8 @@ export default function Review() {
         throw new Error(data.message || "Failed to finalize review");
       }
 
-      alert(`Review finalized! Status: ${newStatus}`);
-      navigate("/staff/requests");
+      alert("Review finalized successfully! Status: Completed");
+      navigate("/staff/review");
     } catch (error) {
       alert(error.message);
     }
@@ -265,7 +283,7 @@ export default function Review() {
                 </li>
               ))
             ) : (
-              <p className="center-text">No applications found.</p>
+              <p className="center-text">No pending applications for review.</p>
             )}
           </ul>
         </div>
@@ -290,7 +308,7 @@ export default function Review() {
 
           {uploadedDocs.map((doc, index) => {
             const docName = doc.documentName || `Document ${index + 1}`;
-            const status = documentStatus[docName] || doc.status || "Pending";
+            const status = getCurrentDocStatus(doc, index);
 
             return (
               <li key={doc._id || index} className="document-item">
@@ -310,15 +328,27 @@ export default function Review() {
                     {status}
                   </span>
 
-                  <button type="button" className="btn approve" onClick={() => handleApprove(docName)}>
+                  <button
+                    type="button"
+                    className="btn approve"
+                    onClick={() => handleApprove(docName)}
+                  >
                     Approve
                   </button>
 
-                  <button type="button" className="btn reject" onClick={() => handleReject(docName)}>
+                  <button
+                    type="button"
+                    className="btn reject"
+                    onClick={() => handleReject(docName)}
+                  >
                     Reject
                   </button>
 
-                  <button type="button" className="btn update" onClick={() => handleUpdate(docName)}>
+                  <button
+                    type="button"
+                    className="btn update"
+                    onClick={() => handleUpdate(docName)}
+                  >
                     Update
                   </button>
 
@@ -338,7 +368,11 @@ export default function Review() {
           })}
         </ul>
 
-        <button type="button" className="btn primary finalize-btn" onClick={finalizeReview}>
+        <button
+          type="button"
+          className="btn primary finalize-btn"
+          onClick={finalizeReview}
+        >
           Finalize Review
         </button>
       </div>

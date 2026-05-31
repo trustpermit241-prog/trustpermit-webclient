@@ -34,19 +34,6 @@ const getDocName = (doc, index) => {
   );
 };
 
-const formatSize = (bytes) => {
-  if (!bytes) return "N/A";
-
-  const size = Number(bytes);
-
-  if (Number.isNaN(size)) return "N/A";
-
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(2)} KB`;
-
-  return `${(size / (1024 * 1024)).toFixed(2)} MB`;
-};
-
 const isImageFile = (doc) => {
   const type = doc?.mimeType || doc?.type || "";
   const name = doc?.originalName || doc?.fileName || doc?.filename || "";
@@ -61,12 +48,26 @@ const isPdfFile = (doc) => {
   return type === "application/pdf" || /\.pdf$/i.test(name);
 };
 
+const normalizeStatus = (status) => {
+  if (!status) return "Pending";
+
+  const value = String(status).toLowerCase();
+
+  if (value === "approved") return "Approved";
+  if (value === "rejected") return "Rejected";
+  if (value === "pending") return "Pending";
+
+  return status;
+};
+
 export default function UploadedDocumentsView() {
   const { applicationId } = useParams();
 
   const [documents, setDocuments] = useState([]);
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [viewerOpen, setViewerOpen] = useState(false);
+  const [rejectedPopupOpen, setRejectedPopupOpen] = useState(false);
+  const [rejectedDocumentName, setRejectedDocumentName] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -112,6 +113,15 @@ export default function UploadedDocumentsView() {
           : [];
 
         setDocuments(docs);
+
+        const rejectedDoc = docs.find(
+          (doc) => normalizeStatus(doc.status).toLowerCase() === "rejected"
+        );
+
+        if (rejectedDoc) {
+          setRejectedDocumentName(getDocName(rejectedDoc, 0));
+          setRejectedPopupOpen(true);
+        }
       } catch (err) {
         console.error("Fetch uploaded documents error:", err);
 
@@ -151,6 +161,7 @@ export default function UploadedDocumentsView() {
         <div className="documents-list">
           {documents.map((doc, index) => {
             const fileUrl = getFileUrl(doc);
+            const status = normalizeStatus(doc.status);
 
             return (
               <div key={doc._id || doc.id || index} className="document-card">
@@ -162,36 +173,34 @@ export default function UploadedDocumentsView() {
                   <h3>{getDocName(doc, index)}</h3>
 
                   <p>
-                    <strong>Original Name:</strong>{" "}
-                    {doc.originalName || doc.fileName || "N/A"}
+                    <strong>Status:</strong>{" "}
+                    <span
+                      className={`document-status ${status
+                        .toLowerCase()
+                        .replace(/\s+/g, "-")}`}
+                    >
+                      {status}
+                    </span>
                   </p>
 
-                  <p>
-                    <strong>Status:</strong> {doc.status || "Pending"}
-                  </p>
-
-                  <p>
-                    <strong>Size:</strong> {formatSize(doc.size || doc.sizeBytes)}
-                  </p>
+                  {status === "Rejected" && (
+                    <p className="document-reupload-message">
+                      This document was rejected. Please reupload a valid file.
+                    </p>
+                  )}
                 </div>
 
                 <div className="document-actions">
                   {fileUrl ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedDoc(doc);
-                          setViewerOpen(true);
-                        }}
-                      >
-                        Preview
-                      </button>
-
-                      <a href={fileUrl} target="_blank" rel="noopener noreferrer">
-                        Open
-                      </a>
-                    </>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDoc(doc);
+                        setViewerOpen(true);
+                      }}
+                    >
+                      Preview
+                    </button>
                   ) : (
                     <span>No file URL</span>
                   )}
@@ -202,9 +211,41 @@ export default function UploadedDocumentsView() {
         </div>
       </div>
 
+      {rejectedPopupOpen && (
+        <div
+          className="document-viewer-overlay"
+          onClick={() => setRejectedPopupOpen(false)}
+        >
+          <div
+            className="document-rejected-popup"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2>Document Rejected</h2>
+            <p>
+              Your document{" "}
+              <strong>{rejectedDocumentName || "uploaded document"}</strong> was
+              rejected. Please reupload the correct document.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setRejectedPopupOpen(false)}
+            >
+              Okay
+            </button>
+          </div>
+        </div>
+      )}
+
       {viewerOpen && selectedDoc && (
-        <div className="document-viewer-overlay" onClick={() => setViewerOpen(false)}>
-          <div className="document-viewer-modal" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="document-viewer-overlay"
+          onClick={() => setViewerOpen(false)}
+        >
+          <div
+            className="document-viewer-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               type="button"
               className="document-viewer-close"
@@ -231,7 +272,7 @@ export default function UploadedDocumentsView() {
 
             {!isImageFile(selectedDoc) && !isPdfFile(selectedDoc) && (
               <div className="document-preview-empty">
-                Preview not available. Please open the file in a new tab.
+                Preview not available.
               </div>
             )}
           </div>
