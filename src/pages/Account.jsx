@@ -635,7 +635,7 @@ const Account = ({ initialMenu }) => {
       setLineOfBusiness("");
       setUploadedFiles({});
       clearSignature();
-      setApplicationId(null);
+    //  setApplicationId(null);
       setPermitStep(1);
     } catch (err) {
       console.error("Upload documents error:", err);
@@ -1058,44 +1058,27 @@ const Account = ({ initialMenu }) => {
       }
     }
 
-    let paymentApplicationId = applicationId || null;
+let paymentApplicationId = applicationId || null;
 
-    // Automatically fetch the latest application of the logged-in user before saving payment.
-    // This prevents Application ID from becoming N/A/null in the staff payment page.
-    if (!paymentApplicationId) {
-      try {
-        const appRes = await fetch("https://trustpermit-backend.onrender.com/api/applications/my", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+if (!paymentApplicationId) {
+  const payableApplication = applications.find((app) => {
+    const status = String(app.status || "").toLowerCase();
 
-        const appData = await appRes.json().catch(() => []);
+    return (
+      app &&
+      app._id &&
+      status !== "released" &&
+      status !== "rejected"
+    );
+  });
 
-        const apps = Array.isArray(appData)
-          ? appData
-          : Array.isArray(appData.applications)
-          ? appData.applications
-          : Array.isArray(appData.data)
-          ? appData.data
-          : [];
+  paymentApplicationId = payableApplication?._id || null;
+}
 
-        if (appRes.ok && apps.length > 0) {
-          const latestApplication = apps
-            .filter((app) => app && app._id)
-            .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0];
-
-          paymentApplicationId = latestApplication?._id || null;
-        }
-      } catch (err) {
-        console.error("Failed to fetch application ID:", err);
-      }
-    }
-
-    if (!paymentApplicationId) {
-      alert("No application found. Please submit an application first before paying.");
-      return;
-    }
+if (!paymentApplicationId) {
+  alert("No valid application found for payment. Please submit an application first.");
+  return;
+}
 
     const payload = {
       applicationId: paymentApplicationId,
