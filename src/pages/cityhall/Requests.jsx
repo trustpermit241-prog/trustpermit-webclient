@@ -6,7 +6,7 @@ const BACKEND_URL = "https://trustpermit-backend.onrender.com";
 const API_URL = `${BACKEND_URL}/api`;
 
 export default function Request() {
-  const [dateFilter, setDateFilter] = useState("today");
+  const [dateFilter, setDateFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("All");
   const [applications, setApplications] = useState([]);
   const [filteredRequests, setFilteredRequests] = useState([]);
@@ -15,6 +15,14 @@ export default function Request() {
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
+
+  const staffName = localStorage.getItem("name") || "City Hall Staff";
+  const staffInitials = staffName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   useEffect(() => {
     let socket;
@@ -32,20 +40,33 @@ export default function Request() {
       }
 
       try {
-        const res = await fetch(`${API_URL}/applications`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+       const res = await fetch(`${API_URL}/applications`, {
+  method: "GET",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  },
+});
 
-        const data = await res.json().catch(() => ({}));
+const data = await res.json().catch(() => ({}));
 
-        if (!res.ok) {
-          throw new Error(data.message || "Failed to load applications.");
-        }
+console.log("APPLICATIONS RESPONSE:", data);
 
-        setApplications(Array.isArray(data) ? data : data.applications || []);
+if (!res.ok) {
+  throw new Error(data.message || "Failed to load applications.");
+}
+
+const apps = Array.isArray(data)
+  ? data
+  : Array.isArray(data.applications)
+  ? data.applications
+  : Array.isArray(data.data)
+  ? data.data
+  : Array.isArray(data.results)
+  ? data.results
+  : [];
+
+setApplications(apps);
       } catch (err) {
         setError(err.message || "Failed to load applications.");
       } finally {
@@ -56,7 +77,9 @@ export default function Request() {
     fetchApplications();
 
     socket = io(BACKEND_URL, {
-      transports: ["websocket", "polling"],
+      path: "/socket.io",
+      transports: ["polling", "websocket"],
+      reconnection: true,
     });
 
     socket.on("new-application", (application) => {
@@ -91,11 +114,9 @@ export default function Request() {
     let filtered = applications.map((app) => ({
       id: app._id,
       name: app.applicant?.firstName
-        ? `${app.applicant.firstName} ${app.applicant.lastName || ""}`
+        ? `${app.applicant.firstName} ${app.applicant.lastName || ""}`.trim()
         : app.businessName || "Unknown Applicant",
-      date: app.createdAt
-        ? new Date(app.createdAt).toISOString().split("T")[0]
-        : "",
+      date: app.createdAt ? new Date(app.createdAt).toISOString().split("T")[0] : "",
       displayDate: app.createdAt
         ? new Date(app.createdAt).toLocaleDateString("en-US", {
             year: "numeric",
@@ -112,6 +133,7 @@ export default function Request() {
       filtered = filtered.filter((req) => req.date === today);
     } else if (dateFilter === "week") {
       const startOfWeek = new Date(now);
+      startOfWeek.setHours(0, 0, 0, 0);
       startOfWeek.setDate(now.getDate() - now.getDay());
 
       filtered = filtered.filter((req) => {
@@ -124,10 +146,7 @@ export default function Request() {
 
       filtered = filtered.filter((req) => {
         const reqDate = new Date(req.date);
-        return (
-          reqDate.getMonth() === month &&
-          reqDate.getFullYear() === year
-        );
+        return reqDate.getMonth() === month && reqDate.getFullYear() === year;
       });
     }
 
@@ -193,9 +212,9 @@ export default function Request() {
         </div>
 
         <div className="staff-profile">
-          <div className="staff-avatar">JD</div>
+          <div className="staff-avatar">{staffInitials || "ST"}</div>
           <div>
-            <strong>Juan Dela Cruz</strong>
+            <strong>{staffName}</strong>
             <span>City Hall Staff</span>
           </div>
         </div>
@@ -347,11 +366,26 @@ export default function Request() {
                 </b>
               </p>
 
-              <p><span>Contact:</span> <b>{selectedApp.applicant?.contactNumber || "N/A"}</b></p>
-              <p><span>Email:</span> <b>{selectedApp.applicant?.email || "N/A"}</b></p>
-              <p><span>Nationality:</span> <b>{selectedApp.applicant?.nationality || "N/A"}</b></p>
-              <p><span>Civil Status:</span> <b>{selectedApp.applicant?.civilStatus || "N/A"}</b></p>
-              <p><span>Gender:</span> <b>{selectedApp.applicant?.gender || "N/A"}</b></p>
+              <p>
+                <span>Contact:</span>{" "}
+                <b>{selectedApp.applicant?.contactNumber || "N/A"}</b>
+              </p>
+              <p>
+                <span>Email:</span>{" "}
+                <b>{selectedApp.applicant?.email || "N/A"}</b>
+              </p>
+              <p>
+                <span>Nationality:</span>{" "}
+                <b>{selectedApp.applicant?.nationality || "N/A"}</b>
+              </p>
+              <p>
+                <span>Civil Status:</span>{" "}
+                <b>{selectedApp.applicant?.civilStatus || "N/A"}</b>
+              </p>
+              <p>
+                <span>Gender:</span>{" "}
+                <b>{selectedApp.applicant?.gender || "N/A"}</b>
+              </p>
             </div>
 
             <div className="info-box">
@@ -365,22 +399,55 @@ export default function Request() {
                 </b>
               </p>
 
-              <p><span>Barangay:</span> <b>{selectedApp.address?.barangay || "N/A"}</b></p>
-              <p><span>City:</span> <b>{selectedApp.address?.city || "N/A"}</b></p>
-              <p><span>Province:</span> <b>{selectedApp.address?.province || "N/A"}</b></p>
-              <p><span>Subdivision:</span> <b>{selectedApp.address?.subdivision || "N/A"}</b></p>
-              <p><span>Landmark:</span> <b>{selectedApp.address?.landmark || "N/A"}</b></p>
+              <p>
+                <span>Barangay:</span>{" "}
+                <b>{selectedApp.address?.barangay || "N/A"}</b>
+              </p>
+              <p>
+                <span>City:</span>{" "}
+                <b>{selectedApp.address?.city || "N/A"}</b>
+              </p>
+              <p>
+                <span>Province:</span>{" "}
+                <b>{selectedApp.address?.province || "N/A"}</b>
+              </p>
+              <p>
+                <span>Subdivision:</span>{" "}
+                <b>{selectedApp.address?.subdivision || "N/A"}</b>
+              </p>
+              <p>
+                <span>Landmark:</span>{" "}
+                <b>{selectedApp.address?.landmark || "N/A"}</b>
+              </p>
             </div>
 
             <div className="info-box">
               <h3>Business Details</h3>
 
-              <p><span>Business Name:</span> <b>{selectedApp.businessName || "N/A"}</b></p>
-              <p><span>Type:</span> <b>{selectedApp.applicationType || "N/A"}</b></p>
-              <p><span>Project:</span> <b>{selectedApp.projectType || "N/A"}</b></p>
-              <p><span>Zone:</span> <b>{selectedApp.zoneType || "N/A"}</b></p>
-              <p><span>Line of Business:</span> <b>{selectedApp.businessDetails?.lineOfBusiness || "N/A"}</b></p>
-              <p><span>Area:</span> <b>{selectedApp.businessDetails?.businessArea || 0} m²</b></p>
+              <p>
+                <span>Business Name:</span>{" "}
+                <b>{selectedApp.businessName || "N/A"}</b>
+              </p>
+              <p>
+                <span>Type:</span>{" "}
+                <b>{selectedApp.applicationType || "N/A"}</b>
+              </p>
+              <p>
+                <span>Project:</span>{" "}
+                <b>{selectedApp.projectType || "N/A"}</b>
+              </p>
+              <p>
+                <span>Zone:</span>{" "}
+                <b>{selectedApp.zoneType || "N/A"}</b>
+              </p>
+              <p>
+                <span>Line of Business:</span>{" "}
+                <b>{selectedApp.businessDetails?.lineOfBusiness || "N/A"}</b>
+              </p>
+              <p>
+                <span>Area:</span>{" "}
+                <b>{selectedApp.businessDetails?.businessArea || 0} m²</b>
+              </p>
               <p>
                 <span>Staff:</span>{" "}
                 <b>
@@ -430,13 +497,8 @@ export default function Request() {
             <button
               type="button"
               className="approve-btn"
-              disabled={
-                actionLoading ||
-                selectedApp.status === "Approved"
-              }
-              onClick={() =>
-                updateApplicationStatus(selectedApp._id, "Approved")
-              }
+              disabled={actionLoading || selectedApp.status === "Approved"}
+              onClick={() => updateApplicationStatus(selectedApp._id, "Approved")}
             >
               {actionLoading ? "Processing..." : "✓ Approve Application"}
             </button>
@@ -444,13 +506,8 @@ export default function Request() {
             <button
               type="button"
               className="reject-btn"
-              disabled={
-                actionLoading ||
-                selectedApp.status === "Rejected"
-              }
-              onClick={() =>
-                updateApplicationStatus(selectedApp._id, "Rejected")
-              }
+              disabled={actionLoading || selectedApp.status === "Rejected"}
+              onClick={() => updateApplicationStatus(selectedApp._id, "Rejected")}
             >
               ✕ Reject Application
             </button>

@@ -285,6 +285,41 @@ export default function PublicLayout() {
         <main className="page-content">
           <Outlet />
         </main>
+
+        <footer className="global-footer">
+          <div className="global-footer-main">
+            <div className="global-footer-left">
+              <h2 className="global-footer-logo">TRUSTPERMIT</h2>
+              <p className="global-footer-tagline">
+                Secure document permits, inspections, and approvals with trust and transparency.
+              </p>
+              <div className="global-footer-social">
+                <a href="https://facebook.com" target="_blank" rel="noreferrer">F</a>
+                <a href="https://twitter.com" target="_blank" rel="noreferrer">T</a>
+                <a href="https://linkedin.com" target="_blank" rel="noreferrer">L</a>
+              </div>
+            </div>
+
+            <div className="global-footer-right">
+              <h4>Quick links</h4>
+              <div className="global-footer-legal-links">
+                <button type="button" onClick={() => navigate("/home")}>Home</button>
+                <button type="button" onClick={() => navigate("/about")}>About</button>
+                <button type="button" onClick={() => navigate("/contact")}>Contact</button>
+              </div>
+            </div>
+          </div>
+
+          <div className="global-footer-bottom">
+            <p className="global-footer-copy">
+              © {new Date().getFullYear()} TRUSTPERMIT. All rights reserved.
+            </p>
+            <div className="global-footer-legal-links">
+              <button type="button" onClick={() => navigate("/contact")}>Support</button>
+              <button type="button" onClick={() => navigate("/about")}>Privacy</button>
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
   );

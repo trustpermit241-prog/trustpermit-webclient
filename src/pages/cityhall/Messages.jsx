@@ -4,7 +4,9 @@ import io from "socket.io-client";
 const API_URL = "https://trustpermit-backend.onrender.com";
 
 const socket = io(API_URL, {
-  transports: ["websocket", "polling"],
+  path: "/socket.io",
+  transports: ["polling", "websocket"],
+  reconnection: true,
 });
 
 export default function Messages() {
@@ -25,6 +27,13 @@ export default function Messages() {
 
   useEffect(() => {
     fetchChats();
+
+    if (!socket.connected) {
+      socket.io.opts.path = "/socket.io";
+      socket.io.opts.transports = ["polling", "websocket"];
+      socket.io.opts.reconnection = true;
+      socket.connect();
+    }
 
     socket.on("new_staff_request", (chat) => {
       setRequests((prev) => {

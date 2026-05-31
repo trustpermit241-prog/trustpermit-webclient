@@ -27,6 +27,9 @@ import AdminDashboard from "./pages/SuperAdmin/AdminDashboard";
 import ApproveDocuments from "./pages/ApproveDocuments";
 import ReleasePermit from "./pages/ReleasePermit";
 import UpdateInspection from "./pages/UpdateInspection";
+import ApplicationView from "./pages/ApplicationView";
+import PaymentView from "./pages/PaymentView";
+import DocumentsView from "./pages/DocumentsView";
 
 import StaffDashboard from "./pages/cityhall/StaffDashboard";
 
@@ -151,6 +154,34 @@ function App() {
         <Route
           path="/permit/print/:permitId"
           element={<PrintPermit />}
+        />
+
+        {/* DOCUMENT VIEW ROUTES */}
+        <Route
+          path="/application/view/:applicationId"
+          element={
+            <PrivateRoute>
+              <ApplicationView />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/payment/view/:paymentId"
+          element={
+            <PrivateRoute>
+              <PaymentView />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/documents/view/:applicationId"
+          element={
+            <PrivateRoute>
+              <DocumentsView />
+            </PrivateRoute>
+          }
         />
 
         {/* ADMIN PAGES */}

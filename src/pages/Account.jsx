@@ -49,6 +49,26 @@ const Account = ({ initialMenu }) => {
   const [applicationsLoading, setApplicationsLoading] = useState(true);
   const [applicationsError, setApplicationsError] = useState(null);
 
+  // ================= VIEW DROPDOWN STATE =================
+  const [openViewDropdown, setOpenViewDropdown] = useState(null); // track which company dropdown is open
+
+  // ================= VIEW DROPDOWN FUNCTIONS =================
+  const viewApplicationForm = (applicationId) => {
+    if (!applicationId) return alert("Application ID not found.");
+    window.open(`/application/view/${applicationId}`, "_blank");
+  };
+
+  const viewPayment = (paymentId) => {
+    if (!paymentId) return alert("Payment ID not found.");
+    window.open(`/payment/view/${paymentId}`, "_blank");
+  };
+
+  const viewUploadedDocuments = (applicationId) => {
+    if (!applicationId) return alert("Application ID not found.");
+    window.open(`/documents/view/${applicationId}`, "_blank");
+  };
+
+  // ================= FETCH APPLICATIONS =================
   useEffect(() => {
     let isMounted = true;
     const token = localStorage.getItem("token");
@@ -71,7 +91,16 @@ const Account = ({ initialMenu }) => {
         if (!res.ok) throw new Error("Failed to fetch applications");
 
         const data = await res.json();
-        if (isMounted) setApplications(Array.isArray(data) ? data : []);
+
+        const apps = Array.isArray(data)
+          ? data
+          : Array.isArray(data.applications)
+          ? data.applications
+          : Array.isArray(data.data)
+          ? data.data
+          : [];
+
+        if (isMounted) setApplications(apps);
       } catch (err) {
         if (isMounted) {
           setApplicationsError("Failed to fetch applications");
@@ -82,8 +111,6 @@ const Account = ({ initialMenu }) => {
       }
     };
 
-    // Fetch only once when the Account page opens.
-    // Removed the 5-second interval because it makes the Account tab look like it is loading by itself.
     fetchApplications();
 
     return () => {
@@ -984,8 +1011,16 @@ const Account = ({ initialMenu }) => {
 
         const appData = await appRes.json().catch(() => []);
 
-        if (appRes.ok && Array.isArray(appData) && appData.length > 0) {
-          const latestApplication = appData
+        const apps = Array.isArray(appData)
+          ? appData
+          : Array.isArray(appData.applications)
+          ? appData.applications
+          : Array.isArray(appData.data)
+          ? appData.data
+          : [];
+
+        if (appRes.ok && apps.length > 0) {
+          const latestApplication = apps
             .filter((app) => app && app._id)
             .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0];
 
@@ -1122,105 +1157,148 @@ const Account = ({ initialMenu }) => {
           );
       }
 
-      case "List of Companies":
-        return (
-          <div className="card form-card-wide registered-companies-card">
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 20 }}>
-              <div>
-                <h3 style={{ marginBottom: 8 }}>Registered Companies</h3>
-                <p style={{ color: "#4B5563", margin: 0 }}>
-                  Released permits will appear here after payment approval/release.
-                </p>
-              </div>
+ case "List of Companies":
+  return (
+    <div className="card form-card-wide registered-companies-card">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 20 }}>
+        <div>
+          <h3 style={{ marginBottom: 8 }}>Registered Companies</h3>
+          <p style={{ color: "#4B5563", margin: 0 }}>
+            Released permits will appear here after payment approval/release.
+          </p>
+        </div>
 
-              <button className="btn" type="button" onClick={() => setActiveMenu("Apply Permit")}>
-                Apply New Permit
-              </button>
-            </div>
+        <button className="btn" type="button" onClick={() => setActiveMenu("Apply Permit")}>
+          Apply New Permit
+        </button>
+      </div>
 
-            <div className="recent-applications-table-shell">
-              <div className="recent-applications-table-scroll">
-                <table className="dashboard-table recent-applications-table">
-                  <thead>
-                    <tr>
-                      <th>Company Name</th>
-                      <th>Business Type</th>
-                      <th>Permit Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
+      <div className="recent-applications-table-shell">
+        <div className="recent-applications-table-scroll">
+          <table className="dashboard-table recent-applications-table">
+            <thead>
+              <tr>
+                <th>Company Name</th>
+                <th>Business Type</th>
+                <th>Permit Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
 
-                  <tbody>
-                    {userReleasedPermits.length === 0 ? (
-                      <tr>
-                        <td colSpan="4" style={{ textAlign: "center", padding: "24px", color: "#6B7280" }}>
-                          No released permits yet. Once the payment is approved/released, the company will appear here.
-                        </td>
-                      </tr>
-                    ) : (
-                      userReleasedPermits.map((company) => (
-                        <tr key={company.permitId}>
-                          <td>{company.companyName || "Registered Business"}</td>
-                          <td>{company.businessType || "N/A"}</td>
-                          <td>
-                            <span className="dashboard-status-badge approved">
-                              <span className="status-dot" aria-hidden="true"></span>
-                              {company.permitStatus || "Active"}
-                            </span>
-                          </td>
-                          <td>
-                            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <tbody>
+              {userReleasedPermits.length === 0 ? (
+                <tr>
+                  <td colSpan="4" style={{ textAlign: "center", padding: "24px", color: "#6B7280" }}>
+                    No released permits yet. Once the payment is approved/released, the company will appear here.
+                  </td>
+                </tr>
+              ) : (
+                userReleasedPermits.map((company) => (
+                  <tr key={company.permitId}>
+                    <td>{company.companyName || "Registered Business"}</td>
+                    <td>{company.businessType || "N/A"}</td>
+                    <td>
+                      <span className="dashboard-status-badge approved">
+                        <span className="status-dot" aria-hidden="true"></span>
+                        {company.permitStatus || "Active"}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", position: "relative" }}>
+                        {/* View Dropdown */}
+                        <div style={{ position: "relative" }}>
+                          <button
+                            className="btn small"
+                            type="button"
+                            onClick={() =>
+                              setOpenViewDropdown(openViewDropdown === company.permitId ? null : company.permitId)
+                            }
+                          >
+                            View
+                          </button>
+
+                          {openViewDropdown === company.permitId && (
+                            <div
+                              style={{
+                                position: "absolute",
+                                top: "100%",
+                                left: 0,
+                                background: "#fff",
+                                border: "1px solid #ddd",
+                                borderRadius: "6px",
+                                boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+                                zIndex: 10,
+                                minWidth: 160,
+                                padding: 4,
+                              }}
+                            >
                               <button
-                                className="btn small"
-                                type="button"
-                                onClick={() => viewCompany(company.companyName || "Registered Business")}
+                                className="dropdown-item"
+                                onClick={() => viewApplicationForm(company.applicationId)}
                               >
-                                View
+                                Application Form
                               </button>
-
                               <button
-                                className="renew-btn"
-                                type="button"
-                                style={{
-                                  backgroundColor: "#dc2626",
-                                  color: "#ffffff",
-                                  border: "none",
-                                  borderRadius: "8px",
-                                  padding: "8px 14px",
-                                  fontWeight: "600",
-                                  cursor: "pointer",
-                                }}
-                                onClick={() => {
-                                  setApplicationType("Renewal");
-                                  setPermitStep(1);
-                                  setActiveMenu("Apply Permit");
-                                }}
+                                className="dropdown-item"
+                                onClick={() => viewPayment(company.paymentId)}
                               >
-                                Renew
+                                Payment
                               </button>
-
-                              {company.paymentStatus === "approved" && company.permitReleased === true && (
-                                <button
-                                  className="print-permit-btn"
-                                  type="button"
-                                  onClick={() =>
-                                    window.open(`/permit/print/${company.applicationId}`, "_blank")
-                                  }
-                                >
-                                  Print Permit
-                                </button>
-                              )}
+                              <button
+                                className="dropdown-item"
+                                onClick={() => viewUploadedDocuments(company.applicationId)}
+                              >
+                                Uploaded Documents
+                              </button>
                             </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        );
+                          )}
+                        </div>
+
+                        {/* Renew Button */}
+                        <button
+                          className="renew-btn"
+                          type="button"
+                          style={{
+                            backgroundColor: "#dc2626",
+                            color: "#ffffff",
+                            border: "none",
+                            borderRadius: "8px",
+                            padding: "8px 14px",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                          }}
+                          onClick={() => {
+                            setApplicationType("Renewal");
+                            setPermitStep(1);
+                            setActiveMenu("Apply Permit");
+                          }}
+                        >
+                          Renew
+                        </button>
+
+                        {/* Print Permit */}
+                        {company.paymentStatus === "approved" && company.permitReleased === true && (
+                          <button
+                            className="print-permit-btn"
+                            type="button"
+                            onClick={() =>
+                              window.open(`/permit/print/${company.applicationId}`, "_blank")
+                            }
+                          >
+                            Print Permit
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
 
       case "Application Forms":
         return (

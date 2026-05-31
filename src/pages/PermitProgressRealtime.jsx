@@ -87,7 +87,9 @@ const PermitProgressRealtime = () => {
     // Removed the 5-second setInterval because it caused the progress card
     // to keep loading by itself.
     const socket = io(API_BASE_URL, {
-      transports: ["websocket", "polling"],
+      path: "/socket.io",
+      transports: ["polling", "websocket"],
+      reconnection: true,
       auth: { token },
     });
 

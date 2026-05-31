@@ -5,7 +5,9 @@ import "./Askhelp.css";
 const API_URL = "https://trustpermit-backend.onrender.com";
 
 const socket = io(API_URL, {
-  transports: ["websocket", "polling"],
+  path: "/socket.io",
+  transports: ["polling", "websocket"],
+  reconnection: true,
 });
 
 export default function AskHelp() {

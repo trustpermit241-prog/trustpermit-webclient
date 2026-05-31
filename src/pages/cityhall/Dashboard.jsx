@@ -16,6 +16,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
 
+  const staffName = localStorage.getItem("name") || "Staff";
+
   const formatDateTime = (dateValue) => {
     if (!dateValue) return "N/A";
     const date = new Date(dateValue);
@@ -88,7 +90,7 @@ export default function Dashboard() {
         title: "Inspection Update",
         message: `${getApplicantName(inspection)} - ${inspection.status || "Pending"} inspection.`,
         date: inspection.createdAt || inspection.updatedAt,
-        link: "/staff/inspections",
+        link: "/staff/inspection",
       });
     });
 
@@ -110,7 +112,7 @@ export default function Dashboard() {
         title: "New Application",
         message: `${getApplicantName(app)} submitted ${getType(app)}.`,
         date: app.createdAt,
-        link: "/staff/applications",
+        link: "/staff/review",
       });
     });
 
@@ -119,10 +121,10 @@ export default function Dashboard() {
         id: `message-${msg._id}`,
         icon: "💬",
         title: "New Message",
-        message: `${msg.senderName || msg.name || "User"}: ${
-          msg.message || msg.text || msg.content || "Sent a message"
+        message: `${msg.userName || msg.senderName || msg.name || "User"}: ${
+          msg.lastMessage || msg.message || msg.text || msg.content || "Sent a message"
         }`,
-        date: msg.createdAt,
+        date: msg.updatedAt || msg.createdAt,
         link: "/staff/messages",
       });
     });
@@ -134,7 +136,7 @@ export default function Dashboard() {
         title: "Uploaded Document",
         message: `${doc.documentName || doc.originalName || "A document"} was uploaded.`,
         date: doc.createdAt,
-        link: "/staff/documents",
+        link: "/staff/review",
       });
     });
 
@@ -149,7 +151,7 @@ export default function Dashboard() {
       const token = localStorage.getItem("token");
 
       if (!token) {
-        setNotice("No token found. UI is visible, but data cannot load until login.");
+        setNotice("No token found. Please login again.");
         setLoading(false);
         return;
       }
@@ -157,22 +159,14 @@ export default function Dashboard() {
       try {
         const headers = {
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         };
 
-        const [
-          appsRes,
-          inspRes,
-          paymentsRes,
-          usersRes,
-          messagesRes,
-          docsRes,
-        ] = await Promise.allSettled([
+        const [appsRes, paymentsRes, chatsRes, usersRes] = await Promise.allSettled([
           fetch(`${API_BASE_URL}/api/applications`, { headers }),
-          fetch(`${API_BASE_URL}/api/inspection`, { headers }),
           fetch(`${API_BASE_URL}/api/payments`, { headers }),
+          fetch(`${API_BASE_URL}/api/chats`, { headers }),
           fetch(`${API_BASE_URL}/api/users`, { headers }),
-          fetch(`${API_BASE_URL}/api/messages`, { headers }),
-          fetch(`${API_BASE_URL}/api/uploaded-documents`, { headers }),
         ]);
 
         let appsData = [];
@@ -183,44 +177,50 @@ export default function Dashboard() {
         let docsData = [];
 
         if (appsRes.status === "fulfilled" && appsRes.value.ok) {
-          appsData = await appsRes.value.json();
-          appsData = Array.isArray(appsData) ? appsData : [];
+          const data = await appsRes.value.json();
+          appsData = Array.isArray(data)
+            ? data
+            : Array.isArray(data.applications)
+            ? data.applications
+            : [];
           setRequests(appsData);
-        }
-
-        if (inspRes.status === "fulfilled" && inspRes.value.ok) {
-          inspData = await inspRes.value.json();
-          inspData = Array.isArray(inspData) ? inspData : [];
-          setInspections(inspData);
         }
 
         if (paymentsRes.status === "fulfilled" && paymentsRes.value.ok) {
           const data = await paymentsRes.value.json();
-          paymentsData = data.success && Array.isArray(data.payments) ? data.payments : [];
+          paymentsData =
+            data.success && Array.isArray(data.payments)
+              ? data.payments
+              : Array.isArray(data)
+              ? data
+              : [];
           setPayments(paymentsData);
         }
 
-        if (usersRes.status === "fulfilled" && usersRes.value.ok) {
-          usersData = await usersRes.value.json();
-          usersData = Array.isArray(usersData) ? usersData : usersData.users || [];
-          setUsers(usersData);
-        }
-
-        if (messagesRes.status === "fulfilled" && messagesRes.value.ok) {
-          messagesData = await messagesRes.value.json();
-          messagesData = Array.isArray(messagesData)
-            ? messagesData
-            : messagesData.messages || [];
+        if (chatsRes.status === "fulfilled" && chatsRes.value.ok) {
+          const data = await chatsRes.value.json();
+          messagesData = Array.isArray(data)
+            ? data
+            : Array.isArray(data.chats)
+            ? data.chats
+            : Array.isArray(data.messages)
+            ? data.messages
+            : [];
           setMessages(messagesData);
         }
 
-        if (docsRes.status === "fulfilled" && docsRes.value.ok) {
-          docsData = await docsRes.value.json();
-          docsData = Array.isArray(docsData)
-            ? docsData
-            : docsData.documents || [];
-          setDocuments(docsData);
+        if (usersRes.status === "fulfilled" && usersRes.value.ok) {
+          const data = await usersRes.value.json();
+          usersData = Array.isArray(data)
+            ? data
+            : Array.isArray(data.users)
+            ? data.users
+            : [];
+          setUsers(usersData);
         }
+
+        setInspections(inspData);
+        setDocuments(docsData);
 
         setNotifications(
           buildNotifications({
@@ -234,7 +234,7 @@ export default function Dashboard() {
         );
       } catch (err) {
         console.error("Dashboard fetch error:", err);
-        setNotice("Dashboard loaded, but backend is not reachable.");
+        setNotice("Dashboard loaded, but some backend data is not reachable.");
       } finally {
         setLoading(false);
       }
@@ -308,7 +308,7 @@ export default function Dashboard() {
     <section className="dashboard-overview">
       <div className="dashboard-topbar">
         <div>
-          <h1>Welcome back, Juan Dela Cruz! 👋</h1>
+          <h1>Welcome back, {staffName}! 👋</h1>
           <p>Here&apos;s what's happening with permits and inspections today.</p>
         </div>
 
@@ -360,7 +360,7 @@ export default function Dashboard() {
             className="logout-btn"
             onClick={() => {
               localStorage.clear();
-              window.location.href = "/login";
+              window.location.href = "/";
             }}
           >
             🚪 Logout
