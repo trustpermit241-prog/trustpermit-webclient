@@ -4,6 +4,24 @@ import { io } from "socket.io-client";
 
 const API_BASE_URL = "https://trustpermit-backend.onrender.com";
 
+const normalizeArray = (data) => {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.applications)) return data.applications;
+  if (Array.isArray(data?.inspections)) return data.inspections;
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
+};
+
+const getLatestApplication = (data) => {
+  const apps = normalizeArray(data);
+
+  if (apps.length === 0) return null;
+
+  return [...apps]
+    .filter((app) => app && (app._id || app.id))
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0];
+};
+
 const PermitProgressRealtime = () => {
   const [application, setApplication] = useState(null);
   const [inspections, setInspections] = useState([]);
@@ -42,7 +60,7 @@ const PermitProgressRealtime = () => {
 
     try {
       const [appRes, inspRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/api/applications/my-latest`, {
+        axios.get(`${API_BASE_URL}/api/applications/my`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
         axios.get(`${API_BASE_URL}/api/inspection/my`, {
@@ -50,9 +68,12 @@ const PermitProgressRealtime = () => {
         }),
       ]);
 
+      const latestApplication = getLatestApplication(appRes.data);
+      const inspectionList = normalizeArray(inspRes.data);
+
       safeSetState(() => {
-        setApplication(appRes.data?.application || null);
-        setInspections(Array.isArray(inspRes.data) ? inspRes.data : []);
+        setApplication(latestApplication || null);
+        setInspections(inspectionList);
       });
     } catch (err) {
       console.error("Permit progress load error:", err);
@@ -102,18 +123,20 @@ const PermitProgressRealtime = () => {
     });
 
     socket.on("application-status-updated", (data) => {
-      const userId = localStorage.getItem("userId");
+      const userId =
+        localStorage.getItem("userId") ||
+        localStorage.getItem("citizenId") ||
+        localStorage.getItem("id");
 
       if (!data) return;
 
-      const dataCitizenId =
-        data.citizenId ||
-        data.application?.citizenId ||
-        data.application?.citizenId?._id ||
+      const dataUserId =
+        data.userId ||
+        data.application?.userId?._id ||
         data.application?.userId ||
-        data.userId;
+        data.application?._id;
 
-      if (!userId || !dataCitizenId || String(dataCitizenId) === String(userId)) {
+      if (!userId || !dataUserId || String(dataUserId) === String(userId)) {
         refreshSilently();
       }
     });
@@ -149,24 +172,32 @@ const PermitProgressRealtime = () => {
 
   const status = String(application?.status || "").toLowerCase();
 
-  const hasUploadedDocuments = !!(
-    application &&
-    application.documents &&
-    Object.keys(application.documents).length > 0
+  const hasUploadedDocuments = Boolean(
+    application?.documentsUploaded === true ||
+      application?.requirements?.locational_clearance ||
+      application?.requirements?.barangay_clearance ||
+      application?.requirements?.fire_safety_certification ||
+      application?.requirements?.building_permit ||
+      application?.requirements?.wiring_permit ||
+      (application?.documents && Object.keys(application.documents).length > 0)
   );
 
   const hasInspection = inspections.length > 0;
   const isApproved = status === "approved";
+  const isReleased = status === "released" || application?.permitReleased === true;
   const isRejected = status === "rejected";
-  const isPaid = status === "paid" || application?.paymentStatus === "Paid";
+  const isPaid =
+    status === "paid" ||
+    String(application?.paymentStatus || "").toLowerCase() === "paid" ||
+    String(application?.paymentStatus || "").toLowerCase() === "approved";
 
   let currentStep = 0;
 
   if (isRejected) {
     currentStep = 0;
-  } else if (isApproved) {
+  } else if (isReleased) {
     currentStep = 4;
-  } else if (isPaid) {
+  } else if (isPaid || isApproved) {
     currentStep = 3;
   } else if (hasInspection) {
     currentStep = 2;
@@ -188,7 +219,9 @@ const PermitProgressRealtime = () => {
       return (
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
           <circle cx="10" cy="10" r="10" fill="#dc2626" />
-          <text x="10" y="15" textAnchor="middle" fontSize="16" fill="#fff">!</text>
+          <text x="10" y="15" textAnchor="middle" fontSize="16" fill="#fff">
+            !
+          </text>
         </svg>
       );
     }
