@@ -40,12 +40,25 @@ export default function Dashboard() {
     });
   };
 
+  const normalizeStatus = (status) => {
+    return String(status || "Pending").trim().toLowerCase();
+  };
+
   const getApplicantName = (item) => {
     if (item?.applicant?.firstName || item?.applicant?.lastName) {
       return `${item.applicant?.firstName || ""} ${item.applicant?.lastName || ""}`.trim();
     }
 
+    if (item?.applicationId?.applicant?.firstName || item?.applicationId?.applicant?.lastName) {
+      return `${item.applicationId?.applicant?.firstName || ""} ${
+        item.applicationId?.applicant?.lastName || ""
+      }`.trim();
+    }
+
     if (item?.citizenId?.fullName) return item.citizenId.fullName;
+    if (item?.userId?.fullName) return item.userId.fullName;
+    if (item?.applicationId?.citizenId?.fullName) return item.applicationId.citizenId.fullName;
+    if (item?.applicationId?.businessName) return item.applicationId.businessName;
     if (item?.businessName) return item.businessName;
     if (item?.name) return item.name;
     if (item?.applicantName) return item.applicantName;
@@ -58,7 +71,12 @@ export default function Dashboard() {
     item.inspectionType ||
     item.type ||
     item.permitType ||
+    item.applicationId?.applicationType ||
+    item.applicationId?.permitType ||
     fallback;
+
+  const filterByStatus = (list, status) =>
+    list.filter((item) => normalizeStatus(item.status) === normalizeStatus(status));
 
   const buildNotifications = ({
     appsData = [],
@@ -162,12 +180,14 @@ export default function Dashboard() {
           "Content-Type": "application/json",
         };
 
-        const [appsRes, paymentsRes, chatsRes, usersRes] = await Promise.allSettled([
-          fetch(`${API_BASE_URL}/api/applications`, { headers }),
-          fetch(`${API_BASE_URL}/api/payments`, { headers }),
-          fetch(`${API_BASE_URL}/api/chats`, { headers }),
-          fetch(`${API_BASE_URL}/api/users`, { headers }),
-        ]);
+        const [appsRes, inspectionsRes, paymentsRes, chatsRes, usersRes] =
+          await Promise.allSettled([
+            fetch(`${API_BASE_URL}/api/applications`, { headers }),
+            fetch(`${API_BASE_URL}/api/inspection`, { headers }),
+            fetch(`${API_BASE_URL}/api/payments`, { headers }),
+            fetch(`${API_BASE_URL}/api/chats`, { headers }),
+            fetch(`${API_BASE_URL}/api/users`, { headers }),
+          ]);
 
         let appsData = [];
         let inspData = [];
@@ -178,48 +198,81 @@ export default function Dashboard() {
 
         if (appsRes.status === "fulfilled" && appsRes.value.ok) {
           const data = await appsRes.value.json();
+
           appsData = Array.isArray(data)
             ? data
             : Array.isArray(data.applications)
             ? data.applications
+            : Array.isArray(data.data)
+            ? data.data
             : [];
+
           setRequests(appsData);
+        }
+
+        if (inspectionsRes.status === "fulfilled" && inspectionsRes.value.ok) {
+          const data = await inspectionsRes.value.json();
+
+          inspData = Array.isArray(data)
+            ? data
+            : Array.isArray(data.inspections)
+            ? data.inspections
+            : Array.isArray(data.data)
+            ? data.data
+            : Array.isArray(data.requests)
+            ? data.requests
+            : [];
+
+          setInspections(inspData);
         }
 
         if (paymentsRes.status === "fulfilled" && paymentsRes.value.ok) {
           const data = await paymentsRes.value.json();
+
           paymentsData =
             data.success && Array.isArray(data.payments)
               ? data.payments
+              : Array.isArray(data.payments)
+              ? data.payments
               : Array.isArray(data)
               ? data
+              : Array.isArray(data.data)
+              ? data.data
               : [];
+
           setPayments(paymentsData);
         }
 
         if (chatsRes.status === "fulfilled" && chatsRes.value.ok) {
           const data = await chatsRes.value.json();
+
           messagesData = Array.isArray(data)
             ? data
             : Array.isArray(data.chats)
             ? data.chats
             : Array.isArray(data.messages)
             ? data.messages
+            : Array.isArray(data.data)
+            ? data.data
             : [];
+
           setMessages(messagesData);
         }
 
         if (usersRes.status === "fulfilled" && usersRes.value.ok) {
           const data = await usersRes.value.json();
+
           usersData = Array.isArray(data)
             ? data
             : Array.isArray(data.users)
             ? data.users
+            : Array.isArray(data.data)
+            ? data.data
             : [];
+
           setUsers(usersData);
         }
 
-        setInspections(inspData);
         setDocuments(docsData);
 
         setNotifications(
@@ -242,12 +295,6 @@ export default function Dashboard() {
 
     fetchDashboardData();
   }, []);
-
-  const filterByStatus = (list, status) =>
-    list.filter(
-      (item) =>
-        String(item.status || "Pending").toLowerCase() === status.toLowerCase()
-    );
 
   const pendingApps = filterByStatus(requests, "Pending");
   const approvedApps = filterByStatus(requests, "Approved");
@@ -287,12 +334,12 @@ export default function Dashboard() {
         {items.slice(0, 5).map((item, index) => (
           <div className="modern-list-item" key={item._id || item.id || index}>
             <div className={`list-icon ${statusClass}`}>
-              {statusClass === "rejected" ? "✕" : "✓"}
+              {statusClass === "rejected" ? "✕" : statusClass === "pending" ? "⏳" : "✓"}
             </div>
 
             <div className="list-content">
               <strong>{getApplicantName(item)}</strong>
-              <span>{getType(item)}</span>
+              <span>{getType(item, "Inspection")}</span>
             </div>
 
             <span className={`status-pill ${statusClass}`}>
@@ -440,9 +487,15 @@ export default function Dashboard() {
           </div>
 
           <div className="chart-legend">
-            <span><i className="blue"></i> Submitted</span>
-            <span><i className="green"></i> Approved</span>
-            <span><i className="orange"></i> Rejected</span>
+            <span>
+              <i className="blue"></i> Submitted
+            </span>
+            <span>
+              <i className="green"></i> Approved
+            </span>
+            <span>
+              <i className="orange"></i> Rejected
+            </span>
           </div>
         </div>
 
@@ -451,7 +504,12 @@ export default function Dashboard() {
             <h2>Approved Inspections</h2>
             <span className="count-badge green">{approvedInspections.length}</span>
           </div>
-          {renderMiniList(approvedInspections, "No approved inspections", "Approved inspections will appear here.", "approved")}
+          {renderMiniList(
+            approvedInspections,
+            "No approved inspections",
+            "Approved inspections will appear here.",
+            "approved"
+          )}
         </div>
 
         <div className="panel">
@@ -459,7 +517,12 @@ export default function Dashboard() {
             <h2>Rejected Inspections</h2>
             <span className="count-badge red">{rejectedInspections.length}</span>
           </div>
-          {renderMiniList(rejectedInspections, "No rejected inspections", "Rejected inspections will appear here.", "rejected")}
+          {renderMiniList(
+            rejectedInspections,
+            "No rejected inspections",
+            "Rejected inspections will appear here.",
+            "rejected"
+          )}
         </div>
 
         <div className="panel">
@@ -467,7 +530,12 @@ export default function Dashboard() {
             <h2>Recent Approved Applications</h2>
             <span className="count-badge blue">{approvedApps.length}</span>
           </div>
-          {renderMiniList(approvedApps, "No approved applications", "Approved applications will appear here.", "approved")}
+          {renderMiniList(
+            approvedApps,
+            "No approved applications",
+            "Approved applications will appear here.",
+            "approved"
+          )}
         </div>
 
         <div className="panel pending-panel">
@@ -480,7 +548,11 @@ export default function Dashboard() {
             <div>
               <strong>Pending Applications</strong>
               <h2>{pendingApps.length}</h2>
-              <span>No pending applications</span>
+              <span>
+                {pendingApps.length > 0
+                  ? "Applications awaiting review"
+                  : "No pending applications"}
+              </span>
             </div>
           </div>
 
@@ -489,7 +561,11 @@ export default function Dashboard() {
             <div>
               <strong>Pending Inspections</strong>
               <h2>{pendingInspections.length}</h2>
-              <span>No pending inspections</span>
+              <span>
+                {pendingInspections.length > 0
+                  ? "Inspections awaiting action"
+                  : "No pending inspections"}
+              </span>
             </div>
           </div>
         </div>

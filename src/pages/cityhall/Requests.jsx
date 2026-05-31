@@ -511,10 +511,7 @@ export default function Request() {
             </div>
           </div>
 
-          <div className="json-panel">
-            <div className="json-label">All Raw Application Data</div>
-            <pre>{JSON.stringify(selectedApp, null, 2)}</pre>
-          </div>
+          
 
           {actionError && <p className="action-error">{actionError}</p>}
 
