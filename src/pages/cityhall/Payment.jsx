@@ -42,19 +42,40 @@ export default function Payment() {
     setNotice("");
 
     try {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        throw new Error("No token found. Please login again.");
+      }
+
       const res = await fetch(`${API_BASE_URL}/api/payments`, {
+        method: "GET",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
       const data = await parseJsonSafely(res);
 
+      console.log("PAYMENT RESPONSE:", data);
+
       if (!res.ok) {
         throw new Error(data.message || "Failed to fetch payments.");
       }
 
-      setPayments(data.success && Array.isArray(data.payments) ? data.payments : []);
+      const paymentList = Array.isArray(data)
+        ? data
+        : Array.isArray(data.payments)
+        ? data.payments
+        : Array.isArray(data.data)
+        ? data.data
+        : Array.isArray(data.results)
+        ? data.results
+        : [];
+
+      console.log("PAYMENT LIST:", paymentList);
+
+      setPayments(paymentList);
     } catch (err) {
       console.error("Fetch payments error:", err);
       setPayments([]);
@@ -74,18 +95,26 @@ export default function Payment() {
     setApprovingId(paymentId);
 
     try {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        throw new Error("No token found. Please login again.");
+      }
+
       const res = await fetch(
         `${API_BASE_URL}/api/payments/${paymentId}/approve-release`,
         {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
 
       const data = await parseJsonSafely(res);
+
+      console.log("APPROVE PAYMENT RESPONSE:", data);
 
       if (!res.ok) {
         throw new Error(
@@ -113,10 +142,17 @@ export default function Payment() {
   const filteredPayments = useMemo(() => {
     if (activeFilter === "all") return payments;
 
-    return payments.filter(
-      (payment) =>
-        String(payment?.paymentMethod || "").toLowerCase() === activeFilter
-    );
+    return payments.filter((payment) => {
+      const method = String(
+        payment?.paymentMethod || payment?.method || ""
+      ).toLowerCase();
+
+      if (activeFilter === "card") {
+        return method === "card" || method === "bank";
+      }
+
+      return method === activeFilter;
+    });
   }, [payments, activeFilter]);
 
   const totalAmount = useMemo(() => {
@@ -126,12 +162,19 @@ export default function Payment() {
     );
   }, [filteredPayments]);
 
-  const gcashCount = payments.filter(
-    (payment) => String(payment?.paymentMethod || "").toLowerCase() === "gcash"
-  ).length;
+  const gcashCount = payments.filter((payment) => {
+    const method = String(
+      payment?.paymentMethod || payment?.method || ""
+    ).toLowerCase();
+
+    return method === "gcash";
+  }).length;
 
   const bankCount = payments.filter((payment) => {
-    const method = String(payment?.paymentMethod || "").toLowerCase();
+    const method = String(
+      payment?.paymentMethod || payment?.method || ""
+    ).toLowerCase();
+
     return method === "card" || method === "bank";
   }).length;
 
@@ -253,11 +296,20 @@ export default function Payment() {
         <div className="payment-list">
           {filteredPayments.map((payment, index) => {
             const payerName =
-              payment?.name || payment?.userId?.fullName || payment?.userId?.name || "N/A";
+              payment?.name ||
+              payment?.userId?.fullName ||
+              payment?.userId?.name ||
+              "N/A";
 
-            const payerEmail = payment?.email || payment?.userId?.email || "N/A";
+            const payerEmail =
+              payment?.email || payment?.userId?.email || "N/A";
+
             const status = payment?.status || "pending";
-            const method = String(payment?.paymentMethod || "N/A").toLowerCase();
+
+            const method = String(
+              payment?.paymentMethod || payment?.method || "N/A"
+            ).toLowerCase();
+
             const isReleased = payment?.permitReleased === true;
             const applicationId = getApplicationId(payment);
 
@@ -292,7 +344,9 @@ export default function Payment() {
                 <div className="payment-row">
                   <strong>Payment Method</strong>
                   <span className={`method-pill ${method}`}>
-                    {method === "card" ? "Bank / Card" : method}
+                    {method === "card" || method === "bank"
+                      ? "Bank / Card"
+                      : method}
                   </span>
                 </div>
 
