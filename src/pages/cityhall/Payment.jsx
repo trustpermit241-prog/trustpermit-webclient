@@ -24,22 +24,39 @@ export default function Payment() {
     );
   };
 
+  const parseJsonSafely = async (res) => {
+    const text = await res.text();
+
+    try {
+      return text ? JSON.parse(text) : {};
+    } catch {
+      console.error("Backend returned non-JSON/HTML:", text);
+      throw new Error(
+        "Server returned HTML instead of JSON. Check if the backend route exists."
+      );
+    }
+  };
+
   const fetchPayments = async () => {
     setLoading(true);
     setNotice("");
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/payments`);
-      const data = await res.json();
+      const res = await fetch(`${API_BASE_URL}/api/payments`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      const data = await parseJsonSafely(res);
 
       if (!res.ok) {
         throw new Error(data.message || "Failed to fetch payments.");
       }
 
-      setPayments(
-        data.success && Array.isArray(data.payments) ? data.payments : []
-      );
+      setPayments(data.success && Array.isArray(data.payments) ? data.payments : []);
     } catch (err) {
+      console.error("Fetch payments error:", err);
       setPayments([]);
       setNotice(err.message || "Error fetching payments.");
     } finally {
@@ -68,18 +85,21 @@ export default function Payment() {
         }
       );
 
-      const data = await res.json();
+      const data = await parseJsonSafely(res);
 
       if (!res.ok) {
-        throw new Error(data.message || "Failed to approve and release permit.");
+        throw new Error(
+          data.message || data.error || "Failed to approve and release permit."
+        );
       }
 
       alert(
         "Payment approved, permit released, QR generated, and Solana proof created!"
       );
 
-      fetchPayments();
+      await fetchPayments();
     } catch (error) {
+      console.error("Approve payment error:", error);
       alert(error.message || "Something went wrong.");
     } finally {
       setApprovingId(null);
@@ -110,11 +130,10 @@ export default function Payment() {
     (payment) => String(payment?.paymentMethod || "").toLowerCase() === "gcash"
   ).length;
 
-  const bankCount = payments.filter(
-    (payment) =>
-      String(payment?.paymentMethod || "").toLowerCase() === "card" ||
-      String(payment?.paymentMethod || "").toLowerCase() === "bank"
-  ).length;
+  const bankCount = payments.filter((payment) => {
+    const method = String(payment?.paymentMethod || "").toLowerCase();
+    return method === "card" || method === "bank";
+  }).length;
 
   const formatAmount = (amount) => {
     const value = Number(amount || 0);
@@ -234,11 +253,9 @@ export default function Payment() {
         <div className="payment-list">
           {filteredPayments.map((payment, index) => {
             const payerName =
-              payment?.name || payment?.userId?.name || "N/A";
+              payment?.name || payment?.userId?.fullName || payment?.userId?.name || "N/A";
 
-            const payerEmail =
-              payment?.email || payment?.userId?.email || "N/A";
-
+            const payerEmail = payment?.email || payment?.userId?.email || "N/A";
             const status = payment?.status || "pending";
             const method = String(payment?.paymentMethod || "N/A").toLowerCase();
             const isReleased = payment?.permitReleased === true;
@@ -309,8 +326,7 @@ export default function Payment() {
 
                 {isReleased && !applicationId && (
                   <div className="notice">
-                    Permit released, but Application ID is missing. Please check
-                    if this payment is connected to an application.
+                    Permit released, but Application ID is missing.
                   </div>
                 )}
 

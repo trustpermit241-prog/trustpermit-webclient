@@ -14,12 +14,17 @@ const normalizeArray = (data) => {
 
 const getLatestApplication = (data) => {
   const apps = normalizeArray(data);
-
   if (apps.length === 0) return null;
 
   return [...apps]
     .filter((app) => app && (app._id || app.id))
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0];
+};
+
+const getIdString = (value) => {
+  if (!value) return "";
+  if (typeof value === "object") return String(value._id || value.id || "");
+  return String(value);
 };
 
 const PermitProgressRealtime = () => {
@@ -28,8 +33,6 @@ const PermitProgressRealtime = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // This prevents the component from showing "Loading..." again and again
-  // when Socket.IO receives realtime updates.
   const hasLoadedOnceRef = useRef(false);
   const isMountedRef = useRef(false);
 
@@ -50,8 +53,6 @@ const PermitProgressRealtime = () => {
       return;
     }
 
-    // Only show loading on the very first page load.
-    // Realtime updates will refresh data silently without flashing Loading...
     if (showLoader && !hasLoadedOnceRef.current) {
       safeSetState(() => setLoading(true));
     }
@@ -101,12 +102,8 @@ const PermitProgressRealtime = () => {
       };
     }
 
-    // Initial load only. This is the only time Loading... will appear.
     fetchPermitData({ showLoader: true });
 
-    // Realtime updates stay enabled through Socket.IO.
-    // Removed the 5-second setInterval because it caused the progress card
-    // to keep loading by itself.
     const socket = io(API_BASE_URL, {
       path: "/socket.io",
       transports: ["polling", "websocket"],
@@ -123,7 +120,7 @@ const PermitProgressRealtime = () => {
     });
 
     socket.on("application-status-updated", (data) => {
-      const userId =
+      const currentUserId =
         localStorage.getItem("userId") ||
         localStorage.getItem("citizenId") ||
         localStorage.getItem("id");
@@ -131,12 +128,11 @@ const PermitProgressRealtime = () => {
       if (!data) return;
 
       const dataUserId =
-        data.userId ||
-        data.application?.userId?._id ||
-        data.application?.userId ||
-        data.application?._id;
+        getIdString(data.userId) ||
+        getIdString(data.application?.userId) ||
+        getIdString(data.application?.citizenId);
 
-      if (!userId || !dataUserId || String(dataUserId) === String(userId)) {
+      if (!currentUserId || !dataUserId || dataUserId === String(currentUserId)) {
         refreshSilently();
       }
     });
@@ -148,7 +144,6 @@ const PermitProgressRealtime = () => {
 
     socket.on("connect_error", (err) => {
       console.warn("Permit progress realtime connection error:", err.message);
-      // Do not set loading to true here. This avoids repeated loading flashes.
     });
 
     return () => {
@@ -186,6 +181,7 @@ const PermitProgressRealtime = () => {
   const isApproved = status === "approved";
   const isReleased = status === "released" || application?.permitReleased === true;
   const isRejected = status === "rejected";
+
   const isPaid =
     status === "paid" ||
     String(application?.paymentStatus || "").toLowerCase() === "paid" ||
@@ -193,19 +189,12 @@ const PermitProgressRealtime = () => {
 
   let currentStep = 0;
 
-  if (isRejected) {
-    currentStep = 0;
-  } else if (isReleased) {
-    currentStep = 4;
-  } else if (isPaid || isApproved) {
-    currentStep = 3;
-  } else if (hasInspection) {
-    currentStep = 2;
-  } else if (hasUploadedDocuments) {
-    currentStep = 1;
-  } else if (application) {
-    currentStep = 0;
-  }
+  if (isRejected) currentStep = 0;
+  else if (isReleased) currentStep = 4;
+  else if (isPaid || isApproved) currentStep = 3;
+  else if (hasInspection) currentStep = 2;
+  else if (hasUploadedDocuments) currentStep = 1;
+  else if (application) currentStep = 0;
 
   const getStepColor = (idx) => {
     if (isRejected && idx === currentStep) return "#dc2626";
@@ -266,7 +255,9 @@ const PermitProgressRealtime = () => {
       {loading ? (
         <div style={{ marginTop: 16, fontSize: 16 }}>Loading...</div>
       ) : error ? (
-        <div style={{ color: "#dc2626", marginTop: 16, fontSize: 16 }}>{error}</div>
+        <div style={{ color: "#dc2626", marginTop: 16, fontSize: 16 }}>
+          {String(error)}
+        </div>
       ) : application ? (
         <div
           style={{

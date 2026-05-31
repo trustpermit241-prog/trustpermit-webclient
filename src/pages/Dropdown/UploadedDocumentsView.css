@@ -1,12 +1,23 @@
-﻿.view-section {
+﻿:root {
+  --surface: #ffffff;
+  --surface-soft: #f5f8ff;
+  --border: #d8e4f3;
+  --text: #111827;
+  --text-muted: #475569;
+  --accent: #2563eb;
+  --accent-dark: #1e40af;
+  --shadow: 0 20px 45px rgba(15, 23, 42, 0.12);
+}
+
+.view-section {
   max-width: 920px;
   margin: 36px auto;
   padding: 34px 36px;
-  background: #ffffff;
+  background: var(--surface);
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 20px;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-  color: #111827;
+  border-radius: 26px;
+  box-shadow: var(--shadow);
+  color: var(--text);
   font-family: 'Inter', system-ui, sans-serif;
 }
 
@@ -14,7 +25,7 @@
   margin-bottom: 24px;
   font-size: 1.95rem;
   font-weight: 700;
-  color: #0b1120;
+  color: #0f172a;
   border-bottom: 2px solid #e5e7eb;
   padding-bottom: 12px;
 }
@@ -32,47 +43,51 @@
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   padding: 22px 24px;
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 18px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 22px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .document-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
 }
 
 .document-card span {
   font-size: 1rem;
-  color: #111827;
+  color: var(--text);
   font-weight: 600;
+  flex: 1;
+  min-width: 180px;
 }
 
 .document-card a {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 10px 18px;
+  padding: 12px 20px;
   border-radius: 999px;
-  background: #2563eb;
+  background: var(--accent);
   color: #ffffff;
   text-decoration: none;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .document-card a:hover {
-  background: #1d4ed8;
+  background: var(--accent-dark);
   transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.18);
 }
 
 .error-message,
 .loading {
   margin: 0;
-  padding: 18px 20px;
-  border-radius: 14px;
+  padding: 18px 22px;
+  border-radius: 18px;
   font-weight: 600;
 }
 

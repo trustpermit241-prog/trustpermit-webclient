@@ -392,6 +392,7 @@ const Account = ({ initialMenu }) => {
   // Step 1: Submit application form (no documents)
   const submitApplication = async () => {
     const token = localStorage.getItem("token");
+
     if (!token) {
       alert("Please log in to submit your application.");
       return;
@@ -412,10 +413,16 @@ const Account = ({ initialMenu }) => {
 
     if (missing.length > 0) {
       setMissingFields(missing);
+
       const missingLabels = requiredFields
         .filter((field) => missing.includes(field.key))
         .map((field) => field.label);
-      alert(`Please fill out the required fields before submitting:\n- ${missingLabels.join("\n- ")}`);
+
+      alert(
+        `Please fill out the required fields before submitting:\n- ${missingLabels.join(
+          "\n- "
+        )}`
+      );
       return;
     }
 
@@ -424,37 +431,88 @@ const Account = ({ initialMenu }) => {
 
     const signatureData = canvasRef.current?.toDataURL?.();
 
+    // IMPORTANT:
+    // Send nested fields so it matches Application.js and Staff Requests.jsx.
+    // This fixes N/A values for applicant, address, contact, personalInfo, and businessInfo.
     const payload = {
-      businessName,
       applicationType,
       projectType,
       zoneType,
-      firstName,
-      middleName,
-      lastName,
-      suffixName,
-      gender,
-      civilStatus,
-      nationality,
-      contactNumber,
-      email: applicantEmail,
-      province,
-      city,
-      barangay,
-      subdivision,
-      street,
-      building,
-      houseNo,
-      block,
-      lot,
-      landmark,
-      businessArea,
-      malePersonnel,
-      femalePersonnel,
-      ownershipType,
-      lineOfBusiness,
+      businessName,
+
+      taxpayer: {
+        registrantName,
+        registrantPosition,
+        ownershipType,
+      },
+
+      applicant: {
+        firstName,
+        middleName,
+        lastName,
+        suffixName,
+      },
+
+      personalInfo: {
+        birthDate,
+        gender,
+        civilStatus,
+        nationality,
+      },
+
+      contact: {
+        telephone,
+        mobile: contactNumber,
+        contactNumber,
+        fax: faxNo,
+        email: applicantEmail,
+        tin,
+      },
+
+      address: {
+        province,
+        city,
+        barangay,
+        subdivision,
+        street,
+        building,
+        houseNo,
+        block,
+        lot,
+        landmark,
+      },
+
+      businessInfo: {
+        businessName,
+        projectType,
+        zoneType,
+        area: businessArea,
+        businessArea,
+        malePersonnel: Number(malePersonnel) || 0,
+        femalePersonnel: Number(femalePersonnel) || 0,
+        totalPersonnel: Number(totalPersonnel) || 0,
+        ownershipType,
+        lineOfBusiness,
+      },
+
+      // Kept also for pages that already read businessDetails.
+      businessDetails: {
+        businessName,
+        projectType,
+        zoneType,
+        businessArea,
+        area: businessArea,
+        malePersonnel: Number(malePersonnel) || 0,
+        femalePersonnel: Number(femalePersonnel) || 0,
+        totalPersonnel: Number(totalPersonnel) || 0,
+        ownershipType,
+        lineOfBusiness,
+      },
+
       signature: signatureData,
     };
+
+    console.log("APPLICATION PAYLOAD:", payload);
 
     try {
       const res = await fetch("https://trustpermit-backend.onrender.com/api/applications", {
@@ -466,13 +524,15 @@ const Account = ({ initialMenu }) => {
         body: JSON.stringify(payload),
       });
 
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || "Failed to submit application.");
+        throw new Error(data.message || "Failed to submit application.");
       }
 
-      const data = await res.json();
-      setApplicationId(data.application._id || data.application.id);
+      const newApplication = data.application || data.data || data;
+      setApplicationId(newApplication._id || newApplication.id);
+
       alert("Application submitted! Please upload your required documents.");
       setDocsUploaded(false);
       setPermitStep(5);
@@ -483,6 +543,7 @@ const Account = ({ initialMenu }) => {
       setSubmittingApp(false);
     }
   };
+
 
   // Step 2: Upload documents after application is created
   const uploadDocuments = async () => {
