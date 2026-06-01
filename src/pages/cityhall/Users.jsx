@@ -63,7 +63,7 @@ export default function Users() {
                   <td>{user.fullName || user.name || "No name"}</td>
                   <td>{user.email}</td>
                   <td>{user.role || "citizen"}</td>
-                  <td>{user.emailVerified ? "Yes" : "No"}</td>
+                  <td>{user.isVerified ? "Yes" : "No"}</td>
                   <td>{user.status || "Active"}</td>
                   <td>
                     {user.createdAt
