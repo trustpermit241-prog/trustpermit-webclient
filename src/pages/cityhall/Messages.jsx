@@ -144,7 +144,7 @@ export default function Messages() {
           overflowY: "auto",
         }}
       >
-        <h2 style={{ marginBottom: "5px" }}>Messages</h2>
+        <h2 style={{ marginBottom: "5px", fontSize: "28px", fontWeight: 700 }}>Messages</h2>
 
         <p style={{ color: "#64748b", fontSize: "14px", marginBottom: "20px" }}>
           User support requests

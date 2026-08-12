@@ -5,7 +5,18 @@ import { Link, useNavigate } from "react-router-dom";
 import emailjs from "@emailjs/browser";
 import "./Login.css";
 
-const API_BASE_URL = "https://trustpermit-backend.onrender.com/api";
+const API_BASE_URL = (() => {
+  const localUrl = "http://localhost:5000/api";
+  const remoteUrl = "https://trustpermit-backend.onrender.com/api";
+
+  if (typeof window !== "undefined" && window.location.hostname === "localhost") {
+    return localUrl;
+  }
+
+  return process.env.REACT_APP_API_URL
+    ? `${process.env.REACT_APP_API_URL}/api`
+    : remoteUrl;
+})();
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -203,11 +214,12 @@ export default function Login() {
     }
 
     try {
-      await axios.post(`${API_BASE_URL}/auth/reset-password`, {
+      const res = await axios.post(`${API_BASE_URL}/auth/reset-password`, {
         email: forgotEmail,
         password: newPassword,
       });
 
+      console.log("Password reset response:", res.data);
       setMessage("Password reset successfully. Redirecting to login...");
       setError("");
 
@@ -221,7 +233,7 @@ export default function Login() {
         navigate("/");
       }, 2000);
     } catch (err) {
-      console.error(err.response?.data);
+      console.error("Reset password failed:", err.response?.data || err.message || err);
       setError(err.response?.data?.message || "Failed to reset password");
     }
   };
@@ -229,11 +241,8 @@ export default function Login() {
   const containerStyle = {
     display: "flex",
     height: "100vh",
-    backgroundImage: "url('/images/Antipolo-City-Hall.png')",
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    backgroundRepeat: "no-repeat",
     position: "relative",
+    overflow: "hidden",
   };
 
   const overlayStyle = {
@@ -243,7 +252,7 @@ export default function Login() {
     width: "100%",
     height: "100%",
     backgroundColor: "rgba(0,0,0,0.18)",
-    zIndex: 0,
+    zIndex: 1,
   };
 
   const rightStyle = {
@@ -255,8 +264,24 @@ export default function Login() {
     minWidth: 0,
   };
 
+  const backgroundBlurStyle = {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    backgroundImage: "url('/images/Antipolo-City-Hall.png')",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+    filter: "blur(12px) brightness(0.72)",
+    transform: "scale(1.03)",
+    zIndex: 0,
+  };
+
   return (
     <div style={containerStyle}>
+      <div className="login-background-blur" style={backgroundBlurStyle} />
       <div style={overlayStyle}></div>
 
       <div style={rightStyle}>
@@ -265,12 +290,12 @@ export default function Login() {
           style={{
             position: "relative",
             zIndex: 2,
-            minWidth: 520,
-            maxWidth: 600,
+            minWidth: 580,
+            maxWidth: 700,
             background: "rgba(255,255,255,0.96)",
             borderRadius: 24,
             boxShadow: "0 12px 40px rgba(0,0,0,0.18)",
-            padding: "56px 48px 48px 48px",
+            padding: "64px 56px 56px 56px",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",

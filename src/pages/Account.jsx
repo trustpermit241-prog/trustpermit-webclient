@@ -1,10 +1,14 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import InspectionSection from "./InspectionSection";
 import ProfileSection from "./ProfileSection";
 import axios from "axios";
 import emailjs from "@emailjs/browser";
 import PermitProgressRealtime from "./PermitProgressRealtime";
+import PaymentView from "./Dropdown/PaymentView";
+import ApplicationFormView from "./Dropdown/ApplicationFormView";
+import UploadedDocumentsView from "./Dropdown/UploadedDocumentsView";
 import "./Account.css";
+import CenteredModal from "../components/CenteredModal";
 
 const API_BASE_URL = "https://trustpermit-backend.onrender.com";
 
@@ -49,23 +53,57 @@ const Account = ({ initialMenu }) => {
   const [applicationsLoading, setApplicationsLoading] = useState(true);
   const [applicationsError, setApplicationsError] = useState(null);
 
+  // Modal state for centered popups (replaces native alerts for key flows)
+  const [modal, setModal] = useState({ open: false, title: "", message: "", buttonText: "OK", variant: "default" });
+
   // ================= VIEW DROPDOWN STATE =================
   const [openViewDropdown, setOpenViewDropdown] = useState(null); // track which company dropdown is open
 
   // ================= VIEW DROPDOWN FUNCTIONS =================
   const viewApplicationForm = (applicationId) => {
     if (!applicationId) return alert("Application ID not found.");
-    window.open(`/application/view/${applicationId}`, "_blank");
+    setModal({
+      open: true,
+      
+      message: "",
+      buttonText: "Close",
+      variant: "default",
+      hideActions: false,
+      className: "request-details-modal",
+      children: <ApplicationFormView applicationId={applicationId} />,
+      onClose: () => setModal({ open: false }),
+    });
   };
 
-  const viewPayment = (paymentId) => {
+  const viewPayment = (payment) => {
+    const paymentId = payment?._id || payment?.id || payment?.paymentId;
     if (!paymentId) return alert("Payment ID not found.");
-    window.open(`/payment/view/${paymentId}`, "_blank");
+    setModal({
+      open: true,
+      title: "",
+      message: "",
+      buttonText: "Close",
+      variant: "default",
+      hideActions: false,
+      className: "request-details-modal",
+      children: <PaymentView paymentIdProp={paymentId} paymentData={payment} />,
+      onClose: () => setModal({ open: false }),
+    });
   };
 
   const viewUploadedDocuments = (applicationId) => {
     if (!applicationId) return alert("Application ID not found.");
-    window.open(`/documents/view/${applicationId}`, "_blank");
+    setModal({
+      open: true,
+      
+      message: "",
+      buttonText: "Close",
+      variant: "default",
+      hideActions: false,
+      className: "request-details-modal",
+      children: <UploadedDocumentsView applicationId={applicationId} />,
+      onClose: () => setModal({ open: false }),
+    });
   };
 
   // ================= FETCH APPLICATIONS =================
@@ -145,6 +183,8 @@ const Account = ({ initialMenu }) => {
   // ================= ACCOUNT / APPLICATION STATES =================
   const [businessName, setBusinessName] = useState("");
   const [applicationType, setApplicationType] = useState("New Application");
+  const [isRenewalMode, setIsRenewalMode] = useState(false);
+  const [renewalSourceApplicationId, setRenewalSourceApplicationId] = useState(null);
   const [projectType, setProjectType] = useState("Residential");
   const [zoneType, setZoneType] = useState("Residential Zone");
 
@@ -182,6 +222,66 @@ const Account = ({ initialMenu }) => {
 
   const [ownershipType, setOwnershipType] = useState("");
   const [lineOfBusiness, setLineOfBusiness] = useState("");
+  const [businessCategoryMain, setBusinessCategoryMain] = useState("");
+  const [businessSubSearch, setBusinessSubSearch] = useState("");
+  const [businessSubFocused, setBusinessSubFocused] = useState(false);
+
+  const BUSINESS_CATEGORIES = {
+    "Sari-Sari Store": ["Sari-Sari Store"],
+    "Food & Beverage": [
+      "Carinderia",
+      "Food stall",
+      "Small restaurant",
+      "Bakery",
+      "Milk tea / coffee shop",
+    ],
+    "Retail": ["Retail Store", "Clothing", "General merchandise", "Mini grocery", "Hardware"],
+    "Beauty & Personal Care": ["Barber shop", "Beauty salon", "Nail salon", "Massage services"],
+    "Repair & Maintenance": ["Cellphone repair", "Computer repair", "Appliance repair", "Motorcycle repair"],
+    "Laundry Services": ["Self-service laundry", "Wash-and-fold"],
+    "Automotive Services": ["Car wash", "Vulcanizing shop", "Small auto repair"],
+    "Printing & Digital Services": ["Printing shop", "Computer shop", "Internet café", "Graphic design"],
+    "Online / Home-Based Business": [
+      "Online seller",
+      "E-commerce",
+      "Home-based online shop",
+      "Home bakery",
+      "Homemade food",
+      "Handicrafts",
+      "Tailoring",
+    ],
+    "Professional Services": ["Accounting", "Freelance services", "Consulting", "Tutorial services"],
+    "Small Trading": ["Wholesale/reselling", "Supplier", "General trading"],
+    "Small Agricultural Business": ["Plant nursery", "Agricultural supplies", "Small poultry/livestock"],
+    "Other Small Business": ["Other Small Business"],
+  };
+
+  const getFilteredBusinessOptions = () => {
+    if (!businessCategoryMain) {
+      const query = businessSubSearch.trim().toLowerCase();
+      const categories = Object.keys(BUSINESS_CATEGORIES);
+      if (!query) return categories;
+      return categories.filter((category) => category.toLowerCase().includes(query));
+    }
+
+    const query = businessSubSearch.trim().toLowerCase();
+    const options = BUSINESS_CATEGORIES[businessCategoryMain] || [];
+    if (!query) return options;
+    return options.filter((option) => option.toLowerCase().includes(query));
+  };
+
+  const highlightMatch = (text, query) => {
+    if (!query) return text;
+    const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const parts = text.split(new RegExp(`(${safeQuery})`, "gi"));
+    return parts.map((part, index) =>
+      new RegExp(`^${safeQuery}$`, "i").test(part) ? (
+        <span key={index} style={{ backgroundColor: "#fff3b0", borderRadius: 3, padding: "0 2px" }}>{part}</span>
+      ) : (
+        <span key={index}>{part}</span>
+      )
+    );
+  };
 
   // Checklist
   const [isNewChecked, setIsNewChecked] = useState(true);
@@ -213,6 +313,7 @@ const Account = ({ initialMenu }) => {
   // Apply Permit wizard
   const [permitStep, setPermitStep] = useState(1);
   const [permitLicenseTab, setPermitLicenseTab] = useState("new");
+  const [showInstructions, setShowInstructions] = useState(false);
   const [registrantName, setRegistrantName] = useState(userName);
   const [registrantPosition, setRegistrantPosition] = useState("Owner");
   const [isIndividual, setIsIndividual] = useState(true);
@@ -223,26 +324,78 @@ const Account = ({ initialMenu }) => {
   const [outsideAntipolo, setOutsideAntipolo] = useState(false);
   const [showRequirements, setShowRequirements] = useState(true);
 
+  // ================= INSPECTION =================
+  const [inspections, setInspections] = useState([]);
+  const [inspectionsLoading, setInspectionsLoading] = useState(true);
+  const [inspectionsError, setInspectionsError] = useState(null);
+
   // Payment
+  const isRenewalPayment = applicationType === "Renewal" || isRenewalMode || Boolean(renewalSourceApplicationId);
+
+  const paymentFeeBreakdown = useMemo(() => {
+    if (isRenewalPayment) {
+      return [
+        { label: "Mayor's Permit Renewal Fee", amount: 1000.0 },
+        { label: "Garbage Fee / Charges", amount: 1200.0 },
+        { label: "Sanitary Inspection Fee", amount: 500.0 },
+        { label: "EPO Fee", amount: 500.0 },
+        { label: "Sticker Fee", amount: 100.0 },
+        { label: "Local Business Tax (LBT) & Basic Tax", amount: 1000.0 },
+      ];
+    }
+
+    return [
+      { label: "Mayor's Permit Fee", amount: 1000.0 },
+      { label: "Basic Tax (Individual)", amount: 5.0 },
+      { label: "CTC - Additional Tax", amount: 100.0 },
+      { label: "Delivery Vans/Trucks", amount: 750.0 },
+      { label: "Permit fee on OTHER EATING ESTABLISHMENT", amount: 1000.0 },
+      { label: "Barangay Clearance", amount: 3000.0 },
+      { label: "Sanitary Inspection Fee", amount: 500.0 },
+      { label: "EPO Fee", amount: 500.0 },
+      { label: "Garbage Fees", amount: 1200.0 },
+      { label: "Occupational Fee", amount: 750.0 },
+      { label: "Health Fee", amount: 300.0 },
+      { label: "Health Clearances", amount: 150.0 },
+      { label: "CEWMO Training Fee", amount: 300.0 },
+      { label: "CEWMO Inspection Fee", amount: 300.0 },
+      { label: "Work Permits", amount: 150.0 },
+      { label: "Sticker Fee", amount: 100.0 },
+      { label: "Business Plate Fee", amount: 500.0 },
+      { label: "Locational/Zoning Clearance Fee", amount: 1000.0 },
+    ];
+  }, [isRenewalPayment]);
+
+  const calculatedPaymentAmount = useMemo(
+    () => paymentFeeBreakdown.reduce((sum, fee) => sum + Number(fee.amount || 0), 0),
+    [paymentFeeBreakdown]
+  );
+
+  const hasApprovedInspection = useMemo(
+    () => Array.isArray(inspections) && inspections.some((inspection) => String(inspection.status || "").toLowerCase() === "approved"),
+    [inspections]
+  );
+
   const [paymentMethod, setPaymentMethod] = useState("");
   const [bank, setBank] = useState("");
-  const [paymentAmount, setPaymentAmount] = useState(0);
+  const [paymentAmount, setPaymentAmount] = useState(calculatedPaymentAmount);
   const [paymentReference, setPaymentReference] = useState("");
   const [gcashName, setGcashName] = useState(userName || "");
   const [paymentStatus, setPaymentStatus] = useState(null);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [cardHolderName, setCardHolderName] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvc, setCardCvc] = useState("");
   const [billingEmail, setBillingEmail] = useState(userEmail || "");
   const [billingCountry, setBillingCountry] = useState("Philippines");
+
+  // Keep paymentAmount in sync with calculatedPaymentAmount (updates when fees or inspections change)
+  useEffect(() => {
+    setPaymentAmount(calculatedPaymentAmount);
+  }, [calculatedPaymentAmount]);
   const [billingOpen, setBillingOpen] = useState(true);
   const [paymentMethodOpen, setPaymentMethodOpen] = useState(true);
-
-  // ================= INSPECTION =================
-  const [inspections, setInspections] = useState([]);
-  const [inspectionsLoading, setInspectionsLoading] = useState(false);
-  const [inspectionsError, setInspectionsError] = useState(null);
 
   // ================= INSPECTION ACTIONS =================
   const fetchInspections = async () => {
@@ -323,11 +476,34 @@ const Account = ({ initialMenu }) => {
     fetchInspections();
   }, []);
 
+  // Auto-refresh inspections periodically until an approved inspection is present.
+  useEffect(() => {
+    let intervalId = null;
+    if (!hasApprovedInspection) {
+      intervalId = setInterval(() => {
+        fetchInspections();
+      }, 10000); // poll every 10s
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [hasApprovedInspection]);
+
   useEffect(() => {
     if (activeMenu === "Application Forms") {
       setActiveMenu("Apply Permit");
     }
   }, [activeMenu]);
+
+  useEffect(() => {
+    if (activeMenu === "Apply Permit" && !renewalSourceApplicationId) {
+      setIsRenewalMode(false);
+      if (applicationType !== "New Application") {
+        setApplicationType("New Application");
+      }
+    }
+  }, [activeMenu, renewalSourceApplicationId, applicationType]);
 
   const notificationItems = [
     ...inspections.map((inspection) => ({
@@ -533,29 +709,151 @@ const Account = ({ initialMenu }) => {
       const newApplication = data.application || data.data || data;
       setApplicationId(newApplication._id || newApplication.id);
 
-      alert("Application submitted! Please upload your required documents.");
+      setModal({
+        open: true,
+        title: "Application Submitted",
+        message: "Application submitted successfully! Please upload your required documents.",
+        buttonText: "OK",
+        variant: "success",
+      });
       setDocsUploaded(false);
       setPermitStep(5);
     } catch (err) {
       console.error("Submit application error:", err);
-      alert(err.message || "Failed to submit application.");
+      setModal({
+        open: true,
+        title: "Submission Failed",
+        message: err.message || "Failed to submit application.",
+        buttonText: "OK",
+        variant: "error",
+      });
     } finally {
       setSubmittingApp(false);
     }
   };
 
+  const loadRenewalApplication = async (applicationId) => {
+    if (!applicationId) {
+      setModal({
+        open: true,
+        title: "Renewal Failed",
+        message: "Application ID not found.",
+        buttonText: "OK",
+        variant: "error",
+      });
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setModal({
+        open: true,
+        title: "Renewal Failed",
+        message: "Please log in to renew an application.",
+        buttonText: "OK",
+        variant: "error",
+      });
+      return;
+    }
+
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/applications/${applicationId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const app = res.data?.application || res.data?.data || res.data;
+      if (!app) {
+        throw new Error("Unable to load application details.");
+      }
+
+      setIsRenewalMode(true);
+      setRenewalSourceApplicationId(applicationId);
+      setApplicationType("Renewal");
+      setPermitStep(1);
+      setPermitLicenseTab("new");
+      setActiveMenu("Apply Permit");
+      setApplicationId(null);
+      setUploadedFiles({});
+      setDocsUploaded(false);
+      setMissingFields([]);
+      setShowRequirements(true);
+      clearSignature();
+
+      setBusinessName(app.businessName || app.businessInfo?.businessName || "");
+      setLineOfBusiness(app.businessInfo?.lineOfBusiness || app.lineOfBusiness || "");
+      setProjectType(app.projectType || app.businessInfo?.projectType || "Residential");
+      setZoneType(app.zoneType || app.businessInfo?.zoneType || "Residential Zone");
+      setBusinessArea(app.businessInfo?.businessArea || app.businessArea || "");
+      setMalePersonnel(app.businessInfo?.malePersonnel || app.malePersonnel || 0);
+      setFemalePersonnel(app.businessInfo?.femalePersonnel || app.femalePersonnel || 0);
+      setOwnershipType(app.businessInfo?.ownershipType || app.taxpayer?.ownershipType || "");
+      setRegistrantName(app.taxpayer?.registrantName || "");
+      setRegistrantPosition(app.taxpayer?.registrantPosition || "Owner");
+
+      setFirstName(app.applicant?.firstName || "");
+      setMiddleName(app.applicant?.middleName || "");
+      setLastName(app.applicant?.lastName || "");
+      setSuffixName(app.applicant?.suffixName || app.applicant?.suffix || "");
+
+      setGender(app.personalInfo?.gender || "");
+      setCivilStatus(app.personalInfo?.civilStatus || "");
+      setNationality(app.personalInfo?.nationality || "");
+
+      setContactNumber(app.contact?.mobile || app.contact?.contactNumber || "");
+      setTelephone(app.contact?.telephone || "");
+      setFaxNo(app.contact?.fax || "");
+      setApplicantEmail(app.contact?.email || "");
+      setTin(app.contact?.tin || "");
+
+      setProvince(app.address?.province || "");
+      setCity(app.address?.city || "");
+      setBarangay(app.address?.barangay || "");
+      setSubdivision(app.address?.subdivision || "");
+      setStreet(app.address?.street || "");
+      setBuilding(app.address?.building || "");
+      setHouseNo(app.address?.houseNo || "");
+      setBlock(app.address?.block || "");
+      setLot(app.address?.lot || "");
+      setLandmark(app.address?.landmark || "");
+      setOutsideAntipolo(Boolean(app.address?.outsideAntipolo));
+    } catch (err) {
+      console.error("Renewal load error:", err);
+      setModal({
+        open: true,
+        title: "Renewal Failed",
+        message: err.response?.data?.message || err.message || "Failed to load application for renewal.",
+        buttonText: "OK",
+        variant: "error",
+      });
+    }
+  };
 
   // Step 2: Upload documents after application is created
   const uploadDocuments = async () => {
     if (!applicationId) {
-      alert("No application ID. Please submit the application form first.");
+      setModal({
+        open: true,
+        title: "Missing Application",
+        message: "No application ID. Please submit the application form first.",
+        buttonText: "OK",
+        variant: "error",
+        className: "custom-upload-modal",
+      });
       return;
     }
 
-    const selectedFiles = Object.values(uploadedFiles).filter(Boolean);
+    const requiredDocs = getRequiredDocuments();
+    const missingDocs = requiredDocs.filter((doc) => !uploadedFiles[doc]);
 
-    if (selectedFiles.length === 0) {
-      alert("Please upload at least one document.");
+    if (missingDocs.length > 0) {
+      setModal({
+        open: true,
+        title: "Missing Documents",
+        message: `Please upload all required documents before continuing. Missing: ${missingDocs.join(", ")}`,
+        buttonText: "OK",
+        variant: "error",
+        className: "custom-upload-modal",
+      });
       return;
     }
 
@@ -565,7 +863,14 @@ const Account = ({ initialMenu }) => {
       const token = localStorage.getItem("token");
 
       if (!token) {
-        alert("Please log in again before uploading documents.");
+        setModal({
+          open: true,
+          title: "Authentication Required",
+          message: "Please log in again before uploading documents.",
+          buttonText: "OK",
+          variant: "error",
+          className: "custom-upload-modal",
+        });
         setUploadingDocs(false);
         return;
       }
@@ -602,7 +907,14 @@ const Account = ({ initialMenu }) => {
       console.log("Upload success:", data);
 
       setDocsUploaded(true);
-      alert("Documents uploaded successfully! Your application is now ready for staff review.");
+      setModal({
+        open: true,
+        title: "Upload Successful",
+        message: "Documents uploaded successfully! Your application is now ready for staff review.",
+        buttonText: "OK",
+        variant: "success",
+        className: "custom-upload-modal",
+      });
 
       // Optionally clear form fields
       setBusinessName("");
@@ -635,11 +947,20 @@ const Account = ({ initialMenu }) => {
       setLineOfBusiness("");
       setUploadedFiles({});
       clearSignature();
+      setIsRenewalMode(false);
+      setRenewalSourceApplicationId(null);
     //  setApplicationId(null);
       setPermitStep(1);
     } catch (err) {
       console.error("Upload documents error:", err);
-      alert(err.message || "Failed to upload documents");
+      setModal({
+        open: true,
+        title: "Upload Failed",
+        message: err.message || "Failed to upload documents",
+        buttonText: "OK",
+        variant: "error",
+        className: "custom-upload-modal",
+      });
     } finally {
       setUploadingDocs(false);
     }
@@ -656,11 +977,14 @@ const Account = ({ initialMenu }) => {
   const getRequiredDocuments = () => {
     if (applicationType === "New Application") {
       let docs = [
-        "Locational Clearance",
-        "Barangay Clearance",
-        "Fire Safety Evaluation Certificate",
-        "Building Permit",
-        "Wiring Permit",
+        "DTI/SEC Registration",
+        "Contract OF LEASE IF RENTING & COPY OF LESSOR'S PERMIT IF OWNED TAX DECLARATION OF LAND AND BUILDING",
+        "PROPERTY TAX RECEIPT OF LAND AND BUILDING",
+        "PICTURE OF OWNER",
+        "PANORAMIC PICTURE OF THE ESTABLISHMENT",
+        "PICTURE OF THE ESTABLISHMENT'S SHOWING INSTALLED CCTV CAMERA",
+        "LOCATIONAL SKETCH",
+        "PROFILE OF G-CASH/PAYMAYA",
       ];
 
       if (projectType === "Commercial" && zoneType === "Residential Zone") {
@@ -715,98 +1039,223 @@ const Account = ({ initialMenu }) => {
 
   const downloadReceipt = (details) => {
     try {
-      const reference = details.reference || `TP-${Date.now()}`;
-      const date = details.timestamp ? new Date(details.timestamp).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : new Date().toLocaleDateString();
-      const clientName = localStorage.getItem("name") || "__________________________";
-      const businessName = details.businessName || "_______________________";
-      const address = details.address || "___________________________";
-      const contact = localStorage.getItem("contactNumber") || "_________________________";
-      const method = details.method || "";
-      const bank = details.bank || "";
+      const paymentData = details || {};
+      const reference = paymentData.reference || paymentData.paymentReference || paymentReference || `TP-${Date.now()}`;
+      const date = paymentData.timestamp || paymentData.createdAt || paymentData.date
+        ? new Date(paymentData.timestamp || paymentData.createdAt || paymentData.date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+        : new Date().toLocaleDateString();
+
+      const matchedApplication = applications.find((app) => {
+        if (!app) return false;
+        return String(app._id || app.id) === String(paymentData.applicationId || "");
+      });
+
+      const clientName = paymentData.name || localStorage.getItem("name") || "__________________________";
+      const businessName = matchedApplication?.businessName || paymentData.businessName || "_______________________";
+      const address = matchedApplication?.address
+        ? [
+            matchedApplication.address.street,
+            matchedApplication.address.barangay,
+            matchedApplication.address.city,
+            matchedApplication.address.province,
+          ]
+            .filter(Boolean)
+            .join(", ")
+        : paymentData.address || "___________________________";
+      const contact =
+        matchedApplication?.contact?.contactNumber ||
+        matchedApplication?.contactNumber ||
+        paymentData.contact ||
+        localStorage.getItem("contactNumber") ||
+        "_________________________";
+      const method = paymentData.paymentMethod || paymentMethod || "";
+      const formattedMethod = method === "gcash" ? "GCash" : method === "card" ? "Bank/Card" : method;
+      const amount = Number(paymentData.amount || paymentAmount || calculatedPaymentAmount || 0);
+
+      const breakdownRows = paymentFeeBreakdown
+        .map((fee, index) => `<tr><td>${index + 1}</td><td>${fee.label}</td><td style="text-align:right">₱${Number(fee.amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`)
+        .join("");
 
       const html = `
         <!doctype html>
         <html>
         <head>
           <meta charset="utf-8" />
-          <title>TRUSTPERMIT SERVICES - Official Receipt</title>
+          <title>TRUSTPERMIT - Payment Receipt</title>
           <style>
-            body { font-family: Arial, Helvetica, sans-serif; padding: 32px; color: #22223b; background: #f8f9fa; }
-            .receipt { max-width: 800px; margin: 0 auto; background: #fff; border: 1px solid #E5E7EB; border-radius: 12px; box-shadow: 0 2px 8px #e5e7eb; padding: 32px; }
-            h1 { color: #4F46E5; font-size: 2rem; margin-bottom: 0; }
-            h2 { color: #22223b; font-size: 1.2rem; margin-top: 0; }
-            .section { margin: 24px 0; }
-            .label { font-weight: bold; }
-            .breakdown-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-            .breakdown-table th, .breakdown-table td { border: 1px solid #E5E7EB; padding: 8px 12px; text-align: left; }
-            .breakdown-table th { background: #f3f4f6; }
-            .summary { font-size: 1.1rem; margin-top: 12px; }
-            .summary strong { font-size: 1.2rem; }
-            .payment-methods { margin: 12px 0; }
-            .notes { font-size: 0.98rem; color: #555; margin-top: 12px; }
-            .footer { margin-top: 32px; text-align: center; color: #4F46E5; font-weight: bold; font-size: 1.1rem; }
-            .divider { border-top: 1px solid #E5E7EB; margin: 18px 0; }
+            * { box-sizing: border-box; }
+            body {
+              margin: 0;
+              padding: 32px;
+              font-family: Arial, Helvetica, sans-serif;
+              color: #111827;
+              background: #e5e7eb;
+            }
+            .receipt-card {
+              max-width: 760px;
+              margin: 0 auto;
+              background: #ffffff;
+              border-radius: 20px;
+              padding: 34px 36px 30px;
+              box-shadow: 0 10px 30px rgba(17, 24, 39, 0.12);
+            }
+            .success-check {
+              width: 88px;
+              height: 88px;
+              border-radius: 50%;
+              background: #20c05c;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              margin: 0 auto 18px;
+              color: white;
+              font-size: 42px;
+              font-weight: 700;
+            }
+            .title {
+              text-align: center;
+              font-size: 2.1rem;
+              font-weight: 700;
+              margin: 0 0 8px;
+            }
+            .subtitle {
+              text-align: center;
+              margin: 0;
+              color: #6b7280;
+              font-size: 1rem;
+            }
+            .subtitle span {
+              font-weight: 700;
+            }
+            .divider {
+              border-top: 2px dashed #cbd5e1;
+              margin: 24px 0 22px;
+            }
+            .receipt-table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+            .receipt-table th,
+            .receipt-table td {
+              padding: 10px 6px;
+              text-align: left;
+              border-bottom: 1px solid transparent;
+            }
+            .receipt-table th {
+              font-size: 0.95rem;
+              color: #374151;
+              font-weight: 700;
+            }
+            .receipt-table td:nth-child(3),
+            .receipt-table th:nth-child(3) {
+              text-align: right;
+            }
+            .receipt-table .desc {
+              display: block;
+              color: #6b7280;
+              font-size: 0.86rem;
+              margin-top: 2px;
+            }
+            .summary-box {
+              margin-top: 24px;
+              background: #f3f4f6;
+              border-radius: 12px;
+              padding: 18px 20px;
+            }
+            .summary-row {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              gap: 16px;
+              margin: 10px 0;
+              font-size: 1rem;
+            }
+            .summary-row.total {
+              font-size: 1.25rem;
+              font-weight: 800;
+              margin-top: 14px;
+            }
+            .summary-row .label {
+              color: #4b5563;
+            }
+            .summary-row .value {
+              color: #111827;
+              font-weight: 700;
+            }
+            .summary-row .value.total-value {
+              color: #111827;
+              font-size: 1.35rem;
+            }
+            .button-wrap {
+              margin-top: 26px;
+              display: grid;
+              gap: 14px;
+            }
+            .btn-primary {
+              background: linear-gradient(135deg, #7c3aed, #6d28d9);
+              color: #fff;
+              border: none;
+              padding: 16px 18px;
+              border-radius: 12px;
+              font-size: 1.1rem;
+              font-weight: 700;
+              cursor: pointer;
+            }
+            .btn-secondary {
+              background: #ffffff;
+              border: 1px solid #d1d5db;
+              color: #111827;
+              padding: 14px 18px;
+              border-radius: 12px;
+              font-size: 1.02rem;
+              font-weight: 700;
+              cursor: pointer;
+            }
+            .meta {
+              color: #6b7280;
+              font-size: 0.92rem;
+            }
           </style>
         </head>
         <body>
-          <div class="receipt">
-            <h1>TRUSTPERMIT SERVICES</h1>
-            <h2>Permit Processing & Documentation Assistance</h2>
+          <div class="receipt-card">
+            <div class="success-check">✓</div>
+            <h1 class="title">Payment Successful</h1>
+            <p class="subtitle">Order number: <span>${reference}</span></p>
+            <p class="subtitle">Order date: ${date}</p>
+
             <div class="divider"></div>
-            <div class="section">
-              <span class="label">Receipt No.:</span> TP-2026-0001<br>
-              <span class="label">Date Issued:</span> ${date}
+
+            <table class="receipt-table">
+              <thead>
+                <tr>
+                  <th style="width: 10%;">№</th>
+                  <th>Item</th>
+                  <th style="width: 22%;">Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${breakdownRows}
+              </tbody>
+            </table>
+
+            <div class="summary-box">
+              <div class="summary-row total">
+                <span class="label">Total</span>
+                <span class="value total-value">₱${amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              <div class="summary-row">
+                <span class="label">Payment method</span>
+                <span class="value">${formattedMethod || "Payment Method"}</span>
+              </div>
+              <div class="summary-row">
+                <span class="label">Tax</span>
+                <span class="value">₱0.00</span>
+              </div>
             </div>
-            <div class="section">
-              <span class="label">Client Name:</span> ${clientName}<br>
-              <span class="label">Business Name:</span> ${businessName}<br>
-              <span class="label">Address:</span> ${address}<br>
-              <span class="label">Contact No.:</span> ${contact}
-            </div>
-            <div class="divider"></div>
-            <div class="section">
-              <h3>📋 PERMIT PROCESS BREAKDOWN</h3>
-              <table class="breakdown-table">
-                <tr><th>Step</th><th>Process Description</th><th style="text-align:right">Fee (PHP)</th></tr>
-                <tr><td>1</td><td>Barangay Clearance</td><td style="text-align:right">₱500.00</td></tr>
-                <tr><td>2</td><td>DTI / SEC Registration Assistance</td><td style="text-align:right">₱1,500.00</td></tr>
-                <tr><td>3</td><td>Mayor’s Permit Processing</td><td style="text-align:right">₱2,500.00</td></tr>
-                <tr><td>4</td><td>BIR Registration (TIN & Books)</td><td style="text-align:right">₱2,000.00</td></tr>
-                <tr><td>5</td><td>Sanitary Permit</td><td style="text-align:right">₱800.00</td></tr>
-                <tr><td>6</td><td>Fire Safety Inspection Certificate (FSIC)</td><td style="text-align:right">₱1,200.00</td></tr>
-                <tr><td>7</td><td>Environmental Clearance (if applicable)</td><td style="text-align:right">₱1,000.00</td></tr>
-                <tr><td>8</td><td>Documentation & Processing Fee</td><td style="text-align:right">₱2,000.00</td></tr>
-              </table>
-            </div>
-            <div class="divider"></div>
-            <div class="section summary">
-              <div><strong>Subtotal:</strong> ₱11,500.00</div>
-              <div><strong>Service Charge:</strong> ₱500.00</div>
-              <div><strong>TOTAL AMOUNT:</strong> <span style="font-size:1.3rem; color:#16a34a;">₱12,000.00</span></div>
-            </div>
-            <div class="divider"></div>
-            <div class="section payment-methods">
-              <h3>💳 PAYMENT METHOD</h3>
-              <div>☐ GCash</div>
-              <div>☐ Bank Transfer</div>
-              <div style="margin-top:8px;"><span class="label">Reference No.:</span> ${reference}</div>
-            </div>
-            <div class="divider"></div>
-            <div class="section notes">
-              <h3>📝 NOTES</h3>
-              <ul>
-                <li>Processing time: 5–10 working days</li>
-                <li>Fees may vary depending on business type and location</li>
-                <li>Client must provide complete requirements</li>
-              </ul>
-            </div>
-            <div class="divider"></div>
-            <div class="section">
-              <span class="label">Processed by:</span> _________________________
-            </div>
-            <div class="footer">
-              Thank you for choosing TRUSTPERMIT!<br>
-              Your trusted partner in fast and reliable permit processing.
+
+            <div class="button-wrap">
+              <button class="btn-primary" type="button" onclick="try { if (window.opener && !window.opener.closed) { window.opener.location.href='/'; } else { window.location.href='/'; } } catch (e) { window.location.href='/'; } finally { window.close(); }">Back to Home Page</button>
             </div>
           </div>
         </body>
@@ -845,6 +1294,7 @@ const Account = ({ initialMenu }) => {
       const data = reader.result;
       try {
         localStorage.setItem("profileImage", data);
+        window.dispatchEvent(new Event("profileImageUpdated"));
       } catch (e) {
         // ignore storage errors
       }
@@ -887,6 +1337,17 @@ const Account = ({ initialMenu }) => {
   const normalizeReleasedPermit = (payment) => {
     const app = payment.applicationId || {};
     const appId = typeof app === "object" ? app._id : app;
+    const releaseDate = payment.permitReleasedAt ? new Date(payment.permitReleasedAt) : payment.updatedAt ? new Date(payment.updatedAt) : payment.createdAt ? new Date(payment.createdAt) : null;
+    const expiryDateFromApp = app.expiryDate ? new Date(app.expiryDate) : null;
+    const expiryDate = expiryDateFromApp
+      ? expiryDateFromApp
+      : releaseDate
+      ? new Date(releaseDate.setFullYear(releaseDate.getFullYear() + 1))
+      : null;
+    const isExpired = expiryDate ? expiryDate < new Date() : false;
+    const isRenewal =
+      String(app.applicationType || "").toLowerCase() === "renewal" ||
+      Boolean(app.previousApplicationId);
 
     return {
       permitId: appId || payment._id || payment.id,
@@ -899,10 +1360,15 @@ const Account = ({ initialMenu }) => {
         app.lineOfBusiness ||
         app.applicationType ||
         "N/A",
+      applicationType: app.applicationType || "New Application",
+      previousApplicationId: app.previousApplicationId || null,
+      expiryDate,
+      isExpired,
+      isRenewal,
       permitStatus: payment.permitReleased ? "Active" : "Pending Release",
       paymentStatus: payment.status || "paid",
       permitReleased: Boolean(payment.permitReleased),
-      releasedAt: payment.permitReleasedAt || payment.updatedAt || payment.createdAt,
+      releasedAt: releaseDate,
       verificationUrl: payment.verificationUrl || "",
     };
   };
@@ -943,6 +1409,32 @@ const Account = ({ initialMenu }) => {
     const permitEmail = String(permit.email || "").toLowerCase();
     return permitEmail === currentUserEmail;
   });
+
+  const hasReleasedPermit = userReleasedPermits.length > 0;
+
+  const currentPaymentApplication = useMemo(() => {
+    if (!applications || !applications.length) return null;
+
+    if (applicationId) {
+      return applications.find((app) => String(app._id || app.id) === String(applicationId)) || null;
+    }
+
+    return applications.find((app) => {
+      const status = String(app.status || "").toLowerCase();
+      return app && app._id && status !== "released" && status !== "rejected";
+    }) || null;
+  }, [applications, applicationId]);
+
+  const hasCurrentApplicationReleased = useMemo(() => {
+    if (!currentPaymentApplication) return false;
+    const currentAppId = String(currentPaymentApplication._id || currentPaymentApplication.id || "");
+    return userReleasedPermits.some((permit) => String(permit.applicationId || permit.permitId || "") === currentAppId);
+  }, [currentPaymentApplication, userReleasedPermits]);
+
+  const hasReleaseWithoutCurrentApplication = !currentPaymentApplication && hasReleasedPermit;
+
+  const canViewRenewalFees = !hasCurrentApplicationReleased && !hasReleaseWithoutCurrentApplication && (isRenewalPayment || hasApprovedInspection);
+  const canProceedToPayment = !hasCurrentApplicationReleased && !hasReleaseWithoutCurrentApplication && hasApprovedInspection;
 
   const printReleasedPermit = (permit) => {
     const permitId = permit.permitId || `PERMIT-${Date.now()}`;
@@ -1016,7 +1508,13 @@ const Account = ({ initialMenu }) => {
   const savePaymentRecord = (record) => {
     try {
       const list = JSON.parse(localStorage.getItem("paymentHistory") || "[]");
-      list.unshift(record);
+      const enriched = {
+        ...record,
+        email: record.email || userEmail || "",
+        reference: record.reference || record.paymentReference || record._id || record.id || `TP-${Date.now()}`,
+        timestamp: record.createdAt || record.updatedAt || record.timestamp || new Date().toISOString(),
+      };
+      list.unshift(enriched);
       localStorage.setItem("paymentHistory", JSON.stringify(list));
       setPaymentHistory(list);
     } catch (e) {
@@ -1026,14 +1524,37 @@ const Account = ({ initialMenu }) => {
 
   // ================= CONTENT RENDER =================
   const handlePayment = async () => {
+    if (!canProceedToPayment) {
+      setModal({
+        open: true,
+        title: "Payment Unavailable",
+        message: "Your inspection must be approved before payment can be processed.",
+        buttonText: "OK",
+        variant: "error",
+      });
+      return;
+    }
+
     if (!paymentMethod || !paymentAmount || Number(paymentAmount) <= 0) {
-      alert("Please enter a valid amount and select a payment method.");
+      setModal({
+        open: true,
+        title: "Invalid Payment",
+        message: "Please enter a valid amount and select a payment method.",
+        buttonText: "OK",
+        variant: "error",
+      });
       return;
     }
 
     const token = localStorage.getItem("token");
     if (!token) {
-      alert("Please log in first before making a payment.");
+      setModal({
+        open: true,
+        title: "Not Logged In",
+        message: "Please log in first before making a payment.",
+        buttonText: "OK",
+        variant: "error",
+      });
       return;
     }
 
@@ -1046,14 +1567,26 @@ const Account = ({ initialMenu }) => {
 
     if (isGCash) {
       if (!payerName || !payerEmail || !paymentReference.trim() || !amount) {
-        alert("Please complete all GCash payment fields.");
+        setModal({
+          open: true,
+          title: "Incomplete GCash Details",
+          message: "Please complete all GCash payment fields.",
+          buttonText: "OK",
+          variant: "error",
+        });
         return;
       }
     }
 
     if (!isGCash) {
       if (!payerName || !payerEmail || !paymentReference.trim() || !cardExpiry.trim() || !cardCvc.trim() || !amount) {
-        alert("Please complete all Bank/Card payment fields.");
+        setModal({
+          open: true,
+          title: "Incomplete Card Details",
+          message: "Please complete all Bank/Card payment fields.",
+          buttonText: "OK",
+          variant: "error",
+        });
         return;
       }
     }
@@ -1076,7 +1609,13 @@ if (!paymentApplicationId) {
 }
 
 if (!paymentApplicationId) {
-  alert("No valid application found for payment. Please submit an application first.");
+  setModal({
+    open: true,
+    title: "Application Required",
+    message: "No valid application found for payment. Please submit an application first.",
+    buttonText: "OK",
+    variant: "error",
+  });
   return;
 }
 
@@ -1091,80 +1630,94 @@ if (!paymentApplicationId) {
 
     console.log("PAYMENT PAYLOAD:", payload);
 
-    const ok = window.confirm(`Proceed to pay PHP ${amount.toLocaleString("en-PH")} using ${methodForEmail}?`);
-    if (!ok) return;
+    // Replace native confirm with centered modal: define payment executor
+    const doPayment = async () => {
+      // show processing modal immediately
+      setModal({ open: true, title: "Processing Payment", message: "Please wait, processing payment...", hideActions: true, variant: "default" });
 
-    setProcessingPayment(true);
-    setPaymentStatus(null);
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/payments`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error(data.message || data.error || `Payment failed with status ${res.status}`);
-      }
-
-      const savedPayment = data.payment || payload;
-      const record = { ...payload, ...savedPayment };
+      setProcessingPayment(true);
+      setPaymentStatus(null);
 
       try {
-        await emailjs.send(
-          process.env.REACT_APP_EMAILJS_SERVICE_ID,
-          process.env.REACT_APP_EMAILJS_PAYMENT_TEMPLATE_ID,
-          {
-            name: payload.name,
-            user_email: payload.email,
-            amount: Number(payload.amount).toLocaleString("en-PH", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            }),
-            payment_method: methodForEmail,
-            status: "Paid",
-            date: new Date().toLocaleString("en-PH"),
+        const res = await fetch(`${API_BASE_URL}/api/payments`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
-          process.env.REACT_APP_EMAILJS_PUBLIC_KEY
-        );
-      } catch (emailErr) {
-        console.error("Payment saved, but email failed:", emailErr);
-        alert("Payment saved successfully, but the confirmation email was not sent.");
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(data.message || data.error || `Payment failed with status ${res.status}`);
+        }
+
+        const savedPayment = data.payment || payload;
+        const record = { ...payload, ...savedPayment };
+
+        try {
+          await emailjs.send(
+            process.env.REACT_APP_EMAILJS_SERVICE_ID,
+            process.env.REACT_APP_EMAILJS_PAYMENT_TEMPLATE_ID,
+            {
+              name: payload.name,
+              user_email: payload.email,
+              amount: Number(payload.amount).toLocaleString("en-PH", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }),
+              payment_method: methodForEmail,
+              status: "Paid",
+              date: new Date().toLocaleString("en-PH"),
+            },
+            process.env.REACT_APP_EMAILJS_PUBLIC_KEY
+          );
+        } catch (emailErr) {
+          console.error("Payment saved, but email failed:", emailErr);
+          setModal({ open: true, title: "Payment Saved", message: "Payment saved successfully, but the confirmation email was not sent.", buttonText: "OK", variant: "default" });
+        }
+
+        setPaymentStatus({
+          success: true,
+          message: data.message || "Payment saved successfully.",
+          details: record,
+        });
+
+        savePaymentRecord(record);
+        setPaymentCompleted(true);
+
+        await fetchReleasedPermits();
+
+        setModal({ open: true, title: "Transaction Successful", message: "Payment saved successfully. Please wait for staff approval/release before printing your permit.", buttonText: "Got it", variant: "success", hideActions: false });
+
+        setPaymentAmount("");
+        setPaymentReference("");
+        setGcashName(userName || "");
+        setBillingEmail(userEmail || "");
+        setCardHolderName("");
+        setCardExpiry("");
+        setCardCvc("");
+      } catch (err) {
+        console.error("Payment error:", err);
+        setModal({ open: true, title: "Payment Error", message: err.message || "Payment failed. Please try again.", buttonText: "OK", variant: "error" });
+      } finally {
+        setProcessingPayment(false);
       }
+    };
 
-      setPaymentStatus({
-        success: true,
-        message: data.message || "Payment saved successfully.",
-        details: record,
-      });
-
-      savePaymentRecord(record);
-
-      // Do not show the Print Permit button yet.
-      // The company will appear in List of Companies only after staff approves/releases the permit.
-      await fetchReleasedPermits();
-
-      alert("Payment saved successfully. Please wait for staff approval/release before printing your permit.");
-
-      setPaymentAmount("");
-      setPaymentReference("");
-      setGcashName(userName || "");
-      setBillingEmail(userEmail || "");
-      setCardHolderName("");
-      setCardExpiry("");
-      setCardCvc("");
-    } catch (err) {
-      console.error("Payment error:", err);
-      alert(err.message || "Payment failed. Please try again.");
-    } finally {
-      setProcessingPayment(false);
-    }
+    // Show confirm modal instead of native confirm
+    setModal({
+      open: true,
+      title: "Confirm Payment",
+      message: `Proceed to pay PHP ${amount.toLocaleString("en-PH")} using ${methodForEmail}?`,
+      buttonText: "Pay",
+      cancelText: "Cancel",
+      variant: "default",
+      onConfirm: doPayment,
+      onCancel: () => setModal({ open: false }),
+    });
   };
 
   const renderContent = () => {
@@ -1212,9 +1765,7 @@ if (!paymentApplicationId) {
           </p>
         </div>
 
-        <button className="btn" type="button" onClick={() => setActiveMenu("Apply Permit")}>
-          Apply New Permit
-        </button>
+        
       </div>
 
       <div className="recent-applications-table-shell">
@@ -1224,6 +1775,8 @@ if (!paymentApplicationId) {
               <tr>
                 <th>Company Name</th>
                 <th>Business Type</th>
+                <th>Permit Type</th>
+                <th>Expiry</th>
                 <th>Permit Status</th>
                 <th>Actions</th>
               </tr>
@@ -1232,19 +1785,47 @@ if (!paymentApplicationId) {
             <tbody>
               {userReleasedPermits.length === 0 ? (
                 <tr>
-                  <td colSpan="4" style={{ textAlign: "center", padding: "24px", color: "#6B7280" }}>
-                    No released permits yet. Once the payment is approved/released, the company will appear here.
+                  <td colSpan="6" style={{ textAlign: "center", padding: "24px", color: "#6B7280" }}>
+                    No released permits yet. Once a permit or renewal is approved/released, it will appear here.
                   </td>
                 </tr>
               ) : (
-                userReleasedPermits.map((company) => (
-                  <tr key={company.permitId}>
+                userReleasedPermits.map((company, idx) => {
+                  const rowKey = company.permitId || `company-${idx}`;
+                  return (
+                  <tr key={rowKey}>
                     <td>{company.companyName || "Registered Business"}</td>
                     <td>{company.businessType || "N/A"}</td>
                     <td>
-                      <span className="dashboard-status-badge approved">
+                      <span
+                        className={`dashboard-status-badge ${company.isExpired ? "rejected" : company.isRenewal ? "pending" : "approved"}`}
+                      >
                         <span className="status-dot" aria-hidden="true"></span>
-                        {company.permitStatus || "Active"}
+                        {company.isExpired
+                          ? "Expired"
+                          : company.isRenewal
+                          ? "Renewal"
+                          : company.applicationType || "New"}
+                      </span>
+                    </td>
+                    <td>
+                      {company.expiryDate ? (
+                        <span className="dashboard-status-badge pending">
+                          <span className="status-dot" aria-hidden="true"></span>
+                          {new Date(company.expiryDate).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td>
+                      <span className={`dashboard-status-badge ${company.permitReleased ? "approved" : "pending"}`}>
+                        <span className="status-dot" aria-hidden="true"></span>
+                        {company.permitStatus || (company.permitReleased ? "Active" : "Pending Release")}
                       </span>
                     </td>
                     <td>
@@ -1252,16 +1833,16 @@ if (!paymentApplicationId) {
                         {/* View Dropdown */}
                         <div style={{ position: "relative" }}>
                           <button
-                            className="btn small"
+                            className="action-btn action-btn-outline"
                             type="button"
                             onClick={() =>
-                              setOpenViewDropdown(openViewDropdown === company.permitId ? null : company.permitId)
+                              setOpenViewDropdown(openViewDropdown === idx ? null : idx)
                             }
                           >
                             View
                           </button>
 
-                          {openViewDropdown === company.permitId && (
+                          {openViewDropdown === idx && (
                             <div
                               style={{
                                 position: "absolute",
@@ -1284,12 +1865,6 @@ if (!paymentApplicationId) {
                               </button>
                               <button
                                 className="dropdown-item"
-                                onClick={() => viewPayment(company.paymentId)}
-                              >
-                                Payment
-                              </button>
-                              <button
-                                className="dropdown-item"
                                 onClick={() => viewUploadedDocuments(company.applicationId)}
                               >
                                 Uploaded Documents
@@ -1300,22 +1875,9 @@ if (!paymentApplicationId) {
 
                         {/* Renew Button */}
                         <button
-                          className="renew-btn"
+                          className="action-btn action-btn-outline"
                           type="button"
-                          style={{
-                            backgroundColor: "#dc2626",
-                            color: "#ffffff",
-                            border: "none",
-                            borderRadius: "8px",
-                            padding: "8px 14px",
-                            fontWeight: "600",
-                            cursor: "pointer",
-                          }}
-                          onClick={() => {
-                            setApplicationType("Renewal");
-                            setPermitStep(1);
-                            setActiveMenu("Apply Permit");
-                          }}
+                          onClick={() => loadRenewalApplication(company.applicationId)}
                         >
                           Renew
                         </button>
@@ -1323,19 +1885,27 @@ if (!paymentApplicationId) {
                         {/* Print Permit */}
                         {company.paymentStatus === "approved" && company.permitReleased === true && (
                           <button
-                            className="print-permit-btn"
+                            className="action-btn action-btn-download"
                             type="button"
                             onClick={() =>
                               window.open(`/permit/print/${company.applicationId}`, "_blank")
                             }
                           >
-                            Print Permit
+                            <span className="action-btn-icon" aria-hidden="true">
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M8 11.3334V3.99998" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                                <path d="M4 7.99998L8 11.99998L12 7.99998" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                <path d="M3.3335 13.3333H12.6668" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                              </svg>
+                            </span>
+                            Download
                           </button>
                         )}
                       </div>
                     </td>
                   </tr>
-                ))
+                );
+                })
               )}
             </tbody>
           </table>
@@ -1353,9 +1923,13 @@ if (!paymentApplicationId) {
             {appFormStep === 1 ? (
               <div>
                 <label>Application Type</label>
-                <select className="input" value={applicationType} onChange={(e) => setApplicationType(e.target.value)}>
-                  <option>New Application</option>
-                  <option>Renewal</option>
+                <select
+                  className="input"
+                  value={applicationType}
+                  onChange={(e) => setApplicationType(e.target.value)}
+                  disabled={isRenewalMode}
+                >
+                  {isRenewalMode ? <option>Renewal</option> : <option>New Application</option>}
                 </select>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -1550,12 +2124,6 @@ if (!paymentApplicationId) {
         );
 
       case "Apply Permit": {
-        const permitRequirements = [
-          "Proof of business registration, incorporation, or legal personality [i.e., DTI/SEC/Cooperative Development Authority (CDA) registration].",
-          "Basis for computing taxes, fees, and charges (e.g. business capitalization).",
-          "Occupancy Permit, if required by national laws (e.g. Building Code) and local laws; (subject to post audit requirements as per Ordinance No. 322, Series of 2016).",
-          "Contract of Lease (if Lessee).",
-        ];
         const permitSteps = [
           { num: "01", label: "Taxpayer Information" },
           { num: "02", label: "Business Information" },
@@ -1576,33 +2144,12 @@ if (!paymentApplicationId) {
                 className={`permit-top-tab ${permitLicenseTab === "check" ? "active" : ""}`}
                 onClick={() => setPermitLicenseTab("check")}
               >
-                <span className="permit-tab-check">✔</span> CHECK SENT E-MAIL
+                <span className="permit-tab-check">✔</span> CHECK REQUIREMENTS
               </button>
             </div>
 
             {permitLicenseTab === "new" ? (
               <div className="permit-form-card">
-                {/* Requirements Accordion */}
-                <div className="permit-requirements-box">
-                  <button
-                    className="permit-requirements-toggle"
-                    onClick={() => setShowRequirements(!showRequirements)}
-                  >
-                    <span>📋 REQUIREMENTS</span>
-                    <span>{showRequirements ? "▲" : "▼"}</span>
-                  </button>
-                  {showRequirements && (
-                    <div className="permit-requirements-content">
-                      <strong>New Business Registration:</strong>
-                      <ol>
-                        {permitRequirements.map((req, i) => (
-                          <li key={i}>{req}</li>
-                        ))}
-                      </ol>
-                    </div>
-                  )}
-                </div>
-
                 {/* Step Wizard */}
                 <div className="permit-steps">
                   {permitSteps.map((step, idx) => (
@@ -1629,117 +2176,274 @@ if (!paymentApplicationId) {
                     <div className="permit-row permit-row-2">
                       <div className="permit-field">
                         <label className="permit-label">Application Type <span className="req-star">*</span></label>
-                        <select className="input" value={applicationType} onChange={e => setApplicationType(e.target.value)}>
-                          <option>New Application</option>
-                          <option>Renewal</option>
+                        <select
+                          className="input"
+                          value={applicationType}
+                          onChange={e => setApplicationType(e.target.value)}
+                          disabled={isRenewalMode}
+                        >
+                          {isRenewalMode ? <option>Renewal</option> : <option>New Application</option>}
                         </select>
+                      </div>
+                      <div className="permit-field" style={{ position: "relative" }}>
+                        <label className="permit-label">Line of Business</label>
+                        <input
+                          className="input"
+                          type="text"
+                          placeholder={businessCategoryMain ? `Search ${businessCategoryMain} options...` : "Search business category or line of business"}
+                          value={businessSubSearch || lineOfBusiness}
+                          onChange={(e) => {
+                            setBusinessSubSearch(e.target.value);
+                            setLineOfBusiness("");
+                            if (businessCategoryMain && e.target.value.trim() === "") {
+                              setBusinessCategoryMain(businessCategoryMain);
+                            }
+                          }}
+                          onFocus={() => setBusinessSubFocused(true)}
+                          onBlur={() => setTimeout(() => setBusinessSubFocused(false), 150)}
+                        />
+
+                        {businessSubFocused && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: "calc(100% + 6px)",
+                              left: 0,
+                              right: 0,
+                              border: "1px solid #d9d9f3",
+                              borderRadius: 10,
+                              background: "#ffffff",
+                              boxShadow: "0 14px 36px rgba(15, 23, 42, 0.12)",
+                              zIndex: 1200,
+                              maxHeight: 260,
+                              overflowY: "auto",
+                            }}
+                          >
+                            {!businessCategoryMain ? (
+                              getFilteredBusinessOptions().map((category) => (
+                                <button
+                                  key={category}
+                                  type="button"
+                                  onMouseDown={() => {
+                                    setBusinessCategoryMain(category);
+                                    setBusinessSubSearch("");
+                                  }}
+                                  style={{
+                                    display: "block",
+                                    width: "100%",
+                                    padding: "12px 14px",
+                                    border: "none",
+                                    background: "transparent",
+                                    textAlign: "left",
+                                    cursor: "pointer",
+                                    color: "#0f172a",
+                                  }}
+                                >
+                                  {category}
+                                </button>
+                              ))
+                            ) : (
+                              <>
+                                <div style={{ padding: "12px 14px", borderBottom: "1px solid #eef2ff", color: "#475569", fontSize: "0.95rem" }}>
+                                  Select a line of business for <strong>{businessCategoryMain}</strong>
+                                </div>
+                                {getFilteredBusinessOptions().map((option) => (
+                                  <button
+                                    key={option}
+                                    type="button"
+                                    onMouseDown={() => {
+                                      setLineOfBusiness(option);
+                                      setBusinessSubSearch(option);
+                                      setBusinessSubFocused(false);
+                                    }}
+                                    style={{
+                                      display: "block",
+                                      width: "100%",
+                                      padding: "12px 14px",
+                                      border: "none",
+                                      background: "transparent",
+                                      textAlign: "left",
+                                      cursor: "pointer",
+                                      color: "#0f172a",
+                                    }}
+                                  >
+                                    {highlightMatch(option, businessSubSearch)}
+                                  </button>
+                                ))}
+                                <button
+                                  type="button"
+                                  onMouseDown={() => {
+                                    setBusinessCategoryMain("");
+                                    setBusinessSubSearch("");
+                                  }}
+                                  style={{
+                                    display: "block",
+                                    width: "100%",
+                                    padding: "12px 14px",
+                                    borderTop: "1px solid #eef2ff",
+                                    background: "#f8fafc",
+                                    textAlign: "left",
+                                    cursor: "pointer",
+                                    color: "#2563eb",
+                                  }}
+                                >
+                                  Change category
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     {/* Show different fields for Renewal */}
                     {applicationType === "Renewal" ? (
-                      // ...existing code for Renewal fields...
                       <>
-                        <h4>🧾 1. BUSINESS INFORMATION</h4>
-                        <label>Business Name</label>
-                        <input className="input" value={businessName} onChange={e => setBusinessName(e.target.value)} />
-                        <label>Trade Name (if different)</label>
-                        <input className="input" />
-                        <label>Business Address</label>
-                        <input className="input" />
-                        <label>Barangay</label>
-                        <input className="input" value={barangay} onChange={e => setBarangay(e.target.value)} />
-                        <label>Contact Number / Email</label>
-                        <input className="input" value={contactNumber} onChange={e => setContactNumber(e.target.value)} />
-                        <label>Business Area (sqm)</label>
-                        <input className="input" value={businessArea} onChange={e => setBusinessArea(e.target.value)} />
-                        <label>Ownership Type</label>
-                        <select className="input" value={ownershipType} onChange={e => setOwnershipType(e.target.value)}>
-                          <option>Sole Proprietor</option>
-                          <option>Partnership</option>
-                          <option>Corporation</option>
-                        </select>
-                        <h4>👤 2. OWNER / APPLICANT DETAILS</h4>
-                        <label>Name of Owner / Authorized Representative</label>
-                        <input className="input" value={firstName} onChange={e => setFirstName(e.target.value)} />
-                        <label>Home Address</label>
-                        <input className="input" />
-                        <label>Contact Number</label>
-                        <input className="input" value={contactNumber} onChange={e => setContactNumber(e.target.value)} />
-                        <label>TIN (Tax Identification Number)</label>
-                        <input className="input" value={tin} onChange={e => setTin(e.target.value)} />
-                        <label>Position</label>
-                        <select className="input" value={registrantPosition} onChange={e => setRegistrantPosition(e.target.value)}>
-                          <option>Owner</option>
-                          <option>Manager</option>
-                          <option>Representative</option>
-                        </select>
-                        <h4>🏢 3. REGISTRATION DETAILS</h4>
-                        <label>DTI Number (for sole prop)</label>
-                        <input className="input" />
-                        <label>SEC Registration (for corporation)</label>
-                        <input className="input" />
-                        <label>CDA (for cooperatives)</label>
-                        <input className="input" />
-                        <label>Date of Registration</label>
-                        <input className="input" type="date" />
-                        <h4>💰 4. FINANCIAL INFORMATION (VERY IMPORTANT)</h4>
-                        <label>Gross Sales / Receipts (previous year)</label>
-                        <input className="input" />
-                        <label>Capitalization (if needed)</label>
-                        <input className="input" />
-                        <label>Financial Statement (upload)</label>
-                        <input className="input" type="file" />
-                        <label>OR Sworn Declaration (upload)</label>
-                        <input className="input" type="file" />
-                        <h4>🏭 5. BUSINESS ACTIVITY</h4>
-                        <label>Nature of Business</label>
-                        <input className="input" />
-                        <label>Line of Business</label>
-                        <input className="input" value={lineOfBusiness} onChange={e => setLineOfBusiness(e.target.value)} />
-                        <label>Number of Employees</label>
-                        <input className="input" />
-                        <h4>📍 6. LOCATION & PROPERTY INFO</h4>
-                        <label>Owned or Leased?</label>
-                        <select className="input">
-                          <option>Owned</option>
-                          <option>Leased</option>
-                        </select>
-                        <label>If leased: Name of Lessor</label>
-                        <input className="input" />
-                        <label>Lease Contract details</label>
-                        <input className="input" />
-                        <label>TCT / Tax Declaration number</label>
-                        <input className="input" />
-                        <h4>📋 7. CLEARANCES</h4>
-                        <label>Barangay Clearance (upload)</label>
-                        <input className="input" type="file" />
-                        <label>Fire Safety (BFP) (upload)</label>
-                        <input className="input" type="file" />
-                        <label>Sanitary Permit (upload)</label>
-                        <input className="input" type="file" />
-                        <label>Zoning Clearance (upload)</label>
-                        <input className="input" type="file" />
-                        <label>Environmental Permit (upload)</label>
-                        <input className="input" type="file" />
-                        <h4>✍️ 8. DECLARATION / UNDERTAKING</h4>
-                        <label>Declaration that all info is true</label>
-                        <input className="input" />
-                        <label>Agreement to comply with city ordinances</label>
-                        <input className="input" />
-                        <label>Signature of owner or authorized representative (upload)</label>
-                        <input className="input" type="file" />
-                        <h4>📎 9. ATTACHMENTS (UPLOAD / SUBMIT)</h4>
-                        <label>Previous Mayor’s Permit (upload)</label>
-                        <input className="input" type="file" />
-                        <label>Official Receipts (upload)</label>
-                        <input className="input" type="file" />
-                        <label>Financial Documents (upload)</label>
-                        <input className="input" type="file" />
-                        <label>Lease / Land Title (upload)</label>
-                        <input className="input" type="file" />
-                        <label>Barangay Clearance (upload)</label>
-                        <input className="input" type="file" />
+                        <h4 className="permit-section-subtitle">Business Information</h4>
+                        <div className="permit-row permit-row-2">
+                          <div className="permit-field">
+                            <label className="permit-label">Business Name</label>
+                            <input className="input" value={businessName} onChange={e => setBusinessName(e.target.value)} />
+                          </div>
+                          <div className="permit-field">
+                            <label className="permit-label">Business Line / Trade Name</label>
+                            <input className="input" value={lineOfBusiness} onChange={e => setLineOfBusiness(e.target.value)} />
+                          </div>
+                        </div>
+
+                        <div className="permit-row permit-row-2">
+                          <div className="permit-field">
+                            <label className="permit-label">Business Area (sqm)</label>
+                            <input className="input" type="number" value={businessArea} onChange={e => setBusinessArea(e.target.value)} />
+                          </div>
+                          <div className="permit-field">
+                            <label className="permit-label">Ownership Type</label>
+                            <select className="input" value={ownershipType} onChange={e => setOwnershipType(e.target.value)}>
+                              <option value="">Select ownership</option>
+                              <option>Sole Proprietor</option>
+                              <option>Partnership</option>
+                              <option>Corporation</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="permit-row permit-row-2">
+                          <div className="permit-field">
+                            <label className="permit-label">Business Address</label>
+                            <input className="input" value={street} onChange={e => setStreet(e.target.value)} placeholder="Street / Bldg" />
+                          </div>
+                          <div className="permit-field">
+                            <label className="permit-label">Barangay</label>
+                            <input className="input" value={barangay} onChange={e => setBarangay(e.target.value)} />
+                          </div>
+                        </div>
+
+                        <div className="permit-row permit-row-3">
+                          <div className="permit-field">
+                            <label className="permit-label">City / Municipality</label>
+                            <input className="input" value={city} onChange={e => setCity(e.target.value)} />
+                          </div>
+                          <div className="permit-field">
+                            <label className="permit-label">Province</label>
+                            <input className="input" value={province} onChange={e => setProvince(e.target.value)} />
+                          </div>
+                          <div className="permit-field">
+                            <label className="permit-label">Landmark / Area</label>
+                            <input className="input" value={landmark} onChange={e => setLandmark(e.target.value)} />
+                          </div>
+                        </div>
+
+                        <h4 className="permit-section-subtitle">Owner / Applicant Details</h4>
+                        <div className="permit-row permit-row-4">
+                          <div className="permit-field">
+                            <label className="permit-label">First Name</label>
+                            <input className="input" value={firstName} onChange={e => setFirstName(e.target.value)} />
+                          </div>
+                          <div className="permit-field">
+                            <label className="permit-label">Middle Name</label>
+                            <input className="input" value={middleName} onChange={e => setMiddleName(e.target.value)} />
+                          </div>
+                          <div className="permit-field">
+                            <label className="permit-label">Last Name</label>
+                            <input className="input" value={lastName} onChange={e => setLastName(e.target.value)} />
+                          </div>
+                          <div className="permit-field">
+                            <label className="permit-label">Suffix</label>
+                            <input className="input" value={suffixName} onChange={e => setSuffixName(e.target.value)} />
+                          </div>
+                        </div>
+
+                        <div className="permit-row permit-row-2">
+                          <div className="permit-field">
+                            <label className="permit-label">Contact Number</label>
+                            <input className="input" value={contactNumber} onChange={e => setContactNumber(e.target.value)} />
+                          </div>
+                          <div className="permit-field">
+                            <label className="permit-label">Email Address</label>
+                            <input className="input" value={applicantEmail} onChange={e => setApplicantEmail(e.target.value)} />
+                          </div>
+                        </div>
+
+                        <div className="permit-row permit-row-2">
+                          <div className="permit-field">
+                            <label className="permit-label">TIN</label>
+                            <input className="input" value={tin} onChange={e => setTin(e.target.value)} />
+                          </div>
+                          <div className="permit-field">
+                            <label className="permit-label">Position</label>
+                            <select className="input" value={registrantPosition} onChange={e => setRegistrantPosition(e.target.value)}>
+                              <option>Owner</option>
+                              <option>Manager</option>
+                              <option>Representative</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <h4 className="permit-section-subtitle">Additional Renewal Details</h4>
+                        <div className="permit-row permit-row-2">
+                          <div className="permit-field">
+                            <label className="permit-label">Business Permit No.</label>
+                            <input className="input" />
+                          </div>
+                          <div className="permit-field">
+                            <label className="permit-label">Date of Previous Permit</label>
+                            <input className="input" type="date" />
+                          </div>
+                        </div>
+
+                        <div className="permit-row permit-row-2">
+                          <div className="permit-field">
+                            <label className="permit-label">DTI / SEC Number</label>
+                            <input className="input" />
+                          </div>
+                          <div className="permit-field">
+                            <label className="permit-label">Lease / Land Title No.</label>
+                            <input className="input" />
+                          </div>
+                        </div>
+
+                        <h4 className="permit-section-subtitle">Clearances / Attachments</h4>
+                        <div className="permit-row permit-row-2">
+                          <div className="permit-field">
+                            <label className="permit-label">Barangay Clearance</label>
+                            <input className="input" type="file" />
+                          </div>
+                          <div className="permit-field">
+                            <label className="permit-label">Sanitary / BFP</label>
+                            <input className="input" type="file" />
+                          </div>
+                        </div>
+
+                        <div className="permit-row permit-row-2">
+                          <div className="permit-field">
+                            <label className="permit-label">Previous Mayor's Permit</label>
+                            <input className="input" type="file" />
+                          </div>
+                          <div className="permit-field">
+                            <label className="permit-label">Official Receipts</label>
+                            <input className="input" type="file" />
+                          </div>
+                        </div>
                       </>
                     ) : (
                       // Restore all original New Application fields
@@ -1857,7 +2561,7 @@ if (!paymentApplicationId) {
                                 <input className="input" value={street} onChange={e => setStreet(e.target.value)} />
                               </div>
                               <div className="permit-field">
-                                <label className="permit-label">Building Name</label>
+                                <label className="permit-label">Business Address</label>
                                 <input className="input" value={building} onChange={e => setBuilding(e.target.value)} />
                               </div>
                             </div>
@@ -1929,10 +2633,6 @@ if (!paymentApplicationId) {
                     </div>
 
                     <div className="permit-row permit-row-2">
-                      <div className="permit-field">
-                        <label className="permit-label">Line of Business</label>
-                        <input className="input" value={lineOfBusiness} onChange={(e) => setLineOfBusiness(e.target.value)} />
-                      </div>
                       <div className="permit-field">
                         <label className="permit-label">Ownership Type</label>
                         <input className="input" value={ownershipType} onChange={(e) => setOwnershipType(e.target.value)} />
@@ -2055,9 +2755,402 @@ if (!paymentApplicationId) {
                 )}
               </div>
             ) : (
-              <div className="permit-form-card" style={{ textAlign: "center", padding: "48px 24px" }}>
-                <h3 style={{ fontSize: "1.4rem", marginBottom: 12 }}>Check Sent Email</h3>
-                <p style={{ color: "#6B7280" }}>Please check your email inbox for the permit application confirmation and further instructions.</p>
+              <div className="permit-form-card" style={{ textAlign: "left", padding: "32px 28px" }}>
+                <h3 style={{ fontSize: "1.4rem", marginBottom: 12 }}>Check Requirements</h3>
+                <p style={{ color: "#6B7280", marginBottom: 24 }}>
+                  Please review and submit the required documents below before your permit can be released.
+                </p>
+                <div style={{ marginBottom: 16, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                  <p style={{ margin: 0, color: "#374151" }}>
+                    Click this to view the instructions on where you can get those requirements.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn"
+                    style={{ padding: "10px 16px", borderRadius: 8, background: "#2563eb", color: "white", border: "none", cursor: "pointer" }}
+                    onClick={() => setShowInstructions((prev) => !prev)}
+                  >
+                    {showInstructions ? "Hide" : "View"}
+                  </button>
+                </div>
+
+                {showInstructions && (
+                  <div className="permit-instructions-panel">
+                    <h2 className="permit-instructions-title">
+                      {applicationType === "Renewal"
+                        ? "Renewal Application — Where to Get Your Required Documents"
+                        : "New Application — Where to Get Your Required Documents"}
+                    </h2>
+                    <p className="permit-instructions-intro">
+                      {applicationType === "Renewal"
+                        ? "Please prepare the following documents before submitting your Business Permit Renewal application."
+                        : "Please prepare the following documents before submitting your new Business Permit application."}
+                    </p>
+
+                    {applicationType === "Renewal" ? (
+                      <>
+                        <div className="permit-instructions-step">
+                          <h3>1. Business Permit Renewal Application Form</h3>
+                          <strong>Where to get it:</strong>
+                          <p>You can access and complete the application form directly through the <strong>TrustPermit system</strong>.</p>
+                          <strong>What to do:</strong>
+                          <p>Complete all required information and review your details before submitting the application.</p>
+                        </div>
+
+                        <div className="permit-instructions-divider"></div>
+
+                        <div className="permit-instructions-step">
+                          <h3>2. Previous Year&apos;s Business / Mayor&apos;s Permit</h3>
+                          <strong>Where to get it:</strong>
+                          <p>Get this from your <strong>previous year&apos;s business records</strong>.</p>
+                          <p>If you no longer have a copy, contact the <strong>Antipolo City Business Permits and Licensing Office (BPLO)</strong> for assistance.</p>
+                          <strong>What to upload:</strong>
+                          <p>Upload a clear copy of your previous year&apos;s Business / Mayor&apos;s Permit.</p>
+                        </div>
+
+                        <div className="permit-instructions-divider"></div>
+
+                        <div className="permit-instructions-step">
+                          <h3>3. Updated Barangay Clearance</h3>
+                          <strong>Where to get it:</strong>
+                          <p>Go to the <strong>Barangay Hall</strong> of the barangay where your business is located.</p>
+                          <strong>What to do:</strong>
+                          <p>Request an updated <strong>Barangay Business Clearance</strong> for your business.</p>
+                          <strong>What to upload:</strong>
+                          <p>Upload a clear and complete copy of the updated Barangay Clearance.</p>
+                          <strong>Tip:</strong>
+                          <p>Make sure the business name and address match the information in your renewal application.</p>
+                        </div>
+
+                        <div className="permit-instructions-divider"></div>
+
+                        <div className="permit-instructions-step">
+                          <h3>4. Community Tax Certificate (CTC)</h3>
+                          <strong>Where to get it:</strong>
+                          <p>Get your <strong>Community Tax Certificate (Cedula)</strong> from the appropriate <strong>City/Municipal Treasurer&apos;s Office or authorized issuing office</strong>.</p>
+                          <p>For Antipolo business applications, the City Government identifies the CTC/Cedula as a document that may be secured during the application process.</p>
+                          <strong>What to upload:</strong>
+                          <p>Upload a clear copy of the required CTC.</p>
+                        </div>
+
+                        <div className="permit-instructions-divider"></div>
+
+                        <div className="permit-instructions-step">
+                          <h3>5. Fire Safety Inspection Certificate (FSIC)</h3>
+                          <strong>Where to get it:</strong>
+                          <p>Go to the <strong>Bureau of Fire Protection (BFP)</strong> office responsible for the location of your business.</p>
+                          <strong>What to do:</strong>
+                          <p>Request/process the required Fire Safety Inspection Certificate for your establishment.</p>
+                          <strong>What to upload:</strong>
+                          <p>Upload a clear and valid copy of the FSIC.</p>
+                          <p>Antipolo&apos;s 2026 business-permit information identifies the <strong>Fire Safety Inspection Certificate (BFP)</strong> as one of the regulatory clearances processed with the business application.</p>
+                        </div>
+
+                        <div className="permit-instructions-divider"></div>
+
+                        <div className="permit-instructions-step">
+                          <h3>6. Sanitary / BFP</h3>
+                          <h4>Sanitary Clearance / Permit</h4>
+                          <strong>Where to get it:</strong>
+                          <p>Go to the appropriate <strong>Antipolo City Health Office (CHO)</strong> or sanitary office.</p>
+                          <strong>What to do:</strong>
+                          <p>Request the required sanitary clearance/permit for your business, when applicable.</p>
+                          <h4>BFP Clearance</h4>
+                          <strong>Where to get it:</strong>
+                          <p>Go to the appropriate <strong>Bureau of Fire Protection (BFP)</strong> office.</p>
+                          <strong>What to do:</strong>
+                          <p>Request the fire-related clearance or document required for your establishment.</p>
+                          <p>Antipolo identifies the <strong>Sanitary Permit to Operate (CHO)</strong> and <strong>Fire Safety Inspection Certificate (BFP)</strong> as regulatory clearances associated with business-permit processing.</p>
+                        </div>
+
+                        <div className="permit-instructions-divider"></div>
+
+                        <div className="permit-instructions-step">
+                          <h3>7. Zoning / Locational Clearance</h3>
+                          <strong>Where to get it:</strong>
+                          <p>Go to the appropriate <strong>Antipolo City zoning/locational office</strong> responsible for your business location.</p>
+                          <strong>What to do:</strong>
+                          <p>Request the required <strong>Zoning / Locational Clearance</strong> for your business.</p>
+                          <strong>What to upload:</strong>
+                          <p>Upload a clear copy of the issued clearance.</p>
+                          <p>Antipolo&apos;s 2026 business-permit information identifies the <strong>Locational/Zoning Clearance</strong> as a regulatory clearance handled during the application process.</p>
+                        </div>
+
+                        <div className="permit-instructions-divider"></div>
+
+                        <div className="permit-instructions-step">
+                          <h3>8. Official Receipts</h3>
+                          <strong>Where to get it:</strong>
+                          <p>Get your official receipt from the <strong>Antipolo City Treasurer&apos;s Office</strong> or the authorized payment channel used for your transaction.</p>
+                          <strong>What to upload:</strong>
+                          <p>Upload a clear copy of the Official Receipt or payment proof requested by TrustPermit.</p>
+                          <strong>Make sure the following are readable:</strong>
+                          <ul>
+                            <li>Receipt number</li>
+                            <li>Date</li>
+                            <li>Amount paid</li>
+                            <li>Transaction details</li>
+                          </ul>
+                          <p>Antipolo&apos;s 2026 system supports online payment for business permits, including Maya, GCash, QRPh and cards.</p>
+                        </div>
+
+                        <div className="permit-instructions-divider"></div>
+
+                        <div className="permit-instructions-step">
+                          <h3>9. Payment of Renewal Fees</h3>
+                          <strong>Where to pay:</strong>
+                          <p>Pay the assessed renewal fees using the <strong>authorized payment options provided by Antipolo City</strong>.</p>
+                          <p>Antipolo&apos;s 2026 e-BOSS supports online payment through <strong>Maya, GCash, QRPh, Visa, Mastercard and JCB</strong>.</p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="permit-instructions-step">
+                          <h3>1. DTI / SEC Registration</h3>
+                          <strong>Where to get it:</strong>
+                          <ul>
+                            <li>Sole Proprietorship — Department of Trade and Industry (DTI)</li>
+                            <li>Corporation / Partnership — Securities and Exchange Commission (SEC)</li>
+                          </ul>
+                          <strong>What to submit:</strong>
+                          <p>Upload a clear and complete copy of your DTI or SEC Registration Certificate.</p>
+                        </div>
+
+                        <div className="permit-instructions-divider"></div>
+
+                        <div className="permit-instructions-step">
+                          <h3>2. Contract of Lease & Copy of Lessor's Permit</h3>
+                          <strong>Where to get it:</strong>
+                          <ul>
+                            <li>Contract of Lease — From your property owner or landlord</li>
+                            <li>Lessor's Business Permit — Request a copy from your property owner or landlord</li>
+                          </ul>
+                          <strong>What to submit:</strong>
+                          <p>Upload the signed Contract of Lease and a copy of the lessor's valid Business Permit if you are renting.</p>
+                        </div>
+
+                        <div className="permit-instructions-divider"></div>
+
+                        <div className="permit-instructions-step">
+                          <h3>3. Tax Declaration of Land and Building</h3>
+                          <strong>Where to get it:</strong>
+                          <p>Antipolo City Assessor's Office.</p>
+                          <strong>What to submit:</strong>
+                          <p>Upload a clear copy of the Tax Declaration for the land and building where your business is located.</p>
+                          <p><strong>Note:</strong> This requirement applies if you own the property.</p>
+                        </div>
+
+                        <div className="permit-instructions-divider"></div>
+
+                        <div className="permit-instructions-step">
+                          <h3>4. Property Tax Receipt of Land and Building</h3>
+                          <strong>Where to get it:</strong>
+                          <p>Antipolo City Treasurer's Office / Land Tax Section.</p>
+                          <strong>What to submit:</strong>
+                          <p>Upload the latest Property Tax / Real Property Tax Receipt for the land and building.</p>
+                        </div>
+
+                        <div className="permit-instructions-divider"></div>
+
+                        <div className="permit-instructions-step">
+                          <h3>5. Picture of Owner</h3>
+                          <strong>Where to get it:</strong>
+                          <p>Take the picture yourself.</p>
+                          <strong>What to submit:</strong>
+                          <p>Upload a recent, clear passport-size picture of the business owner.</p>
+                          <p><strong>Photo requirements:</strong></p>
+                          <ul>
+                            <li>Face must be clearly visible.</li>
+                            <li>Photo must not be blurry.</li>
+                            <li>Avoid heavily edited photographs.</li>
+                          </ul>
+                        </div>
+
+                        <div className="permit-instructions-divider"></div>
+
+                        <div className="permit-instructions-step">
+                          <h3>6. Panoramic Picture of Establishment</h3>
+                          <strong>Where to get it:</strong>
+                          <p>Take the picture yourself at the actual business location.</p>
+                          <strong>What to submit:</strong>
+                          <p>Upload a clear panoramic or wide-angle photograph of the establishment.</p>
+                          <p><strong>Recommended:</strong> Include the business name/signage, entrance, and surrounding area.</p>
+                        </div>
+
+                        <div className="permit-instructions-divider"></div>
+
+                        <div className="permit-instructions-step">
+                          <h3>7. Picture of Establishment Showing Installed CCTV Camera</h3>
+                          <strong>Where to get it:</strong>
+                          <p>Take the picture yourself at the business establishment.</p>
+                          <strong>What to submit:</strong>
+                          <p>Upload a clear photograph showing the establishment and the installed CCTV camera.</p>
+                          <p><strong>Important:</strong> The CCTV camera should be clearly visible.</p>
+                        </div>
+
+                        <div className="permit-instructions-divider"></div>
+
+                        <div className="permit-instructions-step">
+                          <h3>8. Locational Sketch</h3>
+                          <strong>Where to get it:</strong>
+                          <p>Prepare the sketch yourself.</p>
+                          <strong>What to include:</strong>
+                          <ul>
+                            <li>Exact business location</li>
+                            <li>Street or road name</li>
+                            <li>Barangay</li>
+                            <li>Nearby roads</li>
+                            <li>Nearby landmarks</li>
+                            <li>Recognizable establishments</li>
+                          </ul>
+                          <strong>What to submit:</strong>
+                          <p>Upload a clear image or document of your locational sketch.</p>
+                        </div>
+
+                        <div className="permit-instructions-divider"></div>
+
+                        <div className="permit-instructions-step">
+                          <h3>9. Profile of GCash / PayMaya</h3>
+                          <strong>Where to get it:</strong>
+                          <p>Get the profile/account information from your GCash or Maya application.</p>
+                          <strong>What to submit:</strong>
+                          <p>Upload a clear screenshot or copy of your GCash/Maya profile or merchant account information.</p>
+                          <p><strong>Important:</strong> Make sure the relevant information is clearly readable.</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <h4 style={{ marginBottom: 12 }}>
+                    {applicationType === "Renewal" ? "Renewal fee breakdown" : "New application fee breakdown"}
+                  </h4>
+                  <div style={{ display: "grid", gap: "10px" }}>
+                    {paymentFeeBreakdown.map((fee) => (
+                      <div
+                        key={fee.label}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: "12px",
+                          padding: "10px 12px",
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: "10px",
+                        }}
+                      >
+                        <span>{fee.label}</span>
+                        <span>₱{Number(fee.amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      case "Payment History": {
+        const filteredPaymentHistory = paymentHistory.filter((payment) => {
+          const paymentEmail = String(payment.email || payment.userId?.email || "").toLowerCase();
+          return paymentEmail === String(userEmail || "").toLowerCase();
+        });
+
+        return (
+          <div className="card form-card-wide payment-history-card" style={{ padding: "28px 30px" }}>
+            <h3 style={{ marginBottom: 8 }}>Payment History</h3>
+            <p style={{ color: "#4B5563", marginBottom: 24 }}>
+              These are your completed payments and receipts. Only your payment history is shown here.
+            </p>
+
+            {filteredPaymentHistory.length === 0 ? (
+              <div className="empty-state" style={{ padding: 28, background: "#f8fafc", borderRadius: 12 }}>
+                <p style={{ margin: 0, color: "#475569" }}>
+                  No payment history found yet. Complete a payment first and it will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="payment-history-list" style={{ display: "grid", gap: 14 }}>
+                {filteredPaymentHistory.map((payment, index) => {
+                  const dateValue = payment.date || payment.timestamp || payment.createdAt || payment.updatedAt;
+                  const createdDate = dateValue
+                    ? new Date(dateValue).toLocaleDateString("en-PH", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })
+                    : "No date available";
+                  const amount = Number(payment.amount || payment.total || 0).toLocaleString("en-PH", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  });
+                  const paymentId = payment._id || payment.id || payment.paymentId || "";
+
+                  return (
+                    <div
+                      key={`${payment.reference || paymentId || index}`}
+                      className="payment-history-item"
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: 20,
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 16,
+                        background: "#ffffff",
+                      }}
+                    >
+                      <div style={{ maxWidth: "65%" }}>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 8, alignItems: "center" }}>
+                          <span
+                            style={{
+                              padding: "4px 10px",
+                              borderRadius: 999,
+                              background: payment.status?.toLowerCase() === "paid" || payment.status?.toLowerCase() === "approved"
+                                ? "#d1fae5"
+                                : "#f3f4f6",
+                              color: payment.status?.toLowerCase() === "paid" || payment.status?.toLowerCase() === "approved"
+                                ? "#065f46"
+                                : "#374151",
+                              fontSize: "0.85rem",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {String(payment.status || "Pending").toUpperCase()}
+                          </span>
+                        </div>
+                        <div style={{ display: "grid", gap: 8, color: "#374151" }}>
+                          <div>
+                            <strong>Amount:</strong> ₱{amount}
+                          </div>
+                          <div>
+                            <strong>Method:</strong> {payment.paymentMethod || payment.method || payment.payment_method || "N/A"}
+                          </div>
+                          <div>
+                            <strong>Date:</strong> {createdDate}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 170 }}>
+                        {paymentId && (
+                          <button
+                            className="action-btn action-btn-outline"
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              viewPayment(payment);
+                            }}
+                          >
+                            View Payment
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -2070,7 +3163,73 @@ if (!paymentApplicationId) {
             <div className="payment-shell">
               <h3 className="payment-heading">Payment Method</h3>
 
-              <div className="payment-method-grid">
+              {hasCurrentApplicationReleased || hasReleaseWithoutCurrentApplication ? (
+                <div
+                  style={{
+                    padding: 24,
+                    background: "#ecfdf5",
+                    border: "1px solid #22c55e",
+                    borderRadius: 16,
+                    color: "#0f172a",
+                    marginBottom: 20,
+                  }}
+                >
+                  <h4 style={{ marginBottom: 10 }}>Permit Released</h4>
+                  <p style={{ margin: 0, color: "#166534" }}>
+                    Your permit has been approved and released by staff. Payment is complete and this permit can no longer be paid again.
+                  </p>
+                </div>
+              ) : paymentCompleted ? (
+                <div
+                  style={{
+                    padding: 24,
+                    background: "#f8fafc",
+                    border: "1px solid #dbeafe",
+                    borderRadius: 16,
+                    color: "#0f172a",
+                    marginBottom: 20,
+                  }}
+                >
+                  <h4 style={{ marginBottom: 10 }}>No pending application</h4>
+                  <p style={{ margin: 0, color: "#475569" }}>
+                    Your payment has been received. Please wait for staff approval of your inspection and permit release.
+                  </p>
+                </div>
+              ) : inspectionsLoading ? (
+                <div
+                  style={{
+                    padding: 24,
+                    background: "#eff6ff",
+                    border: "1px solid #bfdbfe",
+                    borderRadius: 16,
+                    color: "#1e3a8a",
+                    marginBottom: 20,
+                  }}
+                >
+                  <h4 style={{ marginBottom: 10 }}>Checking inspection status...</h4>
+                  <p style={{ margin: 0, color: "#1e40af" }}>
+                    We are fetching your latest inspection data. Please wait a moment.
+                  </p>
+                </div>
+              ) : !hasApprovedInspection ? (
+                <div
+                  style={{
+                    padding: 24,
+                    background: "#fff7ed",
+                    border: "1px solid #fdba74",
+                    borderRadius: 16,
+                    color: "#92400e",
+                    marginBottom: 20,
+                  }}
+                >
+                  <h4 style={{ marginBottom: 10 }}>Inspection Required</h4>
+                  <p style={{ margin: 0, color: "#92400e" }}>
+                    Payment is disabled until staff schedules and approves your inspection.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <div className="payment-method-grid">
                 <button
                   type="button"
                   className={`payment-method-card ${paymentMethod === "Bank" ? "active" : ""}`}
@@ -2258,52 +3417,142 @@ if (!paymentApplicationId) {
                 </>
               )}
 
-              <label className="payment-label">Amount (PHP)</label>
-              <input
-                className="payment-field"
-                type="number"
-                min="1"
-                placeholder="Enter amount"
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
-              />
+              <label className="payment-label">You need to pay (PHP)</label>
 
-              {paymentMethod === "Bank" ? (
-                <div className="cc-actions">
-                  <button
-                    className="cc-proceed-btn"
-                    disabled={processingPayment || !paymentAmount}
-                    onClick={handlePayment}
+              {/* Show breakdown for approved inspections or when renewing */}
+              {canViewRenewalFees && (
+                <div style={{ display: "grid", gap: "10px", marginBottom: "14px" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      border: "1px solid #dbeafe",
+                      borderRadius: "12px",
+                      padding: "12px",
+                      color: "#0f172a",
+                      fontWeight: 600,
+                    }}
                   >
-                    ▬ {processingPayment ? "Processing..." : "Make a Payment"}
-                  </button>
-                  <button className="cc-cancel-btn" type="button" onClick={() => setPaymentMethod("")}>
-                    ✕ Cancel
-                  </button>
-                </div>
-              ) : (
-                <div className="cc-actions">
-                  <button
-                    className="cc-proceed-btn"
-                    disabled={processingPayment || !paymentMethod || !paymentAmount}
-                    onClick={handlePayment}
-                  >
-                    ▬ {processingPayment ? "Processing..." : "Make a Payment"}
-                  </button>
-                  <button className="cc-cancel-btn" type="button" onClick={() => setPaymentMethod("")}>
-                    ✕ Cancel
-                  </button>
+                    <div style={{ fontSize: "0.92rem", marginBottom: "6px", color: "#475569" }}>
+                      {isRenewalPayment ? "Renewal fee breakdown" : "Breakdown of payable fees"}
+                    </div>
+                    {paymentFeeBreakdown.map((fee) => (
+                      <div
+                        key={fee.label}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: "12px",
+                          padding: "5px 0",
+                          fontSize: "0.94rem",
+                          borderBottom: "1px solid #e2e8f0",
+                        }}
+                      >
+                        <span>{fee.label}</span>
+                        <span>₱{Number(fee.amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    ))}
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: "12px",
+                        paddingTop: "10px",
+                        marginTop: "6px",
+                        fontSize: "1rem",
+                        color: "#0f172a",
+                      }}
+                    >
+                      <span>Total payable amount</span>
+                      <span style={{ color: "#16a34a", fontWeight: 800 }}>
+                        ₱{Number(calculatedPaymentAmount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+
+                  <input
+                    className="payment-field"
+                    type="text"
+                    readOnly
+                    value={Number(calculatedPaymentAmount || 0).toLocaleString("en-PH", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                    aria-label="Calculated payable amount"
+                  />
+
+                  {!hasApprovedInspection && isRenewalPayment && (
+                    <div style={{ marginTop: 8, color: "#92400e", background: "#fff7ed", border: "1px solid #fdba74", padding: 10, borderRadius: 8 }}>
+                      Note: You can view the renewal fee breakdown now. Actual payment will be enabled after staff approves your inspection.
+                    </div>
+                  )}
                 </div>
               )}
 
-              {paymentStatus && (
-                <div className="payment-success-box">
-                  <div>{paymentStatus.message || "Payment successful"}</div>
-                  <button className="btn small" onClick={() => downloadReceipt(paymentStatus.details)}>
-                    Download Receipt
-                  </button>
+              {/* If not renewal and no approved inspection, show waiting info */}
+              {!canViewRenewalFees && (
+                <div
+                  style={{
+                    background: "#fff7ed",
+                    border: "1px solid #fdba74",
+                    borderRadius: "12px",
+                    padding: "12px",
+                    marginBottom: "14px",
+                    color: "#9a5b00",
+                    fontWeight: 600,
+                  }}
+                >
+                  Wait for your inspection to be approved before the fee breakdown and payable total can be shown.
                 </div>
               )}
+
+              {!hasCurrentApplicationReleased && (
+                <>
+                  {paymentMethod === "Bank" ? (
+                    <div className="cc-actions">
+                      <button
+                        className="cc-proceed-btn"
+                        disabled={processingPayment || !paymentAmount || !canProceedToPayment}
+                        onClick={handlePayment}
+                      >
+                        ▬ {processingPayment ? "Processing..." : "Make a Payment"}
+                      </button>
+                      <button className="cc-cancel-btn" type="button" onClick={() => setPaymentMethod("")}>
+                        ✕ Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="cc-actions">
+                      <button
+                        className="cc-proceed-btn"
+                        disabled={processingPayment || !paymentMethod || !paymentAmount || !canProceedToPayment}
+                        onClick={handlePayment}
+                      >
+                        ▬ {processingPayment ? "Processing..." : "Make a Payment"}
+                      </button>
+                      <button className="cc-cancel-btn" type="button" onClick={() => setPaymentMethod("")}>
+                        ✕ Cancel
+                      </button>
+                    </div>
+                  )}
+
+                  {paymentStatus && (
+                    <div className="payment-success-box">
+                      <button className="action-btn action-btn-download" onClick={() => downloadReceipt(paymentStatus.details)}>
+                        <span className="action-btn-icon" aria-hidden="true">
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 11.3334V3.99998" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                            <path d="M4 7.99998L8 11.99998L12 7.99998" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M3.3335 13.3333H12.6668" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                          </svg>
+                        </span>
+                        Download Receipt
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
             </div>
           </div>
         );
@@ -2317,6 +3566,7 @@ if (!paymentApplicationId) {
     const hideHeader = !!initialMenu;
 
     return (
+      <>
       <div className="account-container" style={{ display: "flex", minHeight: hideHeader ? undefined : "100vh" }}>
         <div className="account-notification-wrapper">
             <button
@@ -2441,11 +3691,23 @@ if (!paymentApplicationId) {
                         <form onSubmit={(e) => {
                           e.preventDefault();
                           if (newPassword && newPassword !== confirmPassword) {
-                            alert("New password and confirmation do not match.");
+                            setModal({
+                              open: true,
+                              title: "Password Mismatch",
+                              message: "New password and confirmation do not match.",
+                              buttonText: "OK",
+                              variant: "error",
+                            });
                             return;
                           }
                           // In a real app, you'd call an API here.
-                          alert("Profile updated successfully!");
+                          setModal({
+                            open: true,
+                            title: "Profile Updated",
+                            message: "Profile updated successfully!",
+                            buttonText: "OK",
+                            variant: "success",
+                          });
                           setCurrentPassword("");
                           setNewPassword("");
                           setConfirmPassword("");
@@ -2556,7 +3818,7 @@ if (!paymentApplicationId) {
 
                                     <td>
                                       <div className="application-date-cell">
-                                        <span aria-hidden="true">📅</span>
+                                        <span aria-hidden="true"></span>
                                         <span>{createdDate}</span>
                                       </div>
                                     </td>
@@ -2608,7 +3870,21 @@ if (!paymentApplicationId) {
           </main>
         </div>
       </div>
-      
+      <CenteredModal
+        open={modal.open}
+        title={modal.title}
+        message={modal.message}
+        buttonText={modal.buttonText}
+        variant={modal.variant}
+        onClose={modal.onClose || (() => setModal({ open: false }))}
+        onConfirm={modal.onConfirm}
+        onCancel={modal.onCancel}
+        cancelText={modal.cancelText}
+        hideActions={modal.hideActions}
+      >
+        {modal.children}
+      </CenteredModal>
+      </>
     );
 };
 

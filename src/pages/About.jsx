@@ -1,12 +1,12 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import heroTemplateOne from "../assets/sample5.jpg";
-import heroTemplateTwo from "../assets/sample6.jpg";
-import heroTemplateThree from "../assets/sample3.jpg";
-import heroTemplateFour from "../assets/sample4.jpg";
-import valueImageOne from "../assets/picture1.jpg";
-import valueImageTwo from "../assets/picture2.jpg";
-import valueImageThree from "../assets/picture3.jpg";
+import heroTemplateOne from "../assets/image.png";
+import heroTemplateTwo from "../assets/image2.jpg";
+import heroTemplateThree from "../assets/image3.jpg";
+import heroTemplateFour from "../assets/image4.jpg";
+import valueImageOne from "../assets/image2.jpg";
+import valueImageTwo from "../assets/image3.jpg";
+import valueImageThree from "../assets/image4.jpg";
 import "./About.css";
 
 export default function About() {

@@ -60,8 +60,9 @@ const normalizeStatus = (status) => {
   return status;
 };
 
-export default function UploadedDocumentsView() {
-  const { applicationId } = useParams();
+export default function UploadedDocumentsView({ applicationId: propApplicationId }) {
+  const { applicationId: routeApplicationId } = useParams();
+  const applicationId = propApplicationId || routeApplicationId;
 
   const [documents, setDocuments] = useState([]);
   const [selectedDoc, setSelectedDoc] = useState(null);
@@ -166,11 +167,11 @@ export default function UploadedDocumentsView() {
             return (
               <div key={doc._id || doc.id || index} className="document-card">
                 <div className="document-icon">
-                  {isPdfFile(doc) ? "PDF" : isImageFile(doc) ? "IMG" : "FILE"}
+                  {isPdfFile(doc) ? "PDF" : isImageFile(doc) ? "" : "FILE"}
                 </div>
 
                 <div className="document-info">
-                  <h3>{getDocName(doc, index)}</h3>
+                  <h3>{getDocName(doc, index).replace(/G-CASH/g, "G\u2011CASH")}</h3>
 
                   <p>
                     <strong>Status:</strong>{" "}

@@ -5,10 +5,10 @@ import "./PaymentView.css";
 
 const API_BASE_URL = "https://trustpermit-backend.onrender.com";
 
-export default function PaymentView() {
-  const { paymentId, applicationId } = useParams();
+export default function PaymentView({ paymentIdProp, paymentData }) {
+  const { paymentId: routePaymentId, applicationId } = useParams();
 
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(paymentData || null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -58,8 +58,45 @@ export default function PaymentView() {
 
     if (Number.isNaN(date.getTime())) return "N/A";
 
-    return date.toLocaleString();
+    return date.toLocaleDateString("en-PH", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   };
+
+  const defaultReceiptItems = [
+    { label: "Basic Tax (Individual)", amount: 5.0 },
+    { label: "CTC - Additional Tax", amount: 100.0 },
+    { label: "Delivery Vans/Trucks", amount: 750.0 },
+    { label: "Permit fee on OTHER EATING ESTABLISHMENT", amount: 1000.0 },
+    { label: "Barangay Clearance", amount: 3000.0 },
+    { label: "Sanitary Inspection Fee", amount: 500.0 },
+    { label: "EPO Fee", amount: 500.0 },
+    { label: "Garbage Fees", amount: 1200.0 },
+    { label: "Occupational Fee", amount: 750.0 },
+    { label: "Health Fee", amount: 300.0 },
+    { label: "Health Clearances", amount: 150.0 },
+    { label: "CEWMO Training Fee", amount: 300.0 },
+    { label: "CEWMO Inspection Fee", amount: 300.0 },
+    { label: "Work Permits", amount: 150.0 },
+    { label: "Sticker Fee", amount: 100.0 },
+    { label: "Business Plate Fee", amount: 500.0 },
+    { label: "Locational/Zoning Clearance Fee", amount: 1000.0 },
+  ];
+
+  const receiptItems = Array.isArray(data?.items)
+    ? data.items
+    : Array.isArray(data?.breakdown)
+    ? data.breakdown
+    : defaultReceiptItems;
+
+  const receiptTotal = receiptItems.reduce(
+    (sum, item) => sum + Number(item.amount ?? item.price ?? item.total ?? 0),
+    0
+  );
+
+  const paymentTotal = Number(data?.amount ?? receiptTotal);
 
   useEffect(() => {
     const fetchPayment = async () => {
@@ -74,10 +111,16 @@ export default function PaymentView() {
         return;
       }
 
-      const id = paymentId || applicationId;
+      const id = paymentIdProp || routePaymentId || applicationId;
 
       if (!id) {
         setError("Payment ID not found.");
+        setLoading(false);
+        return;
+      }
+
+      if (paymentData) {
+        setData(paymentData);
         setLoading(false);
         return;
       }
@@ -132,7 +175,7 @@ export default function PaymentView() {
     };
 
     fetchPayment();
-  }, [paymentId, applicationId]);
+  }, [paymentIdProp, routePaymentId, applicationId]);
 
   if (loading) {
     return <div className="payment-view-loading">Loading payment...</div>;
@@ -146,102 +189,57 @@ export default function PaymentView() {
     return <div className="payment-view-error">No payment data found.</div>;
   }
 
-  const application = data.applicationId || data.application || {};
+  const orderNumber = getValue(data.reference, data.paymentReference, data.referenceNumber, data._id, data.id);
+  const orderDate = formatDate(data.timestamp || data.createdAt || data.updatedAt || data.date);
+  const paymentMethod = getValue(data.paymentMethod, data.method, data.payment_method);
 
   return (
     <div className="payment-view-page">
-      <div className="payment-receipt-card">
-        <div className="payment-header">
-          <h1>Payment Details</h1>
-          <p>TrustPermit payment transaction record</p>
+      <div className="receipt-card">
+        <div className="receipt-top">
+          <div className="receipt-status">✓</div>
+          <h1>Payment Successful</h1>
+          <p className="receipt-subtitle">
+            Order number: <span>{orderNumber}</span>
+          </p>
+          <p className="receipt-subtitle">Order date: {orderDate}</p>
         </div>
 
-        <div className="payment-section">
-          <h2>Transaction Information</h2>
+        <div className="receipt-divider" />
 
-          <div className="payment-grid">
-            <div className="payment-field">
-              <label>Payment ID</label>
-              <div>{getValue(data._id, data.id)}</div>
-            </div>
+        <div className="receipt-section">
+          <table className="receipt-table">
+            <thead>
+              <tr>
+                <th>№</th>
+                <th>Item</th>
+                <th>Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              {receiptItems.map((item, index) => (
+                <tr key={index}>
+                  <td>{index + 1}</td>
+                  <td>{getValue(item.label, item.name, item.description, item.item)}</td>
+                  <td>{formatMoney(item.amount ?? item.price ?? item.total ?? 0)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-            <div className="payment-field">
-              <label>Status</label>
-              <div>{getValue(data.status)}</div>
-            </div>
-
-            <div className="payment-field">
-              <label>Amount</label>
-              <div>{formatMoney(data.amount)}</div>
-            </div>
-
-            <div className="payment-field">
-              <label>Payment Method</label>
-              <div>{getValue(data.paymentMethod, data.method)}</div>
-            </div>
-
-            <div className="payment-field">
-              <label>Reference Number</label>
-              <div>{getValue(data.referenceNumber, data.reference, data.paymentReference)}</div>
-            </div>
-
-            <div className="payment-field">
-              <label>Date Paid</label>
-              <div>{formatDate(data.paidAt || data.createdAt)}</div>
-            </div>
+        <div className="receipt-summary">
+          <div className="summary-row total-row">
+            <span>Total</span>
+            <strong>{formatMoney(paymentTotal)}</strong>
           </div>
-        </div>
-
-        <div className="payment-section">
-          <h2>Payer Information</h2>
-
-          <div className="payment-grid">
-            <div className="payment-field">
-              <label>Name</label>
-              <div>{getValue(data.name, data.userId?.fullName)}</div>
-            </div>
-
-            <div className="payment-field">
-              <label>Email</label>
-              <div>{getValue(data.email, data.userId?.email)}</div>
-            </div>
-
-            <div className="payment-field">
-              <label>User ID</label>
-              <div>{getValue(data.userId)}</div>
-            </div>
+          <div className="summary-row">
+            <span>Payment method</span>
+            <span>{paymentMethod}</span>
           </div>
-        </div>
-
-        <div className="payment-section">
-          <h2>Application Information</h2>
-
-          <div className="payment-grid">
-            <div className="payment-field">
-              <label>Application ID</label>
-              <div>{getValue(application)}</div>
-            </div>
-
-            <div className="payment-field">
-              <label>Business Name</label>
-              <div>
-                {getValue(
-                  application.businessName,
-                  application.businessInfo?.businessName,
-                  application.businessDetails?.businessName
-                )}
-              </div>
-            </div>
-
-            <div className="payment-field">
-              <label>Application Type</label>
-              <div>{getValue(application.applicationType)}</div>
-            </div>
-
-            <div className="payment-field">
-              <label>Permit Released</label>
-              <div>{data.permitReleased ? "Yes" : "No"}</div>
-            </div>
+          <div className="summary-row">
+            <span>Tax</span>
+            <span>{formatMoney(0)}</span>
           </div>
         </div>
       </div>

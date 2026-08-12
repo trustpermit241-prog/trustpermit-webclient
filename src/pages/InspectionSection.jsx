@@ -90,7 +90,7 @@ const InspectionSection = ({
                   <td>{insp.inspector || "--"}</td>
                   <td>{insp.remarks || "No remarks"}</td>
                   <td>
-                    <span className={`status-badge ${insp.status ? `status-${insp.status.toLowerCase()}` : "status-pending"}`}>
+                    <span className={`inspection-status-badge ${insp.status ? `status-${insp.status.toLowerCase()}` : "status-pending"}`}>
                       {insp.status || "Pending"}
                     </span>
                   </td>

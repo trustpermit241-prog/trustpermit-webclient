@@ -1,8 +1,22 @@
 import { useState, useEffect } from "react";
 import "./User.css";
 
-const API_BASE_URL =
-  process.env.REACT_APP_API_BASE_URL || "https://trustpermit-backend.onrender.com/api";
+const getApiBaseUrl = () => {
+  if (process.env.REACT_APP_API_BASE_URL) {
+    return process.env.REACT_APP_API_BASE_URL;
+  }
+
+  if (
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+  ) {
+    return "http://localhost:5000/api";
+  }
+
+  return "https://trustpermit-backend.onrender.com/api";
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -30,6 +44,31 @@ export default function Users() {
 
     fetchUsers();
   }, []);
+
+  const handleDeleteUser = async (userId) => {
+    if (!userId) return;
+
+    const confirmed = window.confirm("Are you sure you want to delete this user?");
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/users/${userId}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to delete user");
+      }
+
+      setUsers((prevUsers) => prevUsers.filter((user) => user._id !== userId));
+      setError("");
+      return;
+    } catch (err) {
+      console.error("Error deleting user:", err);
+      setError("Unable to delete the user right now.");
+    }
+  };
 
   return (
     <div className="users-page">
@@ -66,9 +105,27 @@ export default function Users() {
                   <td>{user.isVerified ? "Yes" : "No"}</td>
                   <td>{user.status || "Active"}</td>
                   <td>
-                    {user.createdAt
-                      ? new Date(user.createdAt).toLocaleString()
-                      : "N/A"}
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span>
+                        {user.createdAt
+                          ? new Date(user.createdAt).toLocaleString()
+                          : "N/A"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteUser(user._id)}
+                        style={{
+                          padding: "4px 8px",
+                          border: "none",
+                          borderRadius: "4px",
+                          backgroundColor: "#dc3545",
+                          color: "white",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))

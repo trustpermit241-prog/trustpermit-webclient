@@ -71,15 +71,52 @@ html, body {
   gap: 14px;
 }
 
-.date-chip,
-.notif-chip {
+.topbar-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  padding-right: 40px;
+}
+
+.date-chip {
+  width: 78px;
+  height: 92px;
   background: #ffffff;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e6eef8;
   color: #0f172a;
-  border-radius: 14px;
-  padding: 13px 16px;
-  font-weight: 700;
-  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
+  border-radius: 18px;
+  padding: 8px 10px;
+  font-weight: 800;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.date-chip .date-month {
+  font-size: 12px;
+  color: #2563eb;
+  background: #eff6ff;
+  padding: 6px 8px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  font-weight: 800;
+}
+
+.date-chip .date-day {
+  font-size: 22px;
+  line-height: 1;
+  color: #0f172a;
+  font-weight: 900;
+}
+
+.date-chip .date-year {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 6px;
 }
 
 .notif-chip {
@@ -126,29 +163,36 @@ html, body {
   box-sizing: border-box;
 }
 
-.stat-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 24px;
-  min-height: 150px;
+.notif-chip {
   position: relative;
-  overflow: hidden;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.07);
-}
-
-
-
-.stat-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 999px;
+  width: 64px;
+  height: 64px;
   display: grid;
   place-items: center;
-  color: white;
-  font-size: 26px;
-  margin-bottom: 12px;
+  padding: 0;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #f59e0b; /* yellow color applied to bell via currentColor */
+  box-shadow: 0 8px 22px rgba(245,158,11,0.08);
+  font-size: 22px;
 }
+.notif-chip .unread-badge,
+.notif-chip span {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: white;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 
 .stat-card.total .stat-icon,
 .stat-card.total .stat-line {
@@ -196,6 +240,104 @@ html, body {
   margin-top: 18px;
 }
 
+.dashboard-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0 40px 16px;
+  box-sizing: border-box;
+  margin-bottom: 18px;
+}
+
+.filter-button {
+  border: none;
+  background: #f8fafc;
+  color: #475569;
+  border-radius: 999px;
+  padding: 12px 20px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s;
+  box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.9);
+}
+
+.filter-button.active,
+.filter-button:hover {
+  background: #2563eb;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.18);
+}
+
+.summary-widgets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  width: 100%;
+  padding: 0 40px 8px;
+  box-sizing: border-box;
+}
+
+.summary-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 22px;
+  padding: 26px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+  min-height: 170px;
+  display: grid;
+  gap: 16px;
+}
+
+.summary-card-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: #eff6ff;
+  font-size: 22px;
+}
+
+.summary-card p {
+  margin: 0;
+  color: #0f172a;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.summary-card h3 {
+  margin: 0;
+  font-size: 34px;
+  color: #111827;
+}
+
+.summary-card span {
+  display: block;
+  margin-top: 6px;
+  color: #475569;
+  font-size: 13px;
+}
+
+.summary-card.inspection.approved .summary-card-icon {
+  background: #dcfce7;
+}
+
+.summary-card.inspection.rejected .summary-card-icon {
+  background: #fee2e2;
+}
+
+.summary-card.inspection.pending .summary-card-icon {
+  background: #fef3c7;
+}
+
+.summary-card.inspection.payment .summary-card-icon {
+  background: #dbeafe;
+}
+
 .dashboard-layout {
   display: grid;
   grid-template-columns: 2fr 1.2fr 1.2fr;
@@ -214,6 +356,24 @@ html, body {
   border-radius: 16px;
   padding: 20px;
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+/* When a panel is selected via the filter, maximize it */
+.panel.large {
+  grid-column: 1 / -1;
+  min-height: 460px;
+  padding: 28px;
+  border-radius: 18px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.panel.large .panel-header h2 {
+  font-size: 20px;
+}
+
+/* Slight elevation for the focused panel */
+.panel.large {
+  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.12);
 }
 
 .chart-panel {
@@ -529,6 +689,16 @@ html, body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .summary-widgets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Ensure maximized panel collapses to single column on small screens */
+  .panel.large {
+    grid-column: 1 / -1;
+    min-height: 420px;
+  }
+
   .chart-panel {
     grid-column: 1 / -1;
   }
@@ -566,12 +736,6 @@ html, body {
   color: white;
 }
 .notif-wrapper {
-  position: relative;
-}
-
-.notif-chip {
-  border: none;
-  cursor: pointer;
   position: relative;
 }
 
@@ -651,4 +815,31 @@ html, body {
   padding: 25px 10px;
   text-align: center;
   color: #6b7280;
+}
+
+/* Right-side notifications panel placed in the right column of the layout */
+.notifications-panel {
+  /* Position the panel under the bell inside the topbar */
+  position: absolute;
+  top: 48px;
+  right: 0;
+  width: 360px;
+  max-height: 60vh;
+  overflow-y: auto;
+  z-index: 1500;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+/* Slightly reduce padding for compact right column display */
+.notifications-panel .panel-header {
+  padding-bottom: 8px;
+}
+
+.notifications-panel .notif-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }

@@ -847,6 +847,17 @@
   display: inline-block;
 }
 
+/* Specific badge for inspection table to avoid conflicts with small circular .status-badge elsewhere */
+.inspection-status-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  text-align: center;
+  display: inline-block;
+}
+
 /* Company table contrast and small action buttons */
 .card.company-card-wide {
   width: 100% !important;
@@ -1046,11 +1057,10 @@
 
 .payment-success-box {
   margin-top: 12px;
-  border: 1px solid #bfdbfe;
-  background: #eff6ff;
-  border-radius: 6px;
-  padding: 12px;
-  color: #1e3a8a;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #111827;
   font-weight: 600;
 }
 
@@ -1545,6 +1555,73 @@ input[type="radio"] {
   margin-bottom: 4px;
 }
 
+.permit-instructions-panel {
+  margin-bottom: 24px;
+  padding: 24px;
+  background: #f8fafc;
+  border: 1px solid #dbeafe;
+  border-radius: 16px;
+}
+
+.permit-instructions-title {
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.permit-instructions-intro {
+  margin: 0 0 20px;
+  color: #475569;
+  line-height: 1.75;
+}
+
+.permit-instructions-step {
+  margin-bottom: 24px;
+}
+
+.permit-instructions-step h3,
+.permit-instructions-step h4 {
+  margin: 0 0 10px;
+  color: #1f2937;
+}
+
+.permit-instructions-step h3 {
+  font-size: 1.05rem;
+}
+
+.permit-instructions-step h4 {
+  font-size: 1rem;
+}
+
+.permit-instructions-step strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #111827;
+}
+
+.permit-instructions-step p,
+.permit-instructions-step ul {
+  margin: 0 0 12px;
+  color: #475569;
+  line-height: 1.7;
+}
+
+.permit-instructions-step ul {
+  padding-left: 18px;
+}
+
+.permit-instructions-step ul li {
+  margin-bottom: 8px;
+}
+
+.permit-instructions-divider {
+  border: 0;
+  border-top: 1px solid #e5e7eb;
+  margin: 0 0 24px;
+}
+
 /* ── Step Wizard ── */
 .permit-steps {
   display: flex;
@@ -2023,27 +2100,98 @@ input[type="radio"] {
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.7);
 }
 
-.print-permit-btn {
-  border: 1px solid #93c5fd;
-  background: #ffffff;
-  color: #2563eb;
-  border-radius: 9px;
-  padding: 10px 15px;
-  font-size: 0.92rem;
-  font-weight: 850;
+.action-btn {
+  border: none;
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-size: 0.95rem;
+  font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  white-space: nowrap;
-  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.10);
-  transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  justify-content: center;
+  gap: 8px;
+  min-width: 96px;
+  transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
-.print-permit-btn:hover {
+.action-btn:hover {
   transform: translateY(-1px);
+}
+
+.action-btn-primary {
+  background: #4338ca;
+  color: #ffffff;
+  box-shadow: 0 14px 26px rgba(67, 56, 202, 0.18);
+}
+
+.action-btn-primary:hover {
+  background: #4f46e5;
+}
+
+.action-btn-danger {
+  background: #dc2626;
+  color: #ffffff;
+  box-shadow: 0 14px 26px rgba(220, 38, 38, 0.18);
+}
+
+.action-btn-danger:hover {
+  background: #ef4444;
+}
+
+.action-btn-outline {
+  background: #ffffff;
+  color: #2563eb;
+  border: 1px solid #93c5fd;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.10);
+}
+
+.action-btn-outline:hover {
   background: #eff6ff;
-  box-shadow: 0 12px 22px rgba(37, 99, 235, 0.16);
+}
+
+.action-btn-download {
+  background: #0ea5e9;
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 20px;
+  font-size: 0.95rem;
+  box-shadow: 0 14px 24px rgba(14, 165, 233, 0.20);
+}
+
+.action-btn-download:hover {
+  background: #0284c7;
+}
+
+.action-btn-download .action-btn-icon {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #2563eb;
+  margin-right: 10px;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.22);
+}
+
+.recent-applications-table .dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: transparent;
+  color: #111827;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.recent-applications-table .dropdown-item:hover {
+  background: #eff6ff;
 }
 
 .no-action-text {
@@ -2136,24 +2284,25 @@ input[type="radio"] {
 }
 
 .account-notification-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.32);
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   position: relative;
-  transition: 0.2s ease;
+  transition: 0.2s ease, transform 0.2s ease;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
 }
 
 .account-notification-btn:hover,
 .account-notification-btn.active {
-  background: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16);
+  background: #f8fafc;
+  border-color: #cbd5e1;
   transform: translateY(-1px);
 }
 
@@ -2161,7 +2310,12 @@ input[type="radio"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
+  color: #111827;
+}
+
+.account-notification-bell svg {
+  width: 22px;
+  height: 22px;
 }
 
 .account-notification-count {
@@ -2270,22 +2424,22 @@ input[type="radio"] {
 }
 
 .account-notification-icon.inspection {
-  background: #dbeafe;
+  background: transparent;
   color: #2563eb;
 }
 
 .account-notification-icon.pending {
-  background: #fef3c7;
+  background: transparent;
   color: #f59e0b;
 }
 
 .account-notification-icon.approved {
-  background: #dcfce7;
+  background: transparent;
   color: #16a34a;
 }
 
 .account-notification-icon.rejected {
-  background: #fee2e2;
+  background: transparent;
   color: #dc2626;
 }
 

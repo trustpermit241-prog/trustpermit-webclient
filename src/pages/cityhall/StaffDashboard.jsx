@@ -151,7 +151,7 @@ export default function StaffDashboard() {
 
           <div className="logo-text">
             <h3>Staff Panel</h3>
-            <span>City Hall System</span>
+            
           </div>
         </div>
 
@@ -195,7 +195,7 @@ export default function StaffDashboard() {
             className={isActive("/staff/payments") ? "active" : ""}
             onClick={() => navigate("/staff/payments")}
           >
-            <Icons.Payments /> Payments <span className="new-badge">New</span>
+            <Icons.Payments /> Payments <span className="new-badge"></span>
           </button>
 
           <button
@@ -237,14 +237,7 @@ export default function StaffDashboard() {
         </div>
 
         <div className="sidebar-footer">
-          <div className="user-row">
-            <div className="user-avatar">JD</div>
-
-            <div className="user-info">
-              <span className="user-name">Juan Dela Cruz</span>
-              <span className="user-role">City Hall Staff</span>
-            </div>
-          </div>
+          
 
           <button type="button" onClick={handleLogout} className="logout-btn">
             <Icons.Logout /> Logout

@@ -5,6 +5,8 @@
 .users-page h2 {
   margin-bottom: 20px;
   color: #1F2937;
+  font-size: 32px;
+  font-weight: 700;
 }
 
 .users-table-container {

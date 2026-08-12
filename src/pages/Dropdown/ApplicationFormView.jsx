@@ -5,8 +5,9 @@ import "./ApplicationFormView.css";
 
 const API_BASE_URL = "https://trustpermit-backend.onrender.com";
 
-export default function ApplicationFormView() {
-  const { applicationId } = useParams();
+export default function ApplicationFormView({ applicationId: propApplicationId }) {
+  const { applicationId: routeApplicationId } = useParams();
+  const applicationId = propApplicationId || routeApplicationId;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

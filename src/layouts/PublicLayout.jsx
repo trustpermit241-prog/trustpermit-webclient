@@ -8,6 +8,7 @@ export default function PublicLayout() {
   const navigate = useNavigate();
   const notificationRef = useRef(null);
 
+  const [leftRailOpen, setLeftRailOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [applications, setApplications] = useState([]);
   const [inspections, setInspections] = useState([]);
@@ -27,6 +28,8 @@ export default function PublicLayout() {
   }
 
   const userEmail = localStorage.getItem("email") || storedUser?.email || "";
+  const userDisplayName =
+    localStorage.getItem("name") || storedUser?.name || "Guest User";
   const seenStorageKey = `seenNotifications_${userEmail || "guest"}`;
 
   const handleLogout = () => {
@@ -175,6 +178,25 @@ export default function PublicLayout() {
     return "📄";
   };
 
+  const [profileImage, setProfileImage] = useState("");
+
+  useEffect(() => {
+    const refreshProfileImage = () => {
+      try {
+        setProfileImage(localStorage.getItem("profileImage") || "");
+      } catch (error) {
+        setProfileImage("");
+      }
+    };
+
+    refreshProfileImage();
+    window.addEventListener("profileImageUpdated", refreshProfileImage);
+
+    return () => {
+      window.removeEventListener("profileImageUpdated", refreshProfileImage);
+    };
+  }, []);
+
   const getNotificationClass = (item) => {
     if (item.type === "payment") return "approved";
     if (item.type === "inspection") return "inspection";
@@ -183,12 +205,25 @@ export default function PublicLayout() {
   };
 
   return (
-    <div className="public-layout">
+    <div className={`public-layout ${leftRailOpen ? "rail-open" : "rail-collapsed"}`}>
       <div className="main-content">
         <header className="main-nav-header">
           <div className="header-container">
-            <div className="logo" onClick={() => navigate("/home")}>
-              TRUSTPERMIT
+            <div className="header-brand-group">
+              <button
+                type="button"
+                className="public-header-menu-toggle"
+                onClick={() => setLeftRailOpen((prev) => !prev)}
+                aria-label={leftRailOpen ? "Close menu" : "Open menu"}
+                aria-expanded={leftRailOpen}
+              >
+            
+                <span aria-hidden="true">{leftRailOpen ? "×" : "☰"}</span>
+              </button>
+
+              <div className="logo" onClick={() => navigate("/home")}> 
+                TRUSTPERMIT
+              </div>
             </div>
 
             <nav className="nav-right-links">
@@ -206,7 +241,10 @@ export default function PublicLayout() {
                   title="Notifications"
                   aria-label="Notifications"
                 >
-                  🔔
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2z" fill="currentColor" />
+                    <path d="M18 16v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5S10.5 3.17 10.5 4v.68C7.63 5.36 6 7.92 6 11v5l-1.7 1.7c-.14.14-.3.33-.3.55 0 .41.34.75.75.75h14.5c.41 0 .75-.34.75-.75 0-.22-.08-.41-.22-.55L18 16z" fill="currentColor" />
+                  </svg>
 
                   {unreadCount > 0 && (
                     <span className="notification-count">
@@ -270,17 +308,76 @@ export default function PublicLayout() {
                 )}
               </div>
 
-              <button
-                className="logout-btn"
-                onClick={handleLogout}
-                title="Logout"
-                aria-label="Logout"
-              >
-                ⎋
-              </button>
+              {/* Header logout button removed for readability on Home screen */}
             </nav>
           </div>
         </header>
+
+        {leftRailOpen && <button
+          type="button"
+          className="public-left-sidebar-backdrop"
+          aria-label="Close sidebar"
+          onClick={() => setLeftRailOpen(false)}
+        />}
+
+        {leftRailOpen && (
+          <aside className="public-left-sidebar" aria-label="Quick access sidebar">
+            <div className="public-left-sidebar-brand">TRUSTPERMIT</div>
+
+            <div className="public-left-sidebar-user">
+              <div className="public-left-sidebar-avatar" aria-hidden="true">
+                {profileImage ? (
+                  <img src={profileImage} alt={`${userDisplayName}'s profile`} />
+                ) : (
+                  userDisplayName.trim().charAt(0).toUpperCase()
+                )}
+              </div>
+              <div className="public-left-sidebar-user-copy">
+                <div className="public-left-sidebar-user-name">{userDisplayName}</div>
+                <div className="public-left-sidebar-user-status">Verified User ✓</div>
+              </div>
+            </div>
+
+            <div className="public-left-sidebar-section public-left-sidebar-bottom-group">
+              <button type="button" className="public-left-sidebar-item settings" onClick={() => { setLeftRailOpen(false); navigate("/account"); }}>
+                <span className="public-left-sidebar-icon" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M19.4 13a7.1 7.1 0 00.1-1 7.1 7.1 0 00-.1-1l2.1-1.6a.5.5 0 00.1-.7l-2-3.4a.5.5 0 00-.7-.2l-2.5 1a7.6 7.6 0 00-1.7-1L14 2.5a.5.5 0 00-.5-.5h-4a.5.5 0 00-.5.5L8.3 4.1a7.6 7.6 0 00-1.7 1l-2.5-1a.5.5 0 00-.7.2l-2 3.4a.5.5 0 00.1.7L4.6 11a7.1 7.1 0 000 2l-2.1 1.6a.5.5 0 00-.1.7l2 3.4a.5.5 0 00.7.2l2.5-1c.5.4 1.1.7 1.7 1l.2 2.1a.5.5 0 00.5.5h4a.5.5 0 00.5-.5l.2-2.1c.6-.2 1.2-.5 1.7-1l2.5 1a.5.5 0 00.7-.2l2-3.4a.5.5 0 00-.1-.7L19.4 13z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </span>
+                <span className="public-left-sidebar-label">Settings</span>
+              </button>
+
+              <button type="button" className="public-left-sidebar-item payment-history" onClick={() => { setLeftRailOpen(false); navigate("/account?menu=Payment%20History"); }}>
+                <span className="public-left-sidebar-icon" aria-hidden="true">💳</span>
+                <span className="public-left-sidebar-label">Payment History</span>
+              </button>
+
+              <button type="button" className="public-left-sidebar-item logout" onClick={handleLogout}>
+                <span className="public-left-sidebar-icon" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M16 17l5-5-5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M8 12h11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M13 18.5H8a2 2 0 01-2-2v-7a2 2 0 012-2h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </span>
+                <span className="public-left-sidebar-label">Logout</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className="public-left-sidebar-action"
+              onClick={() => {
+                setLeftRailOpen(false);
+                navigate("/account?menu=Apply%20Permit");
+              }}
+            >
+              + New Permit
+            </button>
+          </aside>
+        )}
 
         <main className="page-content">
           <Outlet />

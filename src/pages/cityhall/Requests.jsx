@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import "./Requests.css";
+import CenteredModal from "../../components/CenteredModal";
 import { io } from "socket.io-client";
 
 const BACKEND_URL = "https://trustpermit-backend.onrender.com";
@@ -16,6 +17,7 @@ export default function Request() {
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [confirmAction, setConfirmAction] = useState({ open: false, appId: null, status: "" });
 
   const staffName = localStorage.getItem("name") || "City Hall Staff";
 
@@ -274,6 +276,17 @@ export default function Request() {
     }
   };
 
+  const confirmUpdateApplicationStatus = (appId, status) => {
+    setConfirmAction({ open: true, appId, status });
+  };
+
+  const handleConfirmAction = async () => {
+    const { appId, status } = confirmAction;
+    setConfirmAction({ open: false, appId: null, status: "" });
+    if (!appId || !status) return;
+    await updateApplicationStatus(appId, status);
+  };
+
   const getStatusClass = (status) => {
     return String(status || "Pending").toLowerCase();
   };
@@ -306,6 +319,134 @@ export default function Request() {
         </p>
       );
     });
+  };
+
+  const closeSelectedApp = () => {
+    setSelectedApp(null);
+    setActionError("");
+  };
+
+  const renderApplicationDetails = (app) => {
+    if (!app) return null;
+
+    return (
+      <div className="application-details-modal">
+        <div className="application-details-topbar">
+          <div>
+            <div className="application-details-title">Application Details</div>
+            <div className="application-details-subtitle">Summary of the selected request</div>
+          </div>
+          <span className={`status-pill ${getStatusClass(app.status)} application-details-status`}>
+            {getValue(app.status)}
+          </span>
+        </div>
+
+        <div className="application-details-actions">
+          <button
+            type="button"
+            className="approve-btn"
+            disabled={actionLoading || app.status === "Approved"}
+            onClick={() => confirmUpdateApplicationStatus(app._id, "Approved")}
+          >
+            {actionLoading ? "Processing..." : "Approve"}
+          </button>
+          <button
+            type="button"
+            className="reject-btn"
+            disabled={actionLoading || app.status === "Rejected"}
+            onClick={() => confirmUpdateApplicationStatus(app._id, "Rejected")}
+          >
+            Reject
+          </button>
+        </div>
+
+        <div className="application-details-grid">
+          <div className="application-details-card">
+            <h3>Applicant Information</h3>
+            <p><span>Name:</span> <b>{getApplicantName(app)}</b></p>
+            <p><span>First Name:</span> <b>{getValue(app.applicant?.firstName)}</b></p>
+            <p><span>Middle Name:</span> <b>{getValue(app.applicant?.middleName)}</b></p>
+            <p><span>Last Name:</span> <b>{getValue(app.applicant?.lastName)}</b></p>
+            <p><span>Suffix:</span> <b>{getValue(app.applicant?.suffix, app.applicant?.suffixName)}</b></p>
+            <p><span>Contact:</span> <b>{getValue(app.contact?.mobile, app.contact?.contactNumber, app.applicant?.contactNumber)}</b></p>
+            <p><span>Email:</span> <b>{getValue(app.contact?.email, app.applicant?.email, app.email)}</b></p>
+            <p><span>Nationality:</span> <b>{getValue(app.personalInfo?.nationality, app.applicant?.nationality)}</b></p>
+            <p><span>Civil Status:</span> <b>{getValue(app.personalInfo?.civilStatus, app.applicant?.civilStatus)}</b></p>
+            <p><span>Gender:</span> <b>{getValue(app.personalInfo?.gender, app.applicant?.gender)}</b></p>
+          </div>
+
+          <div className="application-details-card">
+            <h3>Address</h3>
+            <p><span>House No:</span> <b>{getValue(app.address?.houseNo)}</b></p>
+            <p><span>Street:</span> <b>{getValue(app.address?.street)}</b></p>
+            <p><span>Building:</span> <b>{getValue(app.address?.building)}</b></p>
+            <p><span>Subdivision:</span> <b>{getValue(app.address?.subdivision)}</b></p>
+            <p><span>Barangay:</span> <b>{getValue(app.address?.barangay)}</b></p>
+            <p><span>City:</span> <b>{getValue(app.address?.city)}</b></p>
+            <p><span>Province:</span> <b>{getValue(app.address?.province)}</b></p>
+            <p><span>Landmark:</span> <b>{getValue(app.address?.landmark)}</b></p>
+          </div>
+
+          <div className="application-details-card">
+            <h3>Business Details</h3>
+            <p><span>Business Name:</span> <b>{getValue(app.businessName, app.businessInfo?.businessName, app.businessDetails?.businessName)}</b></p>
+            <p><span>Application Type:</span> <b>{getValue(app.applicationType)}</b></p>
+            <p><span>Project Type:</span> <b>{getValue(app.projectType, app.businessInfo?.projectType, app.businessDetails?.projectType)}</b></p>
+            <p><span>Zone Type:</span> <b>{getValue(app.zoneType, app.businessInfo?.zoneType, app.businessDetails?.zoneType)}</b></p>
+            <p><span>Line of Business:</span> <b>{getValue(app.businessInfo?.lineOfBusiness, app.businessDetails?.lineOfBusiness)}</b></p>
+            <p><span>Business Area:</span> <b>{getValue(app.businessInfo?.area, app.businessInfo?.businessArea, app.businessDetails?.businessArea)} m²</b></p>
+            <p><span>Male Personnel:</span> <b>{getValue(app.businessInfo?.malePersonnel, app.businessDetails?.malePersonnel, 0)}</b></p>
+            <p><span>Female Personnel:</span> <b>{getValue(app.businessInfo?.femalePersonnel, app.businessDetails?.femalePersonnel, 0)}</b></p>
+          </div>
+
+          <div className="application-details-card">
+            <h3>Application Summary</h3>
+            <p><span>Status:</span> <b>{getValue(app.status)}</b></p>
+            <p><span>Submitted:</span> <b>{app.createdAt ? new Date(app.createdAt).toLocaleString() : "N/A"}</b></p>
+            <p><span>Updated:</span> <b>{app.updatedAt ? new Date(app.updatedAt).toLocaleString() : "N/A"}</b></p>
+            <p><span>Application ID:</span> <b>{getValue(app._id)}</b></p>
+            <p><span>Citizen:</span> <b>{getValue(app.citizenId, app.userId)}</b></p>
+          </div>
+        </div>
+
+        <div className="application-details-grid application-details-fullwidth">
+          <div className="application-details-card">
+            <h3>Additional Submitted Data</h3>
+            {renderObjectFields(app.applicant)}
+            {renderObjectFields(app.address)}
+            {renderObjectFields(app.businessInfo || app.businessDetails)}
+          </div>
+        </div>
+
+        <div className="application-details-grid">
+          <div className="application-details-card">
+            <h3>Documents</h3>
+            {app.documents && Object.keys(app.documents).length > 0 ? (
+              Object.entries(app.documents).map(([key, value]) => (
+                <p key={key}><span>{key}:</span> <b>{safeText(value)}</b></p>
+              ))
+            ) : app.attachments && Object.keys(app.attachments).length > 0 ? (
+              Object.entries(app.attachments).map(([key, value]) => (
+                <p key={key}><span>{key}:</span> <b>{safeText(value)}</b></p>
+              ))
+            ) : (
+              <p>No documents uploaded.</p>
+            )}
+          </div>
+
+          <div className="application-details-card">
+            <h3>Signature</h3>
+            {app.signature?.startsWith("data:image") ? (
+              <img src={app.signature} alt="Signature" className="signature-img" />
+            ) : (
+              <p>No signature available.</p>
+            )}
+          </div>
+        </div>
+
+        {actionError && <p className="action-error">{actionError}</p>}
+      </div>
+    );
   };
 
   return (
@@ -403,139 +544,29 @@ export default function Request() {
         )}
       </div>
 
-      {selectedApp && (
-        <div className="details-card">
-          <div className="details-title-row">
-            <div>
-              <h2>Application Details</h2>
-              <p>Review all submitted application information.</p>
-            </div>
+      <CenteredModal
+        open={Boolean(selectedApp)}
+        title="Application Details"
+        onClose={closeSelectedApp}
+        hideActions
+        className="request-details-modal"
+      >
+        {renderApplicationDetails(selectedApp)}
+      </CenteredModal>
 
-            <button
-              type="button"
-              className="close-btn"
-              onClick={() => {
-                setSelectedApp(null);
-                setActionError("");
-              }}
-            >
-              ✕
-            </button>
-          </div>
-
-          <div className="info-grid">
-            <div className="info-box">
-              <h3>Applicant Information</h3>
-              <p><span>Name:</span> <b>{getApplicantName(selectedApp)}</b></p>
-              <p><span>First Name:</span> <b>{getValue(selectedApp.applicant?.firstName)}</b></p>
-              <p><span>Middle Name:</span> <b>{getValue(selectedApp.applicant?.middleName)}</b></p>
-              <p><span>Last Name:</span> <b>{getValue(selectedApp.applicant?.lastName)}</b></p>
-              <p><span>Suffix:</span> <b>{getValue(selectedApp.applicant?.suffix, selectedApp.applicant?.suffixName)}</b></p>
-              <p><span>Contact:</span> <b>{getValue(selectedApp.contact?.mobile, selectedApp.contact?.contactNumber, selectedApp.applicant?.contactNumber)}</b></p>
-              <p><span>Email:</span> <b>{getValue(selectedApp.contact?.email, selectedApp.applicant?.email, selectedApp.email, selectedApp.userId)}</b></p>
-              <p><span>Nationality:</span> <b>{getValue(selectedApp.personalInfo?.nationality, selectedApp.applicant?.nationality)}</b></p>
-              <p><span>Civil Status:</span> <b>{getValue(selectedApp.personalInfo?.civilStatus, selectedApp.applicant?.civilStatus)}</b></p>
-              <p><span>Gender:</span> <b>{getValue(selectedApp.personalInfo?.gender, selectedApp.applicant?.gender)}</b></p>
-              {renderObjectFields(selectedApp.applicant)}
-            </div>
-
-            <div className="info-box">
-              <h3>Address Information</h3>
-              <p><span>House No:</span> <b>{getValue(selectedApp.address?.houseNo)}</b></p>
-              <p><span>Street:</span> <b>{getValue(selectedApp.address?.street)}</b></p>
-              <p><span>Building:</span> <b>{getValue(selectedApp.address?.building)}</b></p>
-              <p><span>Subdivision:</span> <b>{getValue(selectedApp.address?.subdivision)}</b></p>
-              <p><span>Barangay:</span> <b>{getValue(selectedApp.address?.barangay)}</b></p>
-              <p><span>City:</span> <b>{getValue(selectedApp.address?.city)}</b></p>
-              <p><span>Province:</span> <b>{getValue(selectedApp.address?.province)}</b></p>
-              <p><span>Landmark:</span> <b>{getValue(selectedApp.address?.landmark)}</b></p>
-              {renderObjectFields(selectedApp.address)}
-            </div>
-
-            <div className="info-box">
-              <h3>Business Details</h3>
-              <p><span>Business Name:</span> <b>{getValue(selectedApp.businessName, selectedApp.businessInfo?.businessName, selectedApp.businessDetails?.businessName)}</b></p>
-              <p><span>Application Type:</span> <b>{getValue(selectedApp.applicationType)}</b></p>
-              <p><span>Project Type:</span> <b>{getValue(selectedApp.projectType, selectedApp.businessInfo?.projectType, selectedApp.businessDetails?.projectType)}</b></p>
-              <p><span>Zone Type:</span> <b>{getValue(selectedApp.zoneType, selectedApp.businessInfo?.zoneType, selectedApp.businessDetails?.zoneType)}</b></p>
-              <p><span>Line of Business:</span> <b>{getValue(selectedApp.businessInfo?.lineOfBusiness, selectedApp.businessDetails?.lineOfBusiness)}</b></p>
-              <p><span>Business Area:</span> <b>{getValue(selectedApp.businessInfo?.area, selectedApp.businessInfo?.businessArea, selectedApp.businessDetails?.businessArea)} m²</b></p>
-              <p><span>Male Personnel:</span> <b>{getValue(selectedApp.businessInfo?.malePersonnel, selectedApp.businessDetails?.malePersonnel, 0)}</b></p>
-              <p><span>Female Personnel:</span> <b>{getValue(selectedApp.businessInfo?.femalePersonnel, selectedApp.businessDetails?.femalePersonnel, 0)}</b></p>
-              {renderObjectFields(selectedApp.businessInfo || selectedApp.businessDetails)}
-            </div>
-
-            <div className="info-box">
-              <h3>Application Status</h3>
-              <p><span>Status:</span> <b>{getValue(selectedApp.status)}</b></p>
-              <p><span>Created At:</span> <b>{selectedApp.createdAt ? new Date(selectedApp.createdAt).toLocaleString() : "N/A"}</b></p>
-              <p><span>Updated At:</span> <b>{selectedApp.updatedAt ? new Date(selectedApp.updatedAt).toLocaleString() : "N/A"}</b></p>
-              <p><span>Application ID:</span> <b>{getValue(selectedApp._id)}</b></p>
-              <p><span>Citizen:</span> <b>{getValue(selectedApp.citizenId, selectedApp.userId)}</b></p>
-            </div>
-          </div>
-
-          <div className="bottom-grid">
-            <div className="small-card">
-              <h3>Signature</h3>
-
-              {selectedApp.signature?.startsWith("data:image") ? (
-                <img src={selectedApp.signature} alt="Signature" className="signature-img" />
-              ) : (
-                <p>No signature available.</p>
-              )}
-            </div>
-
-            <div className="small-card">
-              <h3>Uploaded Documents</h3>
-
-              {selectedApp.documents && Object.keys(selectedApp.documents).length > 0 ? (
-                <div className="documents-list">
-                  {Object.entries(selectedApp.documents).map(([key, value]) => (
-                    <p key={key}>
-                      <b>{key}:</b> {safeText(value)}
-                    </p>
-                  ))}
-                </div>
-              ) : selectedApp.attachments && Object.keys(selectedApp.attachments).length > 0 ? (
-                <div className="documents-list">
-                  {Object.entries(selectedApp.attachments).map(([key, value]) => (
-                    <p key={key}>
-                      <b>{key}:</b> {safeText(value)}
-                    </p>
-                  ))}
-                </div>
-              ) : (
-                <p>No documents uploaded.</p>
-              )}
-            </div>
-          </div>
-
-          
-
-          {actionError && <p className="action-error">{actionError}</p>}
-
-          <div className="action-bar">
-            <button
-              type="button"
-              className="approve-btn"
-              disabled={actionLoading || selectedApp.status === "Approved"}
-              onClick={() => updateApplicationStatus(selectedApp._id, "Approved")}
-            >
-              {actionLoading ? "Processing..." : "✓ Approve Application"}
-            </button>
-
-            <button
-              type="button"
-              className="reject-btn"
-              disabled={actionLoading || selectedApp.status === "Rejected"}
-              onClick={() => updateApplicationStatus(selectedApp._id, "Rejected")}
-            >
-              ✕ Reject Application
-            </button>
-          </div>
-        </div>
-      )}
+      <CenteredModal
+        open={confirmAction.open}
+        title={confirmAction.status === "Rejected" ? "Reject Application" : "Approve Application"}
+        message={
+          confirmAction.status === "Rejected"
+            ? "Are you sure you want to reject this user?"
+            : "Are you sure you want to approve this user?"
+        }
+        buttonText={confirmAction.status === "Rejected" ? "Reject" : "Approve"}
+        cancelText="Cancel"
+        onConfirm={handleConfirmAction}
+        onCancel={() => setConfirmAction({ open: false, appId: null, status: "" })}
+      />
     </div>
   );
 }

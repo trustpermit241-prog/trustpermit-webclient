@@ -15,6 +15,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Verify from "./pages/Verify";
 import PrintPermit from "./pages/PrintPermit";
+import InspectionReport from "./pages/InspectionReport";
 import SecurityVerification from "./pages/SecurityVerification";
 import AskHelp from "./pages/Askhelp";
 
@@ -155,6 +156,11 @@ function App() {
         <Route
           path="/permit/print/:permitId"
           element={<PrintPermit />}
+        />
+
+        <Route
+          path="/inspection-report/:id"
+          element={<InspectionReport />}
         />
 
         {/* DOCUMENT VIEW ROUTES */}

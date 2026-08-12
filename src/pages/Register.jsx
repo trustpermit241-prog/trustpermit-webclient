@@ -20,6 +20,20 @@ export default function Register() {
   const validatePassword = (password) =>
     /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,}$/.test(password);
 
+  const getPasswordStrength = (password) => {
+    if (!password) return { label: "", color: "#374151" };
+    const lengthScore = password.length >= 8 ? 1 : 0;
+    const lowerScore = /[a-z]/.test(password) ? 1 : 0;
+    const upperScore = /[A-Z]/.test(password) ? 1 : 0;
+    const numberScore = /\d/.test(password) ? 1 : 0;
+    const symbolScore = /[^a-zA-Z0-9]/.test(password) ? 1 : 0;
+    const score = lengthScore + lowerScore + upperScore + numberScore + symbolScore;
+
+    if (score <= 2) return { label: "Weak", color: "#dc2626" };
+    if (score === 3 || score === 4) return { label: "Medium", color: "#f59e0b" };
+    return { label: "Strong", color: "#16a34a" };
+  };
+
   // ================== NEXT BUTTON ==================
   const handleNext = () => {
     // Check Full Name
@@ -67,11 +81,23 @@ export default function Register() {
   const containerStyle = {
     display: "flex",
     height: "100vh",
+    position: "relative",
+    overflow: "hidden",
+  };
+
+  const backgroundBlurStyle = {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
     backgroundImage: "url('/images/Antipolo-City-Hall.png')",
     backgroundSize: "cover",
     backgroundPosition: "center",
     backgroundRepeat: "no-repeat",
-    position: "relative",
+    filter: "blur(12px) brightness(0.72)",
+    transform: "scale(1.03)",
+    zIndex: 0,
   };
 
   const overlayStyle = {
@@ -81,20 +107,7 @@ export default function Register() {
     width: "100%",
     height: "100%",
     backgroundColor: "rgba(0,0,0,0.18)",
-    zIndex: 0,
-  };
-
-  const leftStyle = {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    paddingLeft: 80,
-    paddingRight: 40,
     zIndex: 1,
-    color: '#fff',
-    minWidth: 0,
   };
 
   const rightStyle = {
@@ -108,6 +121,7 @@ export default function Register() {
 
   return (
     <div style={containerStyle}>
+      <div style={backgroundBlurStyle} />
       <div style={overlayStyle}></div>
       <div style={rightStyle}>
         <div
@@ -115,12 +129,12 @@ export default function Register() {
           style={{
             position: "relative",
             zIndex: 2,
-            minWidth: 520,
-            maxWidth: 600,
+            minWidth: 580,
+            maxWidth: 700,
             background: "rgba(255,255,255,0.96)",
             borderRadius: 24,
             boxShadow: "0 12px 40px rgba(0,0,0,0.18)",
-            padding: "56px 48px 48px 48px",
+            padding: "64px 56px 56px 56px",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -158,8 +172,11 @@ export default function Register() {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            style={{ marginBottom: 14, width: "100%", padding: "13px", borderRadius: 8, border: "1px solid #bbb", fontSize: 17 }}
+            style={{ marginBottom: 6, width: "100%", padding: "13px", borderRadius: 8, border: "1px solid #bbb", fontSize: 17 }}
           />
+          <div style={{ width: "100%", marginBottom: 12, fontSize: 14, color: getPasswordStrength(password).color, fontWeight: 600 }}>
+            {password ? `Password strength: ${getPasswordStrength(password).label}` : ""}
+          </div>
 
           {/* Confirm Password */}
           <input
@@ -167,8 +184,13 @@ export default function Register() {
             placeholder="Confirm Password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            style={{ marginBottom: 14, width: "100%", padding: "13px", borderRadius: 8, border: "1px solid #bbb", fontSize: 17 }}
+            style={{ marginBottom: 6, width: "100%", padding: "13px", borderRadius: 8, border: "1px solid #bbb", fontSize: 17 }}
           />
+          {confirmPassword && confirmPassword !== password && (
+            <div style={{ width: "100%", marginBottom: 12, fontSize: 14, color: "#dc2626", fontWeight: 600 }}>
+              Passwords do not match.
+            </div>
+          )}
 
           {/* Citizen Checkbox */}
           <div style={{ display: 'flex', alignItems: 'center', margin: '12px 0 20px 0', width: '100%' }}>

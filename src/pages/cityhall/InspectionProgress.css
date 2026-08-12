@@ -537,7 +537,9 @@
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
 }
+.ip-action-print,
 .ip-action-approve,
 .ip-action-reject {
   padding: 6px 14px;
@@ -552,6 +554,17 @@
   font-weight: 600;
   transition: all 0.15s ease;
   white-space: nowrap;
+}
+.ip-action-print {
+  background: #EFF6FF;
+  color: #2563EB;
+  border-color: #BFDBFE;
+}
+.ip-action-print:hover {
+  background: #DBEAFE;
+  border-color: #93C5FD;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.15);
 }
 .ip-action-approve {
   background: #F0FDF4;

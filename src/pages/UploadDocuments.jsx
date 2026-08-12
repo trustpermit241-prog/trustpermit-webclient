@@ -1,17 +1,22 @@
 import React, { useState } from "react";
+import CenteredModal from "../components/CenteredModal";
 
 const REQUIRED_DOCUMENTS = [
-  "Locational Clearance",
-  "Barangay Clearance",
-  "Fire Safety Evaluation Certificate",
-  "Building Permit",
-  "Wiring Permit",
+  "DTI/SEC Registration",
+  "Contract OF LEASE IF RENTING & COPY OF LESSOR'S PERMIT IF OWNED TAX DECLARATION OF LAND AND BUILDING",
+  "PROPERTY TAX RECEIPT OF LAND AND BUILDING",
+  "PICTURE OF OWNER",
+  "PANORAMIC PICTURE OF THE ESTABLISHMENT",
+  "PICTURE OF THE ESTABLISHMENT'S SHOWING INSTALLED CCTV CAMERA",
+  "LOCATIONAL SKETCH",
+  "PROFILE OF G-CASH/PAYMAAYA"
 ];
 
 export default function UploadDocuments({ applicationId }) {
   const [uploadedFiles, setUploadedFiles] = useState({});
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [modal, setModal] = useState({ open: false, title: "", message: "", buttonText: "OK", variant: "default", className: "" });
 
   const handleFileChange = (doc, fileList) => {
     setUploadedFiles((prev) => ({
@@ -22,14 +27,28 @@ export default function UploadDocuments({ applicationId }) {
 
   const handleUpload = async () => {
     if (!applicationId) {
-      alert("No application ID found.");
+      setModal({
+        open: true,
+        title: "Missing Application",
+        message: "No application ID found.",
+        buttonText: "OK",
+        variant: "error",
+        className: "custom-upload-modal",
+      });
       return;
     }
 
-    const selectedFiles = Object.values(uploadedFiles).filter(Boolean);
+    const missingDocs = REQUIRED_DOCUMENTS.filter((doc) => !uploadedFiles[doc]);
 
-    if (selectedFiles.length === 0) {
-      alert("Please upload at least one document.");
+    if (missingDocs.length > 0) {
+      setModal({
+        open: true,
+        title: "Missing Documents",
+        message: `Please upload all required documents before continuing. Missing: ${missingDocs.join(", ")}`,
+        buttonText: "OK",
+        variant: "error",
+        className: "custom-upload-modal",
+      });
       return;
     }
 
@@ -40,7 +59,14 @@ export default function UploadDocuments({ applicationId }) {
       const token = localStorage.getItem("token");
 
       if (!token) {
-        alert("No token found. Please log in again.");
+        setModal({
+          open: true,
+          title: "Authentication Required",
+          message: "No token found. Please log in again.",
+          buttonText: "OK",
+          variant: "error",
+          className: "custom-upload-modal",
+        });
         setUploading(false);
         return;
       }
@@ -78,10 +104,24 @@ export default function UploadDocuments({ applicationId }) {
 
       setSuccess(true);
       setUploadedFiles({});
-      alert("Documents uploaded successfully!");
+      setModal({
+        open: true,
+        title: "Upload Complete",
+        message: "Documents uploaded successfully! Your application is now ready for staff review.",
+        buttonText: "Continue",
+        variant: "success",
+        className: "custom-upload-modal",
+      });
     } catch (err) {
       console.error("Upload error:", err);
-      alert(err.message || "Failed to upload documents");
+      setModal({
+        open: true,
+        title: "Upload Failed",
+        message: err.message || "Failed to upload documents",
+        buttonText: "OK",
+        variant: "error",
+        className: "custom-upload-modal",
+      });
     } finally {
       setUploading(false);
     }
@@ -120,6 +160,16 @@ export default function UploadDocuments({ applicationId }) {
           All documents uploaded!
         </div>
       )}
+
+      <CenteredModal
+        open={modal.open}
+        title={modal.title}
+        message={modal.message}
+        buttonText={modal.buttonText}
+        variant={modal.variant}
+        className={modal.className}
+        onClose={() => setModal((prev) => ({ ...prev, open: false }))}
+      />
     </div>
   );
 }

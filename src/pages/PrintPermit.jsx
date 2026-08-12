@@ -39,6 +39,10 @@ export default function PrintPermit() {
   const permitNumber = app._id || "N/A";
   const orNumber = app.orNumber || permitNumber.slice(0, 8).toUpperCase();
 
+  const verificationLink = FRONTEND_URL
+    ? `${FRONTEND_URL}/verify/${app._id}`
+    : `${API_BASE_URL}/api/blockchain/redirect/${app._id}`;
+
   return (
     <div className="permit-print-page">
       <div className="permit-print-sheet official-permit">
@@ -53,7 +57,8 @@ export default function PrintPermit() {
             <h1 className="permit-main-title">MAYOR&apos;S PERMIT</h1>
           </div>
           <div className="permit-qr-block">
-            <QRCode value={`${FRONTEND_URL}/verify/${app._id}`} size={110} />
+            {/* Use verify UI route so the scanner opens the blockchain verification page */}
+            <QRCode value={verificationLink} size={110} />
           </div>
         </div>
 

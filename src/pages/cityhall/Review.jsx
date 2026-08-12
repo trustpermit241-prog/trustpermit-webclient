@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import "./Review.css";
 
@@ -183,6 +183,19 @@ export default function Review() {
     return documentStatus[docName] || doc.status || "Pending";
   };
 
+  const formatDate = (value) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   const finalizeReview = async () => {
     try {
       const token = getToken();
@@ -245,10 +258,41 @@ export default function Review() {
     }
   };
 
+  const closeViewer = () => {
+    if (selectedDoc && selectedDoc.temp && selectedDoc.fileUrl) {
+      try {
+        URL.revokeObjectURL(selectedDoc.fileUrl);
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    setViewerOpen(false);
+    setSelectedDoc(null);
+  };
+
+  const downloadAllDocuments = () => {
+    const urls = uploadedDocs
+      .map((doc) => getFileUrl(doc))
+      .filter((url) => Boolean(url));
+
+    if (urls.length === 0) {
+      alert("No downloadable documents found.");
+      return;
+    }
+
+    urls.forEach((url) => {
+      window.open(url, "_blank");
+    });
+  };
+
+  const fileInputs = useRef({});
+  const [openActionIndex, setOpenActionIndex] = useState(null);
+
   if (loading) {
     return (
       <section className="review-section">
-        <div className="review-card">
+        <div className="review-content">
           <h3>Loading...</h3>
         </div>
       </section>
@@ -258,23 +302,32 @@ export default function Review() {
   if (!applicationId) {
     return (
       <section className="review-section">
-        <div className="review-card">
-          <h3>Select an Application to Review</h3>
-
+        <div className="review-header-wrap">
+          <h1 className="review-page-title">Uploaded Documents</h1>
+        </div>
+        <div className="review-content">
           {error && <div className="review-error">{error}</div>}
 
-          <ul className="document-list">
+          <ul className="application-card-list">
             {allApplications.length > 0 ? (
               allApplications.map((app) => (
-                <li key={app._id} className="document-item">
-                  <div className="doc-info">
-                    <span className="doc-name">
-                      {app.businessName || "Application"} ({app.status || "Pending"})
-                    </span>
+                <li key={app._id} className="application-card">
+                  <div className="application-card-info">
+                    <div className="application-card-title">
+                      {app.businessName || "Application"}
+                    </div>
+                    <div className="application-card-meta">
+                      {app.applicationNumber ? (
+                        <span>Application No: {app.applicationNumber}</span>
+                      ) : null}
+                      <span>
+                        Submitted on: {formatDate(app.createdAt || app.submittedAt)}
+                      </span>
+                    </div>
                   </div>
 
                   <button
-                    className="btn primary"
+                    className="review-now-btn"
                     type="button"
                     onClick={() => navigate(`/staff/review/${app._id}`)}
                   >
@@ -293,84 +346,133 @@ export default function Review() {
 
   return (
     <section className="review-section">
-      <div className="review-card">
-        <div className="review-header">
-          <h3>Staff Document Review</h3>
-          <h4>Uploaded Documents for Verification</h4>
-        </div>
-
+      <div className="review-header-wrap">
+        <h1 className="review-page-title">Uploaded Documents</h1>
+      </div>
+      <div className="review-content">
         {error && <div className="review-error">{error}</div>}
 
-        <ul className="document-list">
-          {uploadedDocs.length === 0 && (
-            <li className="center-text">No documents uploaded.</li>
+        <div className="application-summary-card">
+          <div className="application-card-info">
+            <div className="application-card-title">
+              {application?.businessName || "Selected Application"}
+            </div>
+            <div className="application-card-meta">
+              {application?.applicationNumber ? (
+                <span>Application No: {application.applicationNumber}</span>
+              ) : null}
+              <span>
+                Submitted on: {formatDate(application?.createdAt || application?.submittedAt)}
+              </span>
+            </div>
+          </div>
+          <div className="application-card-end">
+            <span className={`status ${String(application?.status || "Pending").toLowerCase()}`}>
+              {application?.status || "Pending"}
+            </span>
+            <button
+              type="button"
+              className="review-now-btn"
+              onClick={() => navigate("/staff/review")}
+            >
+              Back to list
+            </button>
+          </div>
+        </div>
+
+        <div className="submitted-documents-card">
+          <div className="section-heading">
+            <h2 className="section-title">Submitted Documents</h2>
+          </div>
+
+          {uploadedDocs.length === 0 ? (
+            <p className="center-text">No documents uploaded.</p>
+          ) : (
+            <div className="table-wrap">
+              <table className="submitted-documents-table">
+                <thead>
+                  <tr>
+                    <th>Document Name</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {uploadedDocs.map((doc, index) => {
+                    const docName = doc.documentName || `Document ${index + 1}`;
+                    const status = getCurrentDocStatus(doc, index);
+                    const fileUrl = getFileUrl(doc);
+
+                    return (
+                      <tr key={doc._id || index}>
+                        <td>{docName}</td>
+                        <td>
+                          <span className={`status ${status.toLowerCase()}`}>
+                            {status}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="doc-actions">
+                            <button
+                              type="button"
+                              className="btn icon-btn view-icon"
+                              onClick={() => {
+                                if (fileUrl) {
+                                  setSelectedDoc(doc);
+                                  setViewerOpen(true);
+                                }
+                              }}
+                              aria-label="View document"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="32"
+                                height="32"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
+                              </svg>
+                            </button>
+                            <div className="status-dropdown">
+                              <select
+                                className="status-select"
+                                value={status}
+                                onChange={(e) => {
+                                  const selectedStatus = e.target.value;
+                                  if (selectedStatus === "Approved") {
+                                    handleApprove(docName);
+                                  } else if (selectedStatus === "Rejected") {
+                                    handleReject(docName);
+                                  } else if (selectedStatus === "Pending") {
+                                    handleUpdate(docName);
+                                  }
+                                }}
+                              >
+                                <option value="Pending">Pending</option>
+                                <option value="Approved">Approved</option>
+                                <option value="Rejected">Rejected</option>
+                              </select>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
-
-          {uploadedDocs.map((doc, index) => {
-            const docName = doc.documentName || `Document ${index + 1}`;
-            const status = getCurrentDocStatus(doc, index);
-
-            return (
-              <li key={doc._id || index} className="document-item">
-                <div className="doc-left">
-                  <div className="doc-icon">{index + 1}</div>
-
-                  <div className="doc-info">
-                    <span className="doc-name">{docName}</span>
-                    <span className="file-name">
-                      {doc.originalName || doc.fileName || "Uploaded File"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="doc-actions">
-                  <span className={`status ${status.toLowerCase()}`}>
-                    {status}
-                  </span>
-
-                  <button
-                    type="button"
-                    className="btn approve"
-                    onClick={() => handleApprove(docName)}
-                  >
-                    Approve
-                  </button>
-
-                  <button
-                    type="button"
-                    className="btn reject"
-                    onClick={() => handleReject(docName)}
-                  >
-                    Reject
-                  </button>
-
-                  <button
-                    type="button"
-                    className="btn update"
-                    onClick={() => handleUpdate(docName)}
-                  >
-                    Update
-                  </button>
-
-                  <button
-                    type="button"
-                    className="btn view"
-                    onClick={() => {
-                      setSelectedDoc(doc);
-                      setViewerOpen(true);
-                    }}
-                  >
-                    View
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        </div>
 
         <button
           type="button"
-          className="btn primary finalize-btn"
+          className="review-now-btn finalize-btn"
           onClick={finalizeReview}
         >
           Finalize Review
@@ -378,19 +480,19 @@ export default function Review() {
       </div>
 
       {viewerOpen && selectedDoc && (
-        <div className="viewer-overlay" onClick={() => setViewerOpen(false)}>
-          <div className="viewer-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="viewer-backdrop" onClick={closeViewer}>
+          <div className="viewer-overlay" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               className="viewer-close"
-              onClick={() => setViewerOpen(false)}
+              onClick={closeViewer}
             >
               ×
             </button>
 
             {isImageFile(selectedDoc) && (
               <img
-                src={getFileUrl(selectedDoc)}
+                src={selectedDoc.temp ? selectedDoc.fileUrl : getFileUrl(selectedDoc)}
                 alt="Document"
                 className="viewer-image"
               />
@@ -399,13 +501,15 @@ export default function Review() {
             {isPdfFile(selectedDoc) && (
               <iframe
                 title="PDF Preview"
-                src={getFileUrl(selectedDoc)}
+                src={selectedDoc.temp ? selectedDoc.fileUrl : getFileUrl(selectedDoc)}
                 className="viewer-frame"
               />
             )}
 
             {!isImageFile(selectedDoc) && !isPdfFile(selectedDoc) && (
-              <div className="viewer-empty">Preview not available</div>
+              <div className="viewer-empty">
+                Preview not available
+              </div>
             )}
           </div>
         </div>

@@ -14,6 +14,7 @@ export default function SecurityVerification() {
   const [message, setMessage] = useState("");
   const [emailVerified, setEmailVerified] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(false);
+  const [resendTimer, setResendTimer] = useState(60);
 
   // Redirect if no state
   useEffect(() => {
@@ -50,7 +51,7 @@ export default function SecurityVerification() {
 
       setMessage(`OTP sent successfully to ${email}`);
       setResendCooldown(true);
-      setTimeout(() => setResendCooldown(false), 60000); // 60s cooldown
+      setResendTimer(60);
     } catch (err) {
       console.error(err);
       const errorMessage = err.text || err.message || "Failed to send OTP.";
@@ -108,19 +109,92 @@ export default function SecurityVerification() {
     // eslint-disable-next-line
   }, [email]);
 
-  return (
-    <div
-      className="register-container"
-      style={{ backgroundImage: "url('/images/Antipolo-City-Hall.png')" }}
-    >
-      <div className="register-overlay"></div>
+  useEffect(() => {
+    if (!resendCooldown) return;
 
-      <div className="register-card">
+    const interval = setInterval(() => {
+      setResendTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setResendCooldown(false);
+          return 60;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [resendCooldown]);
+
+  const containerStyle = {
+    display: "flex",
+    height: "100vh",
+    position: "relative",
+    overflow: "hidden",
+  };
+
+  const backgroundBlurStyle = {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    backgroundImage: "url('/images/Antipolo-City-Hall.png')",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+    filter: "blur(14px) brightness(0.78)",
+    transform: "scale(1.03)",
+    zIndex: 0,
+  };
+
+  const overlayStyle = {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(255,255,255,0.18)",
+    zIndex: 1,
+  };
+
+  const cardStyle = {
+    position: "relative",
+    zIndex: 2,
+    width: "min(560px, calc(100vw - 32px))",
+    background: "#ffffff",
+    borderRadius: 24,
+    boxShadow: "0 18px 50px rgba(15, 23, 42, 0.12)",
+    border: "1.5px solid rgba(30, 64, 175, 0.10)",
+    padding: "52px 46px 46px 46px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+  };
+
+  const inputStyle = {
+    width: "100%",
+    padding: "14px 16px",
+    borderRadius: 12,
+    border: "1px solid rgba(148, 163, 184, 0.9)",
+    background: "#f8fafc",
+    color: "#111827",
+    fontSize: 16,
+    marginBottom: 18,
+    boxSizing: "border-box",
+  };
+
+  return (
+    <div className="register-container" style={containerStyle}>
+      <div style={backgroundBlurStyle} />
+      <div style={overlayStyle}></div>
+
+      <div className="register-card" style={cardStyle}>
         <h1>Security Verification</h1>
 
         {message && <p className="register-message">{message}</p>}
 
-        <p>
+        <p style={{ color: "#334155", maxWidth: 450, textAlign: "center", marginBottom: 24 }}>
           A verification code has been sent to <b>{email}</b>
         </p>
 
@@ -130,6 +204,7 @@ export default function SecurityVerification() {
           value={otp}
           onChange={(e) => setOtp(e.target.value)}
           maxLength={6}
+          style={inputStyle}
         />
 
         <button onClick={verifyOtp} disabled={emailVerified}>
@@ -141,7 +216,7 @@ export default function SecurityVerification() {
           disabled={resendCooldown || emailVerified}
           style={{ marginTop: "10px", backgroundColor: "#0f5dc0" }}
         >
-          {resendCooldown ? "Resend in 60s" : "Resend OTP"}
+          {resendCooldown ? `Resend in ${resendTimer}s` : "Resend OTP"}
         </button>
 
         <p className="register-link" style={{ marginTop: "15px" }}>

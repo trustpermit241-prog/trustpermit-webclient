@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import QRCode from "react-qr-code";
+import CenteredModal from "../../components/CenteredModal";
+import PaymentView from "../Dropdown/PaymentView";
 import "./Payment.css";
 
 const API_BASE_URL = "https://trustpermit-backend.onrender.com";
@@ -11,6 +13,8 @@ export default function Payment() {
   const [notice, setNotice] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [approvingId, setApprovingId] = useState(null);
+  const [qrModalPayment, setQrModalPayment] = useState(null);
+  const [paymentViewModalPayment, setPaymentViewModalPayment] = useState(null);
 
   const getApplicationId = (payment) => {
     if (!payment) return null;
@@ -85,13 +89,22 @@ export default function Payment() {
     }
   };
 
+  const [confirmModal, setConfirmModal] = useState({ open: false, paymentId: null });
+
   const approveAndReleasePermit = async (paymentId) => {
-    const confirmApprove = window.confirm(
-      "Approve this payment and automatically release the permit?"
-    );
+    setConfirmModal({ open: true, paymentId });
+  };
 
-    if (!confirmApprove) return;
+  const handleCancelConfirm = () => {
+    setConfirmModal({ open: false, paymentId: null });
+  };
 
+  const handleConfirmApprove = async () => {
+    const paymentId = confirmModal.paymentId;
+    setConfirmModal({ open: false, paymentId: null });
+    if (!paymentId) return;
+
+    const approvedPayment = payments.find((p) => p._id === paymentId) || null;
     setApprovingId(paymentId);
 
     try {
@@ -122,14 +135,24 @@ export default function Payment() {
         );
       }
 
-      alert(
-        "Payment approved, permit released, QR generated, and Solana proof created!"
-      );
+      setNotice("Payment approved, permit released, QR generated, and Solana proof created!");
 
+      const updatedPayment = data.payment
+        ? {
+            ...data.payment,
+            blockchainRecord:
+              data.payment.blockchainRecord || data.blockchainRecord || approvedPayment?.blockchainRecord,
+          }
+        : {
+            ...approvedPayment,
+            blockchainRecord: data.blockchainRecord || approvedPayment?.blockchainRecord,
+          };
+
+      setQrModalPayment(updatedPayment);
       await fetchPayments();
     } catch (error) {
       console.error("Approve payment error:", error);
-      alert(error.message || "Something went wrong.");
+      setNotice(error.message || "Something went wrong.");
     } finally {
       setApprovingId(null);
     }
@@ -212,226 +235,255 @@ export default function Payment() {
     return "💳";
   };
 
+  // table-style payments UI with search, filters, and pagination
+  const [searchText, setSearchText] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
+  const matchingPayments = filteredPayments.filter((p) => {
+    if (statusFilter !== "all") {
+      const s = String(p?.status || "").toLowerCase();
+      if (statusFilter === "paid" && s !== "paid") return false;
+      if (statusFilter === "unpaid" && s === "paid") return false;
+      if (statusFilter === "overdue" && s !== "overdue") return false;
+    }
+
+    if (!searchText) return true;
+
+    const q = searchText.toLowerCase();
+    const invoiceId = String(p?._id || p?.id || "").toLowerCase();
+    const client = String(p?.name || p?.userId?.fullName || "").toLowerCase();
+    const service = String(p?.service || p?.application?.applicationType || "").toLowerCase();
+
+    return (
+      invoiceId.includes(q) ||
+      client.includes(q) ||
+      service.includes(q) ||
+      String(p?.email || "").toLowerCase().includes(q)
+    );
+  });
+
+  const totalPages = Math.max(1, Math.ceil(matchingPayments.length / pageSize));
+  const paged = matchingPayments.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  useEffect(() => setCurrentPage(1), [searchText, statusFilter, activeFilter]);
+
   return (
-    <section className="payments-overview">
+    <section className="payments-overview table-mode">
       <div className="payments-hero">
         <div>
-          <span className="payments-eyebrow">Staff Payment Center</span>
-          <h1>User Payments</h1>
-          <p>Approve payments and automatically release permits.</p>
+          
+          <h1>Payments</h1>
+          
         </div>
 
-        <button
-          type="button"
-          className="refresh-payment-btn"
-          onClick={fetchPayments}
-          disabled={loading}
-        >
-          {loading ? "Refreshing..." : "Refresh"}
-        </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input
+            className="payment-search"
+            placeholder="Search invoice, client, or service..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
+
+          <button
+            type="button"
+            className="refresh-payment-btn"
+            onClick={fetchPayments}
+            disabled={loading}
+          >
+            {loading ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </div>
 
       <div className="payment-summary-grid">
         <div className="summary-card">
-          <span>Total Records</span>
-          <strong>{payments.length}</strong>
+          <span>In Transit</span>
+          <strong>₱{formatAmount(payments.filter(p => String(p.status||"").toLowerCase() === "in transit").reduce((s, r) => s + Number(r.amount||0), 0))}</strong>
         </div>
-
         <div className="summary-card">
-          <span>Visible Amount</span>
-          <strong>₱{formatAmount(totalAmount)}</strong>
+          <span>Total Paid</span>
+          <strong>₱{formatAmount(payments.filter(p => String(p.status||"").toLowerCase() === "paid").reduce((s, r) => s + Number(r.amount||0), 0))}</strong>
         </div>
-
         <div className="summary-card">
-          <span>GCash Payments</span>
-          <strong>{gcashCount}</strong>
+          <span>Total Unpaid</span>
+          <strong>₱{formatAmount(payments.filter(p => String(p.status||"").toLowerCase() !== "paid").reduce((s, r) => s + Number(r.amount||0), 0))}</strong>
         </div>
-
         <div className="summary-card">
-          <span>Bank/Card Payments</span>
-          <strong>{bankCount}</strong>
+          <span>Total Overdue</span>
+          <strong>₱{formatAmount(payments.filter(p => String(p.status||"").toLowerCase() === "overdue").reduce((s, r) => s + Number(r.amount||0), 0))}</strong>
         </div>
       </div>
 
-      <div className="payment-toolbar">
-        <div className="payment-filter-tabs">
-          <button
-            type="button"
-            className={activeFilter === "all" ? "active" : ""}
-            onClick={() => setActiveFilter("all")}
-          >
-            All
-          </button>
+      <div className="payment-toolbar table-controls">
+        <div className="payment-filter-tabs status-tabs">
+          <button type="button" className={statusFilter === "all" ? "active" : ""} onClick={() => setStatusFilter("all")}>All</button>
+          <button type="button" className={statusFilter === "paid" ? "active" : ""} onClick={() => setStatusFilter("paid")}>Paid</button>
+          <button type="button" className={statusFilter === "unpaid" ? "active" : ""} onClick={() => setStatusFilter("unpaid")}>Unpaid</button>
+          <button type="button" className={statusFilter === "overdue" ? "active" : ""} onClick={() => setStatusFilter("overdue")}>Overdue</button>
+        </div>
 
-          <button
-            type="button"
-            className={activeFilter === "gcash" ? "active" : ""}
-            onClick={() => setActiveFilter("gcash")}
-          >
-            GCash
-          </button>
-
-          <button
-            type="button"
-            className={activeFilter === "card" ? "active" : ""}
-            onClick={() => setActiveFilter("card")}
-          >
-            Bank / Card
-          </button>
+        <div className="table-meta">
+          <div className="results-count">Showing {paged.length} of {matchingPayments.length} entries</div>
         </div>
       </div>
 
       {notice && <div className="notice">{notice}</div>}
-      {loading && <div className="loading">Loading payments...</div>}
 
-      {!loading && filteredPayments.length === 0 && !notice && (
-        <div className="empty-state">
-          <div className="empty-icon">💰</div>
-          <strong>No payments found</strong>
-          <span>Try another filter or wait for users to submit payments.</span>
+      <div className="payments-table-wrap">
+        <table className="payments-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Invoice ID</th>
+              <th>Issue Date</th>
+              <th>Client Name</th>
+              <th>Status</th>
+              <th>Services</th>
+              <th>Price</th>
+              <th></th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {paged.map((payment, idx) => {
+              const status = String(payment?.status || "").toLowerCase();
+              const payer = payment?.name || payment?.userId?.fullName || "-";
+              const issue = formatDate(payment?.createdAt);
+              const service = payment?.service || payment?.application?.applicationType || "-";
+              return (
+                <>
+                <tr key={payment?._id || idx}>
+                  <td><input type="checkbox" /></td>
+                  <td>{payment?._id?.slice?.(0,8) || "-"}</td>
+                  <td>{issue}</td>
+                  <td>{payer}</td>
+                  <td><span className={`status-pill ${status}`}>{status || "-"}</span></td>
+                  <td>{service}</td>
+                  <td>₱{formatAmount(payment?.amount)}</td>
+                  <td className="row-actions">
+                    {payment?._id && (
+                      <>
+                        {!payment?.permitReleased && (
+                          <button
+                            className="approve-btn small"
+                            disabled={approvingId === payment._id}
+                            onClick={() => approveAndReleasePermit(payment._id)}
+                          >
+                            {approvingId === payment._id ? "Processing..." : "Approve & Release"}
+                          </button>
+                        )}
+
+                        {payment?.permitReleased && (
+                          <>
+                            <button
+                              className="refresh-payment-btn small"
+                              onClick={() => setQrModalPayment(payment)}
+                            >
+                              View Permit
+                            </button>
+
+                            <button
+                              className="refresh-payment-btn small"
+                              style={{ marginLeft: 8 }}
+                              onClick={() => setPaymentViewModalPayment(payment)}
+                            >
+                              View
+                            </button>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </td>
+                </tr>
+
+                </>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="table-footer">
+        <div className="pagination">
+          <button onClick={() => setCurrentPage((p) => Math.max(1, p-1))} disabled={currentPage<=1}>&lt;</button>
+          <span>{currentPage} / {totalPages}</span>
+          <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p+1))} disabled={currentPage>=totalPages}>&gt;</button>
         </div>
-      )}
+      </div>
 
-      {!loading && filteredPayments.length > 0 && (
-        <div className="payment-list">
-          {filteredPayments.map((payment, index) => {
-            const payerName =
-              payment?.name ||
-              payment?.userId?.fullName ||
-              payment?.userId?.name ||
-              "N/A";
+      <CenteredModal
+        open={confirmModal.open}
+        title="Approve Payment"
+        message="Approve this payment and automatically release the permit?"
+        buttonText="Approve"
+        cancelText="Cancel"
+        variant="default"
+        onConfirm={handleConfirmApprove}
+        onCancel={handleCancelConfirm}
+      />
 
-            const payerEmail =
-              payment?.email || payment?.userId?.email || "N/A";
+      <CenteredModal
+        open={Boolean(qrModalPayment)}
+        title="Permit Verification"
+        buttonText="Close"
+        cancelText=""
+        onClose={() => setQrModalPayment(null)}
+        hideActions={false}
+      >
+        {qrModalPayment && (
+          <div style={{ textAlign: 'left', marginTop: 10 }}>
+            <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', justifyContent: 'center' }}>
+              {(() => {
+                const applicationId = getApplicationId(qrModalPayment);
+                const verificationLink =
+                  qrModalPayment?.verificationUrl ||
+                  (applicationId ? `${API_BASE_URL}/api/blockchain/verify/${applicationId}` : "");
+                return (
+                  <>
+                    {verificationLink ? (
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ marginBottom: 10 }}>Open verification</div>
+                        <QRCode value={verificationLink} size={140} />
+                        
+                      </div>
+                    ) : null}
+                  </>
+                );
+              })()}
+            </div>
 
-            const status = payment?.status || "pending";
+            <div className="solana-proof-box" style={{ marginTop: 24, padding: 18, borderRadius: 16, background: '#f8fafc', border: '1px solid rgba(148,163,184,0.2)' }}>
+              <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>Solana Proof</div>
+              <div style={{ color: '#475569', marginBottom: 6 }}><strong>Hash:</strong> <span className="break-text">{qrModalPayment?.blockchainRecord?.hash || 'N/A'}</span></div>
+              <div style={{ color: '#475569', marginBottom: 10 }}><strong>Tx:</strong> <span className="break-text">{qrModalPayment?.blockchainRecord?.transactionSignature || 'N/A'}</span></div>
+              {qrModalPayment?.blockchainRecord?.transactionSignature && (
+                <a href={`https://explorer.solana.com/tx/${qrModalPayment.blockchainRecord.transactionSignature}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ color: '#2563eb', fontWeight: 700 }}>
+                  View on Solana Explorer
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+      </CenteredModal>
 
-            const method = String(
-              payment?.paymentMethod || payment?.method || "N/A"
-            ).toLowerCase();
-
-            const isReleased = payment?.permitReleased === true;
-            const applicationId = getApplicationId(payment);
-
-            const verificationLink =
-              payment?.verificationUrl ||
-              (applicationId ? `${FRONTEND_URL}/verify/${applicationId}` : "");
-
-            return (
-              <div className="payment-card" key={payment?._id || index}>
-                <div className="payment-card-top">
-                  <div className="payer-info">
-                    <div className="payment-method-icon">
-                      {getPaymentIcon(method)}
-                    </div>
-
-                    <div>
-                      <h3>{payerName}</h3>
-                      <span>{payerEmail}</span>
-                    </div>
-                  </div>
-
-                  <span className={`status-pill ${String(status).toLowerCase()}`}>
-                    {isReleased ? "Released" : status}
-                  </span>
-                </div>
-
-                <div className="payment-amount-box">
-                  <span>Amount Paid</span>
-                  <strong>₱{formatAmount(payment?.amount)}</strong>
-                </div>
-
-                <div className="payment-row">
-                  <strong>Payment Method</strong>
-                  <span className={`method-pill ${method}`}>
-                    {method === "card" || method === "bank"
-                      ? "Bank / Card"
-                      : method}
-                  </span>
-                </div>
-
-                <div className="payment-row">
-                  <strong>Payment ID</strong>
-                  <span className="payment-id">{payment?._id || "N/A"}</span>
-                </div>
-
-                <div className="payment-row">
-                  <strong>Application ID</strong>
-                  <span className="payment-id">{applicationId || "N/A"}</span>
-                </div>
-
-                <div className="payment-row">
-                  <strong>Date Received</strong>
-                  <span>{formatDate(payment?.createdAt)}</span>
-                </div>
-
-                <div className="payment-row">
-                  <strong>Permit Status</strong>
-                  <span>{isReleased ? "Released" : "Not Released"}</span>
-                </div>
-
-                {isReleased && applicationId && verificationLink && (
-                  <div className="payment-qr-box">
-                    <h4>Permit QR Verification</h4>
-                    <QRCode value={verificationLink} size={120} />
-                    <small>{verificationLink}</small>
-                  </div>
-                )}
-
-                {isReleased && !applicationId && (
-                  <div className="notice">
-                    Permit released, but Application ID is missing.
-                  </div>
-                )}
-
-                {payment?.blockchainRecord?.transactionSignature ? (
-                  <div className="blockchain-box">
-                    <strong>Solana Proof</strong>
-
-                    <span className="break-text">
-                      Hash: {payment.blockchainRecord.hash}
-                    </span>
-
-                    <span className="break-text">
-                      Tx: {payment.blockchainRecord.transactionSignature}
-                    </span>
-
-                    <a
-                      href={`https://explorer.solana.com/tx/${payment.blockchainRecord.transactionSignature}?cluster=devnet`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      View on Solana Explorer
-                    </a>
-                  </div>
-                ) : (
-                  isReleased && (
-                    <div className="blockchain-box">
-                      <strong>Solana Proof</strong>
-                      <span>Transaction pending...</span>
-                    </div>
-                  )
-                )}
-
-                <div className="payment-actions">
-                  <button
-                    type="button"
-                    className="approve-btn"
-                    disabled={isReleased || approvingId === payment._id}
-                    onClick={() => approveAndReleasePermit(payment._id)}
-                  >
-                    {approvingId === payment._id
-                      ? "Processing..."
-                      : isReleased
-                      ? "Permit Released"
-                      : "Approve & Release Permit"}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <CenteredModal
+        open={Boolean(paymentViewModalPayment)}
+        overlayClassName="transparent-overlay"
+        buttonText="Close"
+        cancelText=""
+        onClose={() => setPaymentViewModalPayment(null)}
+        hideActions={false}
+        className="request-details-modal"
+      >
+        {paymentViewModalPayment && (
+          <PaymentView
+            paymentIdProp={paymentViewModalPayment._id}
+            paymentData={paymentViewModalPayment}
+          />
+        )}
+      </CenteredModal>
     </section>
   );
 }
