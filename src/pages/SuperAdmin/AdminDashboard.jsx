@@ -2,7 +2,18 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import "./AdminDashboard.css";
 
-const API_BASE = "https://trustpermit-backend.onrender.com/api";
+const getApiBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:5000/api";
+    }
+  }
+
+  return process.env.REACT_APP_API_URL || "https://trustpermit-backend.onrender.com/api";
+};
+
+const API_BASE = getApiBaseUrl();
 
 const roleOptions = [{ value: "staff", label: "City Hall Staff" }];
 

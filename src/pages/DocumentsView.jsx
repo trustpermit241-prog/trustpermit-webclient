@@ -2,7 +2,18 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 
-const API_BASE_URL = "https://trustpermit-backend.onrender.com";
+const getApiBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:5000";
+    }
+  }
+
+  return process.env.REACT_APP_API_URL || "https://trustpermit-backend.onrender.com";
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export default function DocumentsView() {
   const { applicationId } = useParams();
@@ -15,7 +26,7 @@ export default function DocumentsView() {
       try {
         const token = localStorage.getItem("token");
         const res = await axios.get(
-          `${API_BASE_URL}/api/applications/upload-documents/${applicationId}`,
+          `${API_BASE_URL}/applications/upload-documents/${applicationId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -88,3 +99,4 @@ export default function DocumentsView() {
     </div>
   );
 }
+

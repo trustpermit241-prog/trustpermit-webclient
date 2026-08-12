@@ -2,7 +2,39 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./PublicLayout.css";
 
-const API_BASE_URL = "https://trustpermit-backend.onrender.com";
+const getApiBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:5000";
+    }
+  }
+
+  return (
+    process.env.REACT_APP_API_URL || "https://trustpermit-backend.onrender.com"
+  );
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
+const getStoredValue = (key) => {
+  try {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(key);
+  } catch (error) {
+    return null;
+  }
+};
+
+const removeStoredValue = (key) => {
+  try {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(key);
+    }
+  } catch (error) {
+    // Ignore storage access errors in restricted browser contexts.
+  }
+};
 
 export default function PublicLayout() {
   const navigate = useNavigate();
@@ -15,26 +47,30 @@ export default function PublicLayout() {
   const [payments, setPayments] = useState([]);
   const [seenNotificationIds, setSeenNotificationIds] = useState([]);
 
-  const token = localStorage.getItem("token");
+  const token = getStoredValue("token");
 
   let storedUser = {};
   try {
-    const rawUser = localStorage.getItem("user");
+    const rawUser = getStoredValue("user");
     storedUser = rawUser ? JSON.parse(rawUser) : {};
   } catch (error) {
     console.error("Invalid user JSON:", error);
-    localStorage.removeItem("user");
+    removeStoredValue("user");
     storedUser = {};
   }
 
-  const userEmail = localStorage.getItem("email") || storedUser?.email || "";
+  const userEmail = getStoredValue("email") || storedUser?.email || "";
   const userDisplayName =
-    localStorage.getItem("name") || storedUser?.name || "Guest User";
+    getStoredValue("name") || storedUser?.name || "Guest User";
   const seenStorageKey = `seenNotifications_${userEmail || "guest"}`;
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
+    removeStoredValue("token");
+    removeStoredValue("role");
+    removeStoredValue("user");
+    removeStoredValue("email");
+    removeStoredValue("name");
+    removeStoredValue("profileImage");
     navigate("/");
   };
 
@@ -49,7 +85,9 @@ export default function PublicLayout() {
         fetch(`${API_BASE_URL}/api/inspection/my`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`${API_BASE_URL}/api/payments`),
+        fetch(`${API_BASE_URL}/api/payments`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }),
       ]);
 
       const appData = appRes.ok ? await appRes.json() : [];
@@ -68,24 +106,28 @@ export default function PublicLayout() {
     let savedSeen = [];
 
     try {
-      const storedSeen = localStorage.getItem(seenStorageKey);
+      const storedSeen = getStoredValue(seenStorageKey);
       savedSeen = storedSeen ? JSON.parse(storedSeen) : [];
     } catch (error) {
       console.error("Invalid seen notifications JSON:", error);
-      localStorage.removeItem(seenStorageKey);
+      removeStoredValue(seenStorageKey);
       savedSeen = [];
     }
 
     setSeenNotificationIds(Array.isArray(savedSeen) ? savedSeen : []);
 
-    fetchNotificationData();
+    if (token) {
+      fetchNotificationData();
+    }
 
     const interval = setInterval(() => {
-      fetchNotificationData();
+      if (token) {
+        fetchNotificationData();
+      }
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [fetchNotificationData, seenStorageKey]);
+  }, [fetchNotificationData, seenStorageKey, token]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -155,7 +197,13 @@ export default function PublicLayout() {
 
   const markNotificationsAsSeen = () => {
     const ids = notificationItems.map((item) => item.id);
-    localStorage.setItem(seenStorageKey, JSON.stringify(ids));
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem(seenStorageKey, JSON.stringify(ids));
+      }
+    } catch (error) {
+      console.error("Unable to save notifications state:", error);
+    }
     setSeenNotificationIds(ids);
   };
 
@@ -183,17 +231,21 @@ export default function PublicLayout() {
   useEffect(() => {
     const refreshProfileImage = () => {
       try {
-        setProfileImage(localStorage.getItem("profileImage") || "");
+        setProfileImage(getStoredValue("profileImage") || "");
       } catch (error) {
         setProfileImage("");
       }
     };
 
     refreshProfileImage();
-    window.addEventListener("profileImageUpdated", refreshProfileImage);
+    if (typeof window !== "undefined") {
+      window.addEventListener("profileImageUpdated", refreshProfileImage);
+    }
 
     return () => {
-      window.removeEventListener("profileImageUpdated", refreshProfileImage);
+      if (typeof window !== "undefined") {
+        window.removeEventListener("profileImageUpdated", refreshProfileImage);
+      }
     };
   }, []);
 

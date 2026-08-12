@@ -2,7 +2,18 @@
 import { useEffect, useRef } from "react";
 import { io } from "socket.io-client";
 
-const SOCKET_URL = "https://trustpermit-backend.onrender.com"; // your Render backend
+const getSocketUrl = () => {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:5000";
+    }
+  }
+
+  return process.env.REACT_APP_API_URL || "https://trustpermit-backend.onrender.com";
+};
+
+const SOCKET_URL = getSocketUrl();
 
 export default function useSocket() {
   const socketRef = useRef(null);

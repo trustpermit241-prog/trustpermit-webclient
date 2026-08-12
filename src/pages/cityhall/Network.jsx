@@ -3,7 +3,18 @@ import React, { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import "./Network.css";
 
-const API_BASE_URL = "https://trustpermit-backend.onrender.com";
+const getApiBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:5000";
+    }
+  }
+
+  return process.env.REACT_APP_API_URL || "https://trustpermit-backend.onrender.com";
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export default function Network() {
   const [networkCounts, setNetworkCounts] = useState({
@@ -79,10 +90,10 @@ export default function Network() {
     const fetchNetworkCounts = async () => {
       try {
         const [inspRes, paymentRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/inspection`, {
+          fetch(`${API_BASE_URL}/inspection`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch(`${API_BASE_URL}/api/payments`, {
+          fetch(`${API_BASE_URL}/payments`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
@@ -359,3 +370,4 @@ export default function Network() {
     </div>
   );
 }
+

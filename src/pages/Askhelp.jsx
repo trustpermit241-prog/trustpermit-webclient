@@ -2,7 +2,18 @@ import { useState, useRef, useEffect } from "react";
 import io from "socket.io-client";
 import "./Askhelp.css";
 
-const API_URL = "https://trustpermit-backend.onrender.com";
+const getApiBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:5000";
+    }
+  }
+
+  return process.env.REACT_APP_API_URL || "https://trustpermit-backend.onrender.com";
+};
+
+const API_URL = getApiBaseUrl();
 
 const socket = io(API_URL, {
   path: "/socket.io",

@@ -10,7 +10,18 @@ import UploadedDocumentsView from "./Dropdown/UploadedDocumentsView";
 import "./Account.css";
 import CenteredModal from "../components/CenteredModal";
 
-const API_BASE_URL = "https://trustpermit-backend.onrender.com";
+const getApiBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:5000";
+    }
+  }
+
+  return process.env.REACT_APP_API_URL || "https://trustpermit-backend.onrender.com";
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 // Helper for status badge color
 const getStatusBadgeClass = (status) => {
@@ -411,7 +422,7 @@ const Account = ({ initialMenu }) => {
     }
 
     try {
-      const res = await fetch(`https://trustpermit-backend.onrender.com/api/inspection/my`, {
+      const res = await fetch(`${API_BASE_URL}/api/inspection/my`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
@@ -450,7 +461,7 @@ const Account = ({ initialMenu }) => {
     setInspectionsError(null);
 
     try {
-      const res = await fetch("https://trustpermit-backend.onrender.com/api/inspection/my", {
+      const res = await fetch(`${API_BASE_URL}/api/inspection/my`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -2426,22 +2437,34 @@ if (!paymentApplicationId) {
                         <div className="permit-row permit-row-2">
                           <div className="permit-field">
                             <label className="permit-label">Barangay Clearance</label>
-                            <input className="input" type="file" />
+                            <label className="file-upload-btn">
+                              Upload
+                              <input type="file" style={{ display: 'none' }} />
+                            </label>
                           </div>
                           <div className="permit-field">
                             <label className="permit-label">Sanitary / BFP</label>
-                            <input className="input" type="file" />
+                            <label className="file-upload-btn">
+                              Upload
+                              <input type="file" style={{ display: 'none' }} />
+                            </label>
                           </div>
                         </div>
 
                         <div className="permit-row permit-row-2">
                           <div className="permit-field">
                             <label className="permit-label">Previous Mayor's Permit</label>
-                            <input className="input" type="file" />
+                            <label className="file-upload-btn">
+                              Upload
+                              <input type="file" style={{ display: 'none' }} />
+                            </label>
                           </div>
                           <div className="permit-field">
                             <label className="permit-label">Official Receipts</label>
-                            <input className="input" type="file" />
+                            <label className="file-upload-btn">
+                              Upload
+                              <input type="file" style={{ display: 'none' }} />
+                            </label>
                           </div>
                         </div>
                       </>

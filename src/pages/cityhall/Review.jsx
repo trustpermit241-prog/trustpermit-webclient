@@ -2,7 +2,18 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import "./Review.css";
 
-const API_BASE_URL = "https://trustpermit-backend.onrender.com";
+const getApiBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:5000";
+    }
+  }
+
+  return process.env.REACT_APP_API_URL || "https://trustpermit-backend.onrender.com";
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export default function Review() {
   const { applicationId } = useParams();
@@ -66,7 +77,7 @@ export default function Review() {
       const token = getToken();
 
       const res = await fetch(
-        `${API_BASE_URL}/api/applications/upload-documents/${id}`,
+        `${API_BASE_URL}/applications/upload-documents/${id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -107,8 +118,8 @@ export default function Review() {
       }
 
       const url = applicationId
-        ? `${API_BASE_URL}/api/applications/${applicationId}`
-        : `${API_BASE_URL}/api/applications`;
+        ? `${API_BASE_URL}/applications/${applicationId}`
+        : `${API_BASE_URL}/applications`;
 
       const res = await fetch(url, {
         headers: {
@@ -231,7 +242,7 @@ export default function Review() {
       }
 
       const res = await fetch(
-        `${API_BASE_URL}/api/applications/${application._id}/status`,
+        `${API_BASE_URL}/applications/${application._id}/status`,
         {
           method: "PATCH",
           headers: {

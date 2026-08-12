@@ -4,7 +4,18 @@ import CenteredModal from "../../components/CenteredModal";
 import PaymentView from "../Dropdown/PaymentView";
 import "./Payment.css";
 
-const API_BASE_URL = "https://trustpermit-backend.onrender.com";
+const getApiBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:5000";
+    }
+  }
+
+  return process.env.REACT_APP_API_URL || "https://trustpermit-backend.onrender.com";
+};
+
+const API_BASE_URL = getApiBaseUrl();
 const FRONTEND_URL = "https://trustpermit-webclient.vercel.app";
 
 export default function Payment() {
@@ -52,7 +63,7 @@ export default function Payment() {
         throw new Error("No token found. Please login again.");
       }
 
-      const res = await fetch(`${API_BASE_URL}/api/payments`, {
+      const res = await fetch(`${API_BASE_URL}/payments`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -115,7 +126,7 @@ export default function Payment() {
       }
 
       const res = await fetch(
-        `${API_BASE_URL}/api/payments/${paymentId}/approve-release`,
+        `${API_BASE_URL}/payments/${paymentId}/approve-release`,
         {
           method: "PUT",
           headers: {
@@ -347,14 +358,13 @@ export default function Payment() {
           </thead>
 
           <tbody>
-            {paged.map((payment, idx) => {
+            {paged.map((payment) => {
               const status = String(payment?.status || "").toLowerCase();
               const payer = payment?.name || payment?.userId?.fullName || "-";
               const issue = formatDate(payment?.createdAt);
               const service = payment?.service || payment?.application?.applicationType || "-";
               return (
-                <>
-                <tr key={payment?._id || idx}>
+                <tr key={payment._id}>
                   <td><input type="checkbox" /></td>
                   <td>{payment?._id?.slice?.(0,8) || "-"}</td>
                   <td>{issue}</td>
@@ -397,8 +407,6 @@ export default function Payment() {
                     )}
                   </td>
                 </tr>
-
-                </>
               );
             })}
           </tbody>
@@ -437,9 +445,10 @@ export default function Payment() {
             <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', justifyContent: 'center' }}>
               {(() => {
                 const applicationId = getApplicationId(qrModalPayment);
-                const verificationLink =
-                  qrModalPayment?.verificationUrl ||
-                  (applicationId ? `${API_BASE_URL}/api/blockchain/verify/${applicationId}` : "");
+                // Always generate the frontend URL for QR code display
+                const verificationLink = applicationId 
+                  ? `${FRONTEND_URL}/verify/${applicationId}` 
+                  : "";
                 return (
                   <>
                     {verificationLink ? (

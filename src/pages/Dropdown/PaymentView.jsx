@@ -1,9 +1,20 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useParams } from "react-router-dom";
 import "./PaymentView.css";
 
-const API_BASE_URL = "https://trustpermit-backend.onrender.com";
+const getApiBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:5000";
+    }
+  }
+
+  return process.env.REACT_APP_API_URL || "https://trustpermit-backend.onrender.com";
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export default function PaymentView({ paymentIdProp, paymentData }) {
   const { paymentId: routePaymentId, applicationId } = useParams();
@@ -129,14 +140,14 @@ export default function PaymentView({ paymentIdProp, paymentData }) {
         let res;
 
         try {
-          res = await axios.get(`${API_BASE_URL}/api/payments/${id}`, {
+          res = await axios.get(`${API_BASE_URL}/payments/${id}`, {
             headers: {
               Authorization: `Bearer ${token}`,
             },
           });
         } catch (firstErr) {
           res = await axios.get(
-            `${API_BASE_URL}/api/payments/application/${id}`,
+            `${API_BASE_URL}/payments/application/${id}`,
             {
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -197,7 +208,7 @@ export default function PaymentView({ paymentIdProp, paymentData }) {
     <div className="payment-view-page">
       <div className="receipt-card">
         <div className="receipt-top">
-          <div className="receipt-status">✓</div>
+          <div className="receipt-status">?</div>
           <h1>Payment Successful</h1>
           <p className="receipt-subtitle">
             Order number: <span>{orderNumber}</span>
@@ -211,7 +222,7 @@ export default function PaymentView({ paymentIdProp, paymentData }) {
           <table className="receipt-table">
             <thead>
               <tr>
-                <th>№</th>
+                <th>?</th>
                 <th>Item</th>
                 <th>Price</th>
               </tr>

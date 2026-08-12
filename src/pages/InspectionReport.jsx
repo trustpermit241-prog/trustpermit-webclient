@@ -3,7 +3,18 @@ import { useParams } from "react-router-dom";
 import axios from "axios";
 import "./InspectionReport.css";
 
-const API_BASE_URL = "https://trustpermit-backend.onrender.com";
+const getApiBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:5000";
+    }
+  }
+
+  return process.env.REACT_APP_API_URL || "https://trustpermit-backend.onrender.com";
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export default function InspectionReport() {
   const { id } = useParams();
@@ -33,7 +44,7 @@ export default function InspectionReport() {
 
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get(`${API_BASE_URL}/api/inspection/${id}`, {
+        const res = await axios.get(`${API_BASE_URL}/inspection/${id}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
 
@@ -53,7 +64,7 @@ export default function InspectionReport() {
 
         if (!cachedInspection) {
           try {
-            const fallbackRes = await axios.get(`${API_BASE_URL}/api/inspection/debug/all`);
+            const fallbackRes = await axios.get(`${API_BASE_URL}/inspection/debug/all`);
             const inspections = Array.isArray(fallbackRes.data) ? fallbackRes.data : [];
             const found = inspections.find((item) => String(item._id) === String(id));
             if (found) {
@@ -296,3 +307,4 @@ export default function InspectionReport() {
     </div>
   );
 }
+

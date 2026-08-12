@@ -4,29 +4,116 @@ import QRCode from "react-qr-code";
 import axios from "axios";
 import "./PrintPermit.css";
 
-const API_BASE_URL = "https://trustpermit-backend.onrender.com";
+const getApiBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:5000";
+    }
+  }
+
+  return process.env.REACT_APP_API_URL || "https://trustpermit-backend.onrender.com";
+};
+
+const API_BASE_URL = getApiBaseUrl();
 const FRONTEND_URL = "https://trustpermit-webclient.vercel.app";
 
 export default function PrintPermit() {
   const { permitId } = useParams();
   const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchPermit = async () => {
+      setLoading(true);
+      setError(null);
       try {
+        // Get auth token from localStorage
+        const token = localStorage.getItem("token");
+        const config = {};
+        if (token) {
+          config.headers = {
+            Authorization: `Bearer ${token}`,
+          };
+        }
+
         const res = await axios.get(
-          `${API_BASE_URL}/api/blockchain/verify/${permitId}`
+          `${API_BASE_URL}/api/blockchain/verify/${permitId}`,
+          config
         );
         setData(res.data);
       } catch (err) {
-        console.error(err);
+        console.error("Error fetching permit via blockchain verify:", err);
+        
+        // Fallback: try fetching application directly
+        try {
+          console.log("Attempting fallback: fetching application directly...");
+          
+          // Get auth token for fallback request too
+          const token = localStorage.getItem("token");
+          const fallbackConfig = {};
+          if (token) {
+            fallbackConfig.headers = {
+              Authorization: `Bearer ${token}`,
+            };
+          }
+
+          const appRes = await axios.get(
+            `${API_BASE_URL}/api/applications/${permitId}`,
+            fallbackConfig
+          );
+          const application = appRes.data?.application || appRes.data?.data || appRes.data;
+          
+          if (application) {
+            setData({
+              success: true,
+              application,
+              blockchainRecord: null,
+              message: "Permit loaded (blockchain record pending)"
+            });
+            return;
+          }
+        } catch (fallbackErr) {
+          console.error("Fallback fetch also failed:", fallbackErr);
+        }
+        
+        setError(err.response?.data?.message || err.message || "Failed to load permit");
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchPermit();
+    if (permitId) {
+      fetchPermit();
+    } else {
+      setError("No permit ID provided");
+      setLoading(false);
+    }
   }, [permitId]);
 
-  if (!data) return <h2 style={{ padding: 40 }}>Loading permit...</h2>;
+  if (error) {
+    return (
+      <div style={{ padding: 40, textAlign: "center", minHeight: "100vh" }}>
+        <div style={{ background: "#fee", padding: 20, borderRadius: 8, maxWidth: 600, margin: "0 auto" }}>
+          <h2 style={{ color: "#d00", marginBottom: 10 }}>Error Loading Permit</h2>
+          <p style={{ color: "#666", marginBottom: 20 }}>{error}</p>
+          <p style={{ color: "#999", fontSize: 14, marginBottom: 20 }}>
+            The permit may not have been released yet or there's an issue with the blockchain record.
+            Please contact City Hall if the problem persists.
+          </p>
+          <button 
+            onClick={() => window.history.back()}
+            style={{ padding: "10px 20px", cursor: "pointer", background: "#2563eb", color: "white", border: "none", borderRadius: 4 }}
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading || !data) return <h2 style={{ padding: 40 }}>Loading permit...</h2>;
 
   const app = data.application;
   const blockchain = data.blockchainRecord;
@@ -41,7 +128,7 @@ export default function PrintPermit() {
 
   const verificationLink = FRONTEND_URL
     ? `${FRONTEND_URL}/verify/${app._id}`
-    : `${API_BASE_URL}/api/blockchain/redirect/${app._id}`;
+    : `${API_BASE_URL}/blockchain/redirect/${app._id}`;
 
   return (
     <div className="permit-print-page">
@@ -158,3 +245,4 @@ export default function PrintPermit() {
     </div>
   );
 }
+

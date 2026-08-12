@@ -1,9 +1,20 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useParams } from "react-router-dom";
 import "./UploadedDocumentsView.css";
 
-const API_BASE_URL = "https://trustpermit-backend.onrender.com";
+const getApiBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:5000";
+    }
+  }
+
+  return process.env.REACT_APP_API_URL || "https://trustpermit-backend.onrender.com";
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 const getFileUrl = (doc) => {
   if (!doc) return "";
@@ -93,7 +104,7 @@ export default function UploadedDocumentsView({ applicationId: propApplicationId
 
       try {
         const res = await axios.get(
-          `${API_BASE_URL}/api/applications/upload-documents/${applicationId}`,
+          `${API_BASE_URL}/applications/upload-documents/${applicationId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -252,7 +263,7 @@ export default function UploadedDocumentsView({ applicationId: propApplicationId
               className="document-viewer-close"
               onClick={() => setViewerOpen(false)}
             >
-              ×
+              �
             </button>
 
             {isImageFile(selectedDoc) && (
