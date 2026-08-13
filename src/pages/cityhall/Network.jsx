@@ -90,10 +90,10 @@ export default function Network() {
     const fetchNetworkCounts = async () => {
       try {
         const [inspRes, paymentRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/inspection`, {
+          fetch(`${API_BASE_URL}/api/inspection`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch(`${API_BASE_URL}/payments`, {
+          fetch(`${API_BASE_URL}/api/payments`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);

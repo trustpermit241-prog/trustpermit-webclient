@@ -16,7 +16,6 @@ const getApiBaseUrl = () => {
 };
 
 const API_BASE_URL = getApiBaseUrl();
-const FRONTEND_URL = "https://trustpermit-webclient.vercel.app";
 
 export default function PrintPermit() {
   const { permitId } = useParams();
@@ -126,9 +125,14 @@ export default function PrintPermit() {
   const permitNumber = app._id || "N/A";
   const orNumber = app.orNumber || permitNumber.slice(0, 8).toUpperCase();
 
-  const verificationLink = FRONTEND_URL
-    ? `${FRONTEND_URL}/verify/${app._id}`
-    : `${API_BASE_URL}/blockchain/redirect/${app._id}`;
+  const currentFrontendUrl =
+    typeof window !== "undefined" && window.location && window.location.origin
+      ? window.location.origin
+      : process.env.REACT_APP_FRONTEND_URL || "";
+
+  const verificationLink = currentFrontendUrl
+    ? `${currentFrontendUrl}/verify/${app._id}`
+    : `${API_BASE_URL}/api/blockchain/redirect/${app._id}`;
 
   return (
     <div className="permit-print-page">

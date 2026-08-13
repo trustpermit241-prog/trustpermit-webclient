@@ -26,7 +26,7 @@ export default function ApplicationView() {
       try {
         const token = localStorage.getItem("token");
         const res = await axios.get(
-          `${API_BASE_URL}/applications/${applicationId}`,
+          `${API_BASE_URL}/api/applications/${applicationId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }

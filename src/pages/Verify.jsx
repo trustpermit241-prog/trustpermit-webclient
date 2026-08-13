@@ -54,22 +54,48 @@ export default function Verify() {
 
   const verifyPermit = async (permitInput = input) => {
     setLoading(true);
+    setDetails(null);
 
     try {
+      console.log("🔍 Verifying permit:", permitInput);
+      
       const res = await axios.get(
-        `${API_BASE_URL}/blockchain/verify/${permitInput}`
+        `${API_BASE_URL}/api/blockchain/verify/${permitInput}`
       );
+
+      console.log("✅ Verification response:", res.data);
 
       if (res.data.success) {
         setResult("BLOCKCHAIN VERIFIED PERMIT ✅");
         setDetails(res.data);
       } else {
         setResult("INVALID PERMIT ❌");
-        setDetails(null);
+        setDetails(res.data); // Show details even on error
       }
-    } catch {
-      setResult("INVALID PERMIT ❌");
-      setDetails(null);
+    } catch (err) {
+      console.error("❌ Verification error:", err);
+      
+      // Handle different error cases
+      if (err.response?.status === 404) {
+        setResult("PERMIT NOT FOUND ❌");
+        setDetails({
+          message: "This permit ID doesn't exist in the system.",
+          errorCode: 404,
+        });
+      } else if (err.response?.status === 400) {
+        setResult("PERMIT NOT RELEASED ❌");
+        setDetails({
+          message: err.response?.data?.message || "This permit has not been released yet.",
+          status: err.response?.data?.application?.status,
+          errorCode: 400,
+        });
+      } else {
+        setResult("INVALID PERMIT ❌");
+        setDetails({
+          message: err.response?.data?.message || err.message || "Verification failed",
+          errorCode: err.response?.status || 500,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -265,15 +291,36 @@ export default function Verify() {
                   <div className="result-icon">×</div>
                   <div>
                     <h2>Invalid Permit</h2>
-                    <p>This document could not be found on the blockchain.</p>
+                    <p>{details?.message || "This document could not be found on the blockchain."}</p>
                   </div>
                 </div>
 
                 <div className="invalid-box">
-                  <h3>Possible Reasons</h3>
-                  <p>× The permit ID is incorrect.</p>
-                  <p>× The document has not been registered on the blockchain.</p>
-                  <p>× The document may be revoked or expired.</p>
+                  {details?.status && (
+                    <div style={{ marginBottom: "16px", padding: "12px", background: "#fef3c7", borderRadius: "8px" }}>
+                      <strong>Current Status:</strong> <span style={{ textTransform: "capitalize" }}>{details.status}</span>
+                    </div>
+                  )}
+                  {details?.errorCode === 400 && (
+                    <>
+                      <h3>Permit Not Released</h3>
+                      <p>This permit has not been released by staff yet. Once approved and payment is verified, the permit will be available for verification.</p>
+                    </>
+                  )}
+                  {details?.errorCode === 404 && (
+                    <>
+                      <h3>Permit Not Found</h3>
+                      <p>This permit ID doesn't exist in the system. Please check the ID and try again.</p>
+                    </>
+                  )}
+                  {!details?.errorCode && (
+                    <>
+                      <h3>Possible Reasons</h3>
+                      <p>× The permit ID is incorrect.</p>
+                      <p>× The document has not been released yet.</p>
+                      <p>× The document may be revoked or expired.</p>
+                    </>
+                  )}
                 </div>
               </>
             )}

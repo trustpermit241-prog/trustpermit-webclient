@@ -140,14 +140,14 @@ export default function PaymentView({ paymentIdProp, paymentData }) {
         let res;
 
         try {
-          res = await axios.get(`${API_BASE_URL}/payments/${id}`, {
+          res = await axios.get(`${API_BASE_URL}/api/payments/${id}`, {
             headers: {
               Authorization: `Bearer ${token}`,
             },
           });
         } catch (firstErr) {
           res = await axios.get(
-            `${API_BASE_URL}/payments/application/${id}`,
+            `${API_BASE_URL}/api/payments/application/${id}`,
             {
               headers: {
                 Authorization: `Bearer ${token}`,

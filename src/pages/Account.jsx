@@ -133,7 +133,7 @@ const Account = ({ initialMenu }) => {
       setApplicationsError(null);
 
       try {
-        const res = await fetch("https://trustpermit-backend.onrender.com/api/applications/my", {
+        const res = await fetch(`${API_BASE_URL}/api/applications/my`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -581,35 +581,27 @@ const Account = ({ initialMenu }) => {
     const token = localStorage.getItem("token");
 
     if (!token) {
-      alert("Please log in to submit your application.");
+      setModal({
+        open: true,
+        title: "Authentication Required",
+        message: "Please log in to submit your application.",
+        buttonText: "OK",
+        variant: "error",
+      });
       return;
     }
 
-    // Basic validation: highlight any missing required fields
-    const requiredFields = [
-      { key: "businessName", label: "Business Name", value: businessName },
-      { key: "firstName", label: "First Name", value: firstName },
-      { key: "lastName", label: "Last Name", value: lastName },
-      { key: "contactNumber", label: "Contact Number", value: contactNumber },
-      { key: "applicantEmail", label: "Email", value: applicantEmail },
-    ];
+    // ================= COMPREHENSIVE VALIDATION =================
+    const validationErrors = validateApplicationFields();
 
-    const missing = requiredFields
-      .filter((field) => !field.value || String(field.value).trim() === "")
-      .map((field) => field.key);
-
-    if (missing.length > 0) {
-      setMissingFields(missing);
-
-      const missingLabels = requiredFields
-        .filter((field) => missing.includes(field.key))
-        .map((field) => field.label);
-
-      alert(
-        `Please fill out the required fields before submitting:\n- ${missingLabels.join(
-          "\n- "
-        )}`
-      );
+    if (validationErrors.length > 0) {
+      setModal({
+        open: true,
+        title: "Validation Failed",
+        message: `Please correct the following errors:\n\n${validationErrors.join("\n\n")}`,
+        buttonText: "OK",
+        variant: "error",
+      });
       return;
     }
 
@@ -702,7 +694,7 @@ const Account = ({ initialMenu }) => {
     console.log("APPLICATION PAYLOAD:", payload);
 
     try {
-      const res = await fetch("https://trustpermit-backend.onrender.com/api/applications", {
+      const res = await fetch(`${API_BASE_URL}/api/applications`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -853,14 +845,14 @@ const Account = ({ initialMenu }) => {
       return;
     }
 
-    const requiredDocs = getRequiredDocuments();
-    const missingDocs = requiredDocs.filter((doc) => !uploadedFiles[doc]);
+    // ================= VALIDATE DOCUMENTS =================
+    const docErrors = validateUploadedDocuments();
 
-    if (missingDocs.length > 0) {
+    if (docErrors.length > 0) {
       setModal({
         open: true,
-        title: "Missing Documents",
-        message: `Please upload all required documents before continuing. Missing: ${missingDocs.join(", ")}`,
+        title: "Document Validation Failed",
+        message: `Please correct the following issues:\n\n${docErrors.join("\n\n")}`,
         buttonText: "OK",
         variant: "error",
         className: "custom-upload-modal",
@@ -900,7 +892,7 @@ const Account = ({ initialMenu }) => {
         }
       });
 
-      const res = await fetch("https://trustpermit-backend.onrender.com/api/applications/upload-documents", {
+      const res = await fetch(`${API_BASE_URL}/api/applications/upload-documents`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -978,10 +970,38 @@ const Account = ({ initialMenu }) => {
   };
 
   const handleFileUpload = (docName, files) => {
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    
+    // Validate file
+    const validation = validateFile(file);
+    
+    if (!validation.valid) {
+      setModal({
+        open: true,
+        title: "File Upload Error",
+        message: validation.error,
+        buttonText: "OK",
+        variant: "error",
+      });
+      return;
+    }
+
+    // File is valid, add it to uploaded files
     setUploadedFiles((prev) => ({
       ...prev,
-      [docName]: files[0] || null,
+      [docName]: file,
     }));
+
+    // Show success message
+    setModal({
+      open: true,
+      title: "File Uploaded",
+      message: `"${file.name}" has been successfully uploaded for "${docName}".`,
+      buttonText: "OK",
+      variant: "success",
+    });
   };
 
   // ================= REQUIRED DOCUMENTS =================
@@ -1029,6 +1049,148 @@ const Account = ({ initialMenu }) => {
 3. Assessment of Fees
 4. Payment of Fees
 5. Issuance of Permit`;
+  };
+
+  // ================= VALIDATION FUNCTIONS =================
+  
+  /**
+   * Check if the signature canvas has actual content (is not empty)
+   */
+  const isSignatureValid = () => {
+    if (!canvasRef.current) return false;
+    
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    
+    // Check if any pixel has non-zero alpha (is not fully transparent)
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] > 0) return true; // Found non-transparent pixel
+    }
+    return false; // Canvas is empty
+  };
+
+  /**
+   * Validate a single file (type and size)
+   */
+  const validateFile = (file) => {
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+    const ALLOWED_TYPES = [
+      "application/pdf",
+      "image/jpeg",
+      "image/png",
+      "image/jpg",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ];
+
+    // Check file size
+    if (file.size > MAX_FILE_SIZE) {
+      return {
+        valid: false,
+        error: `File "${file.name}" exceeds maximum size of 10 MB (Current: ${(file.size / 1024 / 1024).toFixed(2)} MB)`,
+      };
+    }
+
+    // Check file type
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      const extension = file.name.split(".").pop().toUpperCase();
+      return {
+        valid: false,
+        error: `File type ".${extension}" is not allowed. Accepted: PDF, JPG, PNG, DOC, DOCX, XLS, XLSX`,
+      };
+    }
+
+    return { valid: true, error: null };
+  };
+
+  /**
+   * Validate all uploaded documents before submission
+   */
+  const validateUploadedDocuments = () => {
+    const errors = [];
+
+    // Check all required documents are uploaded
+    const requiredDocs = getRequiredDocuments();
+    const missingDocs = requiredDocs.filter((doc) => !uploadedFiles[doc]);
+
+    if (missingDocs.length > 0) {
+      errors.push(`Missing documents:\n- ${missingDocs.join("\n- ")}`);
+    }
+
+    // Validate each uploaded file
+    Object.entries(uploadedFiles).forEach(([docName, file]) => {
+      if (file) {
+        const validation = validateFile(file);
+        if (!validation.valid) {
+          errors.push(validation.error);
+        }
+      }
+    });
+
+    return errors;
+  };
+
+  /**
+   * Validate application form fields with detailed errors
+   */
+  const validateApplicationFields = () => {
+    const errors = [];
+
+    // Check signature
+    if (!isSignatureValid()) {
+      errors.push("Signature is required. Please sign in the signature box.");
+    }
+
+    // Check required text fields
+    const requiredFields = [
+      { key: "businessName", label: "Business Name", value: businessName },
+      { key: "firstName", label: "First Name", value: firstName },
+      { key: "lastName", label: "Last Name", value: lastName },
+      { key: "contactNumber", label: "Contact Number", value: contactNumber },
+      { key: "applicantEmail", label: "Email Address", value: applicantEmail },
+      { key: "province", label: "Province", value: province },
+      { key: "city", label: "City", value: city },
+      { key: "barangay", label: "Barangay", value: barangay },
+      { key: "street", label: "Street", value: street },
+    ];
+
+    const missingFields = requiredFields.filter(
+      (field) => !field.value || String(field.value).trim() === ""
+    );
+
+    if (missingFields.length > 0) {
+      errors.push(
+        `Missing required fields:\n- ${missingFields.map((f) => f.label).join("\n- ")}`
+      );
+    }
+
+    // Validate email format
+    if (applicantEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(applicantEmail)) {
+      errors.push("Invalid email format");
+    }
+
+    // Validate contact number (basic validation)
+    if (contactNumber && !/^\d{7,11}$/.test(contactNumber.replace(/\D/g, ""))) {
+      errors.push("Contact number must be between 7 and 11 digits");
+    }
+
+    // Validate business area (must be positive number if provided)
+    if (businessArea && isNaN(businessArea)) {
+      errors.push("Business area must be a valid number");
+    }
+
+    // Validate personnel numbers
+    const maleNum = Number(malePersonnel) || 0;
+    const femaleNum = Number(femalePersonnel) || 0;
+    if (maleNum < 0 || femaleNum < 0) {
+      errors.push("Personnel numbers cannot be negative");
+    }
+
+    return errors;
   };
 
   // helper actions

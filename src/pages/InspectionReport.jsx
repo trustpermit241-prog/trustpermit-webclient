@@ -44,7 +44,7 @@ export default function InspectionReport() {
 
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get(`${API_BASE_URL}/inspection/${id}`, {
+        const res = await axios.get(`${API_BASE_URL}/api/inspection/${id}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
 
@@ -64,7 +64,7 @@ export default function InspectionReport() {
 
         if (!cachedInspection) {
           try {
-            const fallbackRes = await axios.get(`${API_BASE_URL}/inspection/debug/all`);
+            const fallbackRes = await axios.get(`${API_BASE_URL}/api/inspection/debug/all`);
             const inspections = Array.isArray(fallbackRes.data) ? fallbackRes.data : [];
             const found = inspections.find((item) => String(item._id) === String(id));
             if (found) {

@@ -63,7 +63,7 @@ export default function Payment() {
         throw new Error("No token found. Please login again.");
       }
 
-      const res = await fetch(`${API_BASE_URL}/payments`, {
+      const res = await fetch(`${API_BASE_URL}/api/payments`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -126,7 +126,7 @@ export default function Payment() {
       }
 
       const res = await fetch(
-        `${API_BASE_URL}/payments/${paymentId}/approve-release`,
+        `${API_BASE_URL}/api/payments/${paymentId}/approve-release`,
         {
           method: "PUT",
           headers: {
@@ -445,17 +445,25 @@ export default function Payment() {
             <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', justifyContent: 'center' }}>
               {(() => {
                 const applicationId = getApplicationId(qrModalPayment);
+                console.log("🎫 QR Modal - Payment object:", {
+                  paymentId: qrModalPayment._id,
+                  applicationId: applicationId,
+                  applicationIdFull: qrModalPayment.applicationId,
+                  application: qrModalPayment.application,
+                  permitReleased: qrModalPayment.permitReleased,
+                });
                 // Always generate the frontend URL for QR code display
                 const verificationLink = applicationId 
                   ? `${FRONTEND_URL}/verify/${applicationId}` 
                   : "";
+                console.log("🔗 Generated verification link:", verificationLink);
                 return (
                   <>
                     {verificationLink ? (
                       <div style={{ textAlign: 'center' }}>
                         <div style={{ marginBottom: 10 }}>Open verification</div>
                         <QRCode value={verificationLink} size={140} />
-                        
+                        <div style={{ marginTop: 10, fontSize: 12, color: '#666' }}>{verificationLink}</div>
                       </div>
                     ) : null}
                   </>

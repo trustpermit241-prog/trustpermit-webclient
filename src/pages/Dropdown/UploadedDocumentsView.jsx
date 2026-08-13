@@ -104,7 +104,7 @@ export default function UploadedDocumentsView({ applicationId: propApplicationId
 
       try {
         const res = await axios.get(
-          `${API_BASE_URL}/applications/upload-documents/${applicationId}`,
+          `${API_BASE_URL}/api/applications/upload-documents/${applicationId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

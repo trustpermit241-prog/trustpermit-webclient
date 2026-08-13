@@ -27,6 +27,9 @@ export default function Review() {
   const [documentStatus, setDocumentStatus] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [imageLoadError, setImageLoadError] = useState(null);
+  const [diagnostics, setDiagnostics] = useState(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   const getToken = () => localStorage.getItem("token");
 
@@ -61,6 +64,18 @@ export default function Review() {
     return type === "application/pdf" || /\.pdf$/i.test(name);
   };
 
+  const checkFileExists = async (doc) => {
+    if (!doc?.fileName) return false;
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/uploads/check/${doc.fileName}`);
+      const data = await res.json();
+      return data.exists === true;
+    } catch (err) {
+      console.error("File check failed:", err);
+      return false;
+    }
+  };
+
   const safeJson = async (res) => {
     const text = await res.text();
 
@@ -72,12 +87,31 @@ export default function Review() {
     }
   };
 
+  const runDiagnostics = async () => {
+    try {
+      console.log("🔍 Running diagnostics...");
+      const res = await fetch(`${API_BASE_URL}/api/uploads/list`);
+      const data = await res.json();
+      console.log("📋 Diagnostics result:", data);
+      setDiagnostics(data);
+      setShowDiagnostics(true);
+    } catch (err) {
+      console.error("Diagnostics error:", err);
+      setDiagnostics({ 
+        success: false, 
+        error: err.message,
+        note: "Failed to fetch diagnostics. Check backend connection."
+      });
+      setShowDiagnostics(true);
+    }
+  };
+
   const fetchUploadedDocuments = async (id) => {
     try {
       const token = getToken();
 
       const res = await fetch(
-        `${API_BASE_URL}/applications/upload-documents/${id}`,
+        `${API_BASE_URL}/api/applications/upload-documents/${id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -118,8 +152,8 @@ export default function Review() {
       }
 
       const url = applicationId
-        ? `${API_BASE_URL}/applications/${applicationId}`
-        : `${API_BASE_URL}/applications`;
+        ? `${API_BASE_URL}/api/applications/${applicationId}`
+        : `${API_BASE_URL}/api/applications`;
 
       const res = await fetch(url, {
         headers: {
@@ -242,7 +276,7 @@ export default function Review() {
       }
 
       const res = await fetch(
-        `${API_BASE_URL}/applications/${application._id}/status`,
+        `${API_BASE_URL}/api/applications/${application._id}/status`,
         {
           method: "PATCH",
           headers: {
@@ -280,6 +314,7 @@ export default function Review() {
 
     setViewerOpen(false);
     setSelectedDoc(null);
+    setImageLoadError(null);
   };
 
   const downloadAllDocuments = () => {
@@ -394,7 +429,73 @@ export default function Review() {
         <div className="submitted-documents-card">
           <div className="section-heading">
             <h2 className="section-title">Submitted Documents</h2>
+            <button
+              type="button"
+              onClick={runDiagnostics}
+              style={{
+                marginLeft: "auto",
+                padding: "6px 12px",
+                fontSize: "0.85rem",
+                background: "#f0f0f0",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+                cursor: "pointer",
+                color: "#666",
+              }}
+              title="Check what files exist on the server"
+            >
+              🔍 Diagnose
+            </button>
           </div>
+
+          {showDiagnostics && diagnostics && (
+            <div style={{
+              background: diagnostics.success ? "#f0fdf4" : "#fef2f2",
+              border: `1px solid ${diagnostics.success ? "#86efac" : "#fecaca"}`,
+              borderRadius: "8px",
+              padding: "16px",
+              marginBottom: "16px",
+              fontSize: "0.9rem",
+              fontFamily: "monospace",
+              maxHeight: "300px",
+              overflowY: "auto",
+            }}>
+              <div style={{ fontWeight: "bold", marginBottom: "8px" }}>
+                {diagnostics.success ? "✅ Server Status" : "❌ Error"}
+              </div>
+              <div style={{ color: "#666", fontSize: "0.85rem" }}>
+                <div><strong>Path:</strong> {diagnostics.directoryPath}</div>
+                <div><strong>Exists:</strong> {diagnostics.directoryExists ? "Yes" : "No"}</div>
+                <div><strong>Files:</strong> {diagnostics.fileCount || 0} total</div>
+                {diagnostics.files && diagnostics.files.length > 0 && (
+                  <div style={{ marginTop: "8px" }}>
+                    <strong>Sample files:</strong>
+                    <ul style={{ margin: "4px 0", paddingLeft: "20px" }}>
+                      {diagnostics.files.slice(0, 5).map((f, i) => (
+                        <li key={i} style={{ fontSize: "0.8rem" }}>{f.name}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDiagnostics(false)}
+                style={{
+                  marginTop: "8px",
+                  padding: "4px 8px",
+                  fontSize: "0.8rem",
+                  background: "transparent",
+                  border: "none",
+                  color: "#666",
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                }}
+              >
+                Hide
+              </button>
+            </div>
+          )}
 
           {uploadedDocs.length === 0 ? (
             <p className="center-text">No documents uploaded.</p>
@@ -429,8 +530,25 @@ export default function Review() {
                               className="btn icon-btn view-icon"
                               onClick={() => {
                                 if (fileUrl) {
+                                  console.log("📄 Viewing document:", {
+                                    documentName: doc.documentName,
+                                    fileName: doc.fileName,
+                                    filePath: doc.filePath,
+                                    fileUrl: fileUrl,
+                                    mimeType: doc.mimeType,
+                                    originalName: doc.originalName,
+                                  });
                                   setSelectedDoc(doc);
                                   setViewerOpen(true);
+                                  setImageLoadError(null);
+                                  
+                                  // Check if file exists on server
+                                  checkFileExists(doc).then(exists => {
+                                    console.log(`File exists on server: ${exists ? "✅ YES" : "❌ NO"}`);
+                                    if (!exists) {
+                                      setImageLoadError(`File not found on server: ${doc.fileName}. It may have been deleted or server restarted.`);
+                                    }
+                                  });
                                 }
                               }}
                               aria-label="View document"
@@ -502,11 +620,49 @@ export default function Review() {
             </button>
 
             {isImageFile(selectedDoc) && (
-              <img
-                src={selectedDoc.temp ? selectedDoc.fileUrl : getFileUrl(selectedDoc)}
-                alt="Document"
-                className="viewer-image"
-              />
+              <>
+                <img
+                  src={selectedDoc.temp ? selectedDoc.fileUrl : getFileUrl(selectedDoc)}
+                  alt="Document"
+                  className="viewer-image"
+                  onError={(e) => {
+                    const fileUrl = selectedDoc.temp ? selectedDoc.fileUrl : getFileUrl(selectedDoc);
+                    console.error("Image load failed:", {
+                      url: fileUrl,
+                      docName: selectedDoc.documentName,
+                      filePath: selectedDoc.filePath,
+                      fileName: selectedDoc.fileName,
+                    });
+                    setImageLoadError(`Failed to load image from: ${fileUrl}`);
+                  }}
+                  onLoad={() => setImageLoadError(null)}
+                />
+                {imageLoadError && (
+                  <div style={{
+                    padding: "20px",
+                    background: "#fee",
+                    color: "#c33",
+                    borderRadius: "8px",
+                    marginTop: "10px",
+                    fontSize: "0.9rem",
+                    wordBreak: "break-word",
+                    fontFamily: "monospace"
+                  }}>
+                    <div style={{ fontWeight: "bold", marginBottom: "10px" }}>⚠️ File Not Found (404)</div>
+                    <div style={{ marginBottom: "10px" }}>
+                      The file you're trying to view doesn't exist on the server.
+                    </div>
+                    <div style={{ background: "rgba(0,0,0,0.1)", padding: "10px", borderRadius: "4px", marginBottom: "10px", fontSize: "0.85rem" }}>
+                      <div><strong>Expected Path:</strong> {getFileUrl(selectedDoc)}</div>
+                      <div style={{ marginTop: "5px" }}><strong>Filename:</strong> {selectedDoc.fileName}</div>
+                      <div style={{ marginTop: "5px" }}><strong>Document:</strong> {selectedDoc.documentName}</div>
+                    </div>
+                    <div style={{ fontSize: "0.85rem", background: "#fff8dc", padding: "8px", borderRadius: "4px", marginTop: "10px" }}>
+                      <strong>💡 Solution:</strong> This file may have been deleted or the server was restarted. Try uploading it again.
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {isPdfFile(selectedDoc) && (
@@ -514,6 +670,7 @@ export default function Review() {
                 title="PDF Preview"
                 src={selectedDoc.temp ? selectedDoc.fileUrl : getFileUrl(selectedDoc)}
                 className="viewer-frame"
+                onError={() => setImageLoadError("Failed to load PDF")}
               />
             )}
 
