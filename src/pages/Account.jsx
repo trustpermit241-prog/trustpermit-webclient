@@ -7,6 +7,7 @@ import PermitProgressRealtime from "./PermitProgressRealtime";
 import PaymentView from "./Dropdown/PaymentView";
 import ApplicationFormView from "./Dropdown/ApplicationFormView";
 import UploadedDocumentsView from "./Dropdown/UploadedDocumentsView";
+import { getCanvasPoint } from "./signatureUtils";
 import "./Account.css";
 import CenteredModal from "../components/CenteredModal";
 
