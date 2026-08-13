@@ -54,10 +54,12 @@
   box-shadow: 0 28px 80px rgba(15, 23, 42, 0.18);
   overflow: hidden;
   margin: 0;
+  display: flex;
+  flex-direction: column;
 }
 .cm-card.request-details-modal .cm-content {
-  margin-bottom: 0;
-  max-height: calc(100vh - 120px);
+  margin-bottom: 18px;
+  max-height: calc(100vh - 180px);
   overflow-y: auto;
   padding-right: 14px;
 }
@@ -97,6 +99,8 @@
   display: flex;
   justify-content: center;
   gap: 12px;
+  flex-shrink: 0;
+  margin-top: auto;
 }
 .cm-card {
   max-height: 90vh;

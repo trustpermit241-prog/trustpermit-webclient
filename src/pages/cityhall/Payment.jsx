@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "react-qr-code";
 import CenteredModal from "../../components/CenteredModal";
 import PaymentView from "../Dropdown/PaymentView";
+import { getCanvasPoint } from "../signatureUtils";
 import "./Payment.css";
 
 const getApiBaseUrl = () => {
@@ -18,6 +19,63 @@ const getApiBaseUrl = () => {
 const API_BASE_URL = getApiBaseUrl();
 const FRONTEND_URL = "https://trustpermit-webclient.vercel.app";
 
+const DEFAULT_PERMIT_SIGNERS = [
+  { id: "bplo", label: "BPLO", name: "Glenn C. Altares", title: "BPLO", signature: "" },
+  { id: "attorney", label: "Attorney", name: "Atty. Henry R. Rosantina", title: "Acting City Administrator", signature: "" },
+  { id: "mayor", label: "Mayor", name: "HON. CASIMIRO A. YNARES III, M.D.", title: "City Mayor", signature: "" },
+];
+
+const getPermitSignatureKey = (payment) => {
+  if (!payment) return "default-permit-signers";
+  const keys = [
+    payment?.applicationId?._id,
+    payment?.applicationId,
+    payment?._id,
+    "default-permit-signers",
+  ].filter(Boolean);
+  return keys[0];
+};
+
+const readStoredPermitSigners = (payment) => {
+  try {
+    const key = getPermitSignatureKey(payment);
+    const raw = localStorage.getItem("permitSigners");
+    const map = raw ? JSON.parse(raw) : {};
+    const saved = map[key];
+    if (Array.isArray(saved) && saved.length > 0) {
+      return DEFAULT_PERMIT_SIGNERS.map((defaultSigner, index) => ({
+        ...defaultSigner,
+        ...(saved[index] || {}),
+      }));
+    }
+  } catch (error) {
+    console.warn("Unable to read stored permit signatures:", error);
+  }
+
+  return DEFAULT_PERMIT_SIGNERS.map((signer) => ({ ...signer }));
+};
+
+const writeStoredPermitSigners = (payment, signers) => {
+  try {
+    const raw = localStorage.getItem("permitSigners");
+    const map = raw ? JSON.parse(raw) : {};
+    const keys = [
+      payment?.applicationId?._id,
+      payment?.applicationId,
+      payment?._id,
+      getPermitSignatureKey(payment),
+    ].filter(Boolean);
+
+    keys.forEach((key) => {
+      map[key] = signers;
+    });
+
+    localStorage.setItem("permitSigners", JSON.stringify(map));
+  } catch (error) {
+    console.warn("Unable to save permit signatures:", error);
+  }
+};
+
 export default function Payment() {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +84,9 @@ export default function Payment() {
   const [approvingId, setApprovingId] = useState(null);
   const [qrModalPayment, setQrModalPayment] = useState(null);
   const [paymentViewModalPayment, setPaymentViewModalPayment] = useState(null);
+  const [signatureModal, setSignatureModal] = useState({ open: false, payment: null, signers: DEFAULT_PERMIT_SIGNERS });
+  const signerCanvasRefs = useRef({});
+  const signaturePaintRef = useRef({});
 
   const getApplicationId = (payment) => {
     if (!payment) return null;
@@ -173,6 +234,34 @@ export default function Payment() {
     fetchPayments();
   }, []);
 
+  // Draw saved signatures onto canvas when modal opens
+  useEffect(() => {
+    if (!signatureModal.open) return;
+
+    // Use setTimeout to ensure canvas refs are ready
+    const timer = setTimeout(() => {
+      signatureModal.signers.forEach((signer, index) => {
+        const canvas = signerCanvasRefs.current[index];
+        if (!canvas || !signer.signature) return;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+
+        // Clear canvas first
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Create image and draw saved signature
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0);
+        };
+        img.src = signer.signature;
+      });
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [signatureModal.open]);
+
   const filteredPayments = useMemo(() => {
     if (activeFilter === "all") return payments;
 
@@ -189,12 +278,84 @@ export default function Payment() {
     });
   }, [payments, activeFilter]);
 
-  const totalAmount = useMemo(() => {
-    return filteredPayments.reduce(
-      (sum, payment) => sum + Number(payment?.amount || 0),
-      0
-    );
-  }, [filteredPayments]);
+  const openSignatureEditor = (payment) => {
+    setSignatureModal({
+      open: true,
+      payment,
+      signers: readStoredPermitSigners(payment),
+    });
+  };
+
+  const startSignaturePaint = (event, signerIndex) => {
+    const canvas = signerCanvasRefs.current[signerIndex];
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const point = getCanvasPoint(event, canvas);
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(point.x, point.y);
+    signaturePaintRef.current[signerIndex] = true;
+  };
+
+  const drawSignature = (event, signerIndex) => {
+    if (!signaturePaintRef.current[signerIndex]) return;
+
+    const canvas = signerCanvasRefs.current[signerIndex];
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const point = getCanvasPoint(event, canvas);
+    ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+  };
+
+  const stopSignaturePaint = (signerIndex) => {
+    signaturePaintRef.current[signerIndex] = false;
+  };
+
+  const clearSignaturePad = (signerIndex) => {
+    const canvas = signerCanvasRefs.current[signerIndex];
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  const savePermitSigners = () => {
+    const payment = signatureModal.payment;
+    const signers = signatureModal.signers.map((signer, index) => {
+      const canvas = signerCanvasRefs.current[index];
+      const signature = canvas ? canvas.toDataURL("image/png") : signer.signature || "";
+      return {
+        ...signer,
+        signature,
+      };
+    });
+
+    // Always save, even if payment is null (for global signature set)
+    writeStoredPermitSigners(payment, signers);
+
+    setSignatureModal({ open: false, payment: null, signers: DEFAULT_PERMIT_SIGNERS });
+    setNotice("✅ Signatures saved permanently. All changes to names, titles, and signatures are stored.");
+  };
+
+  const updateSignerField = (index, field, value) => {
+    setSignatureModal((prev) => ({
+      ...prev,
+      signers: prev.signers.map((signer, signerIndex) =>
+        signerIndex === index ? { ...signer, [field]: value } : signer
+      ),
+    }));
+  };
 
   const gcashCount = payments.filter((payment) => {
     const method = String(
@@ -296,6 +457,15 @@ export default function Payment() {
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
           />
+
+          <button
+            type="button"
+            className="refresh-payment-btn"
+            onClick={() => openSignatureEditor(null)}
+            title="Set signatures for all permits"
+          >
+            Add Signature
+          </button>
 
           <button
             type="button"
@@ -475,6 +645,59 @@ export default function Payment() {
             </div>
           </div>
         )}
+      </CenteredModal>
+
+      <CenteredModal
+        open={signatureModal.open}
+        title="Add Permit Signatures"
+        buttonText="Save Signatures"
+        cancelText="Cancel"
+        onConfirm={savePermitSigners}
+        onCancel={() => setSignatureModal({ open: false, payment: null, signers: DEFAULT_PERMIT_SIGNERS })}
+        variant="default"
+        className="request-details-modal"
+      >
+        <div style={{ display: "grid", gap: 16, minWidth: 560, maxWidth: 620 }}>
+          {signatureModal.signers.map((signer, index) => (
+            <div key={signer.id} style={{ border: "1px solid #e5e7eb", borderRadius: 12, background: "#f8fafc", padding: 12 }}>
+              <div style={{ display: "grid", gap: 8, marginBottom: 8 }}>
+                <label style={{ fontWeight: 700, fontSize: 12, color: "#475569", textTransform: "uppercase" }}>{signer.label}</label>
+                <input
+                  type="text"
+                  value={signer.name}
+                  onChange={(event) => updateSignerField(index, "name", event.target.value)}
+                  style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13 }}
+                />
+                <input
+                  type="text"
+                  value={signer.title}
+                  onChange={(event) => updateSignerField(index, "title", event.target.value)}
+                  style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13 }}
+                />
+              </div>
+
+              <canvas
+                ref={(node) => {
+                  signerCanvasRefs.current[index] = node;
+                }}
+                width={520}
+                height={120}
+                onPointerDown={(event) => startSignaturePaint(event, index)}
+                onPointerMove={(event) => drawSignature(event, index)}
+                onPointerUp={() => stopSignaturePaint(index)}
+                onPointerLeave={() => stopSignaturePaint(index)}
+                onPointerCancel={() => stopSignaturePaint(index)}
+                style={{ width: "100%", maxWidth: 520, height: 120, border: "1px solid #d1d5db", borderRadius: 8, background: "#fff", touchAction: "none", cursor: "crosshair" }}
+              />
+
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                <button type="button" className="refresh-payment-btn small" onClick={() => clearSignaturePad(index)}>
+                  Clear
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       </CenteredModal>
 
       <CenteredModal

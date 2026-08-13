@@ -18,6 +18,32 @@ const getApiBaseUrl = () => {
 const API_BASE_URL = getApiBaseUrl();
 const FRONTEND_URL = "https://trustpermit-webclient.vercel.app";
 
+const DEFAULT_PERMIT_SIGNERS = [
+  { id: "bplo", label: "BPLO", name: "Glenn C. Altares", title: "BPLO", signature: "" },
+  { id: "attorney", label: "Attorney", name: "Atty. Henry R. Rosantina", title: "Acting City Administrator", signature: "" },
+  { id: "mayor", label: "Mayor", name: "HON. CASIMIRO A. YNARES III, M.D.", title: "City Mayor", signature: "" },
+];
+
+const readPermitSigners = (permitKey) => {
+  try {
+    const raw = localStorage.getItem("permitSigners");
+    if (!raw) return DEFAULT_PERMIT_SIGNERS;
+
+    const map = JSON.parse(raw);
+    const saved = map[permitKey];
+    if (Array.isArray(saved) && saved.length > 0) {
+      return DEFAULT_PERMIT_SIGNERS.map((defaultSigner, index) => ({
+        ...defaultSigner,
+        ...(saved[index] || {}),
+      }));
+    }
+  } catch (error) {
+    console.warn("Unable to read permit signatures:", error);
+  }
+
+  return DEFAULT_PERMIT_SIGNERS;
+};
+
 export default function PrintPermit() {
   const { permitId } = useParams();
   const [data, setData] = useState(null);
@@ -129,6 +155,7 @@ export default function PrintPermit() {
   const verificationLink = FRONTEND_URL
     ? `${FRONTEND_URL}/verify/${app._id}`
     : `${API_BASE_URL}/api/blockchain/redirect/${app._id}`;
+  const permitSigners = readPermitSigners(app?._id || permitId || "default-permit-signers");
 
   return (
     <div className="permit-print-page">
@@ -217,25 +244,24 @@ export default function PrintPermit() {
               <span>Date Issued:</span> <strong>{issueDate}</strong>
             </div>
           </div>
-
-          <div className="permit-bottom-right">
-            <div className="permit-approved">Approved:</div>
-            <div className="permit-approver-name">HON. CASIMIRO A. YNARES III, M.D.</div>
-            <div className="permit-approver-title">City Mayor</div>
-          </div>
         </div>
 
         <div className="permit-signatures-row">
-          <div className="permit-signature-block">
-            <div className="signature-line"></div>
-            <div className="signature-name">Glenn C. Altares</div>
-            <div className="signature-title">BPLO</div>
-          </div>
-          <div className="permit-signature-block">
-            <div className="signature-line"></div>
-            <div className="signature-name">Atty. Henry R. Rosantina</div>
-            <div className="signature-title">Acting City Administrator</div>
-          </div>
+          {permitSigners.map((signer) => (
+            <div className="permit-signature-block" key={signer.id}>
+              <div className="signature-line">
+                {signer.signature ? (
+                  <img
+                    src={signer.signature}
+                    alt={signer.name}
+                    style={{ maxWidth: "100%", maxHeight: 60, display: "block", margin: "0 auto" }}
+                  />
+                ) : null}
+              </div>
+              <div className="signature-name">{signer.name}</div>
+              <div className="signature-title">{signer.title}</div>
+            </div>
+          ))}
         </div>
 
         <button className="permit-print-button" onClick={() => window.print()}>
