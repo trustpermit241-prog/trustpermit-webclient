@@ -406,6 +406,38 @@
   color: #94A3B8;
 }
 
+.ip-inspection-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.ip-inspection-search input {
+  flex: 1;
+  background: #F8FAFC;
+  border: 1px solid #E8ECF5;
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: #0F172A;
+  font-size: 12px;
+  outline: none;
+  font-family: 'DM Sans', sans-serif;
+}
+.ip-inspection-search input:focus {
+  border-color: #3B6EF6;
+  box-shadow: 0 0 0 3px rgba(59, 110, 246, 0.1);
+}
+.ip-clear-search {
+  background: #EEF2FF;
+  color: #3730A3;
+  border: 1px solid #C7D2FE;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .ip-table-scroll {
   overflow-x: auto;
 }
@@ -630,7 +662,7 @@
   font-family: 'DM Sans', sans-serif;
   transition: all 0.12s;
 }
-.ip-page-btn:hover {
+.ip-page-btn:hover:not(:disabled) {
   background: #EEF3FF;
   border-color: #DBEAFE;
   color: #3B6EF6;
@@ -639,6 +671,10 @@
   background: #3B6EF6;
   border-color: #3B6EF6;
   color: #fff;
+}
+.ip-page-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 .ip-page-btn.ip-arr {
   color: #CBD5E1;

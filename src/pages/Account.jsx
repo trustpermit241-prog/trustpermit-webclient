@@ -545,17 +545,26 @@ const Account = ({ initialMenu }) => {
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
-  const startDrawing = (e) => {
-    const ctx = canvasRef.current.getContext("2d");
+  const startDrawing = (event) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const point = getCanvasPoint(event, canvas);
     ctx.beginPath();
-    ctx.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+    ctx.moveTo(point.x, point.y);
     setIsDrawing(true);
   };
 
-  const draw = (e) => {
-    if (!isDrawing) return;
-    const ctx = canvasRef.current.getContext("2d");
-    ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+  const draw = (event) => {
+    if (!isDrawing || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const point = getCanvasPoint(event, canvas);
+    ctx.lineTo(point.x, point.y);
     ctx.stroke();
   };
 
@@ -2273,10 +2282,12 @@ if (!paymentApplicationId) {
                   width={400}
                   height={150}
                   className="signature-canvas"
-                  onMouseDown={startDrawing}
-                  onMouseMove={draw}
-                  onMouseUp={stopDrawing}
-                  onMouseLeave={stopDrawing}
+                  onPointerDown={startDrawing}
+                  onPointerMove={draw}
+                  onPointerUp={stopDrawing}
+                  onPointerLeave={stopDrawing}
+                  onPointerCancel={stopDrawing}
+                  style={{ touchAction: "none" }}
                 />
 
                 <div style={{ marginTop: 8 }}>
@@ -2882,10 +2893,12 @@ if (!paymentApplicationId) {
                       width={560}
                       height={150}
                       className="signature-canvas"
-                      onMouseDown={startDrawing}
-                      onMouseMove={draw}
-                      onMouseUp={stopDrawing}
-                      onMouseLeave={stopDrawing}
+                      onPointerDown={startDrawing}
+                      onPointerMove={draw}
+                      onPointerUp={stopDrawing}
+                      onPointerLeave={stopDrawing}
+                      onPointerCancel={stopDrawing}
+                      style={{ touchAction: "none" }}
                     />
                     <div style={{ marginTop: 8 }}>
                       <button className="btn clear-signature-btn" onClick={clearSignature}>Clear Signature</button>

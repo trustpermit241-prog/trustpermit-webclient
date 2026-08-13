@@ -1,15 +1,18 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import "./InspectionProgress.css";
 import CenteredModal from "../../components/CenteredModal";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { PAGE_SIZE, getFilteredInspections, getPagedInspections } from "./inspectionListUtils";
 
 export default function InspectionProgress() {
   const [inspections, setInspections] = useState([]);
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [search, setSearch] = useState("");
+  const [inspectionSearch, setInspectionSearch] = useState("");
+  const [inspectionPage, setInspectionPage] = useState(1);
   const [newInspection, setNewInspection] = useState({
     citizenEmail: "",
     // allow selecting multiple types via multi-select; stored as an array
@@ -263,6 +266,26 @@ const selectedCitizen = safeUsers.find(
   const filteredCitizens = users.filter((user) =>
     user.fullName.toLowerCase().includes(search.toLowerCase())
   );
+
+  const filteredInspections = useMemo(
+    () => getFilteredInspections(inspections, inspectionSearch),
+    [inspections, inspectionSearch]
+  );
+
+  const pagedInspections = useMemo(
+    () => getPagedInspections(filteredInspections, inspectionPage, PAGE_SIZE),
+    [filteredInspections, inspectionPage]
+  );
+
+  useEffect(() => {
+    setInspectionPage(1);
+  }, [inspectionSearch]);
+
+  useEffect(() => {
+    if (inspectionPage > pagedInspections.totalPages) {
+      setInspectionPage(pagedInspections.totalPages || 1);
+    }
+  }, [pagedInspections.totalPages, inspectionPage]);
 
   // ================= STATS =================
   const total = inspections.length;
@@ -555,8 +578,22 @@ const selectedCitizen = safeUsers.find(
                 <div className="ip-card-title">All Scheduled Inspections</div>
               </div>
               <div className="ip-tbl-meta">
-                {inspections.length} total entries
+                {filteredInspections.length} total entries
               </div>
+            </div>
+
+            <div className="ip-inspection-search">
+              <input
+                type="text"
+                value={inspectionSearch}
+                onChange={(event) => setInspectionSearch(event.target.value)}
+                placeholder="Search by citizen, email, or inspection type"
+              />
+              {inspectionSearch && (
+                <button type="button" className="ip-clear-search" onClick={() => setInspectionSearch("")}>
+                  Clear
+                </button>
+              )}
             </div>
 
             <div className="ip-table-scroll">
@@ -572,17 +609,18 @@ const selectedCitizen = safeUsers.find(
                   </tr>
                 </thead>
                 <tbody>
-                  {inspections.length === 0 ? (
+                  {pagedInspections.items.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="ip-empty">No inspections scheduled yet.</td>
                     </tr>
                   ) : (
-                    inspections.map((ins) => {
+                    pagedInspections.items.map((ins) => {
                       const { icon, cls } = getTypeIcon(ins.type);
                       return (
                         <tr key={ins._id}>
                           <td>
                             <div className="ip-type-cell">
+                              <div className={`ip-type-icon ${cls}`}>{icon}</div>
                               <div>
                                 <div className="ip-type-name">{ins.type || "—"}</div>
                                 <div className="ip-type-sub">Inspection</div>
@@ -653,14 +691,35 @@ const selectedCitizen = safeUsers.find(
 
             <div className="ip-pagination">
               <div className="ip-page-info">
-                Showing 1 to {Math.min(inspections.length, 10)} of {inspections.length} entries
+                Showing {filteredInspections.length === 0 ? 0 : pagedInspections.startIndex + 1} to {pagedInspections.endIndex + 1} of {filteredInspections.length} entries
               </div>
               <div className="ip-page-btns">
-                <button className="ip-page-btn ip-arr">‹</button>
-                <button className="ip-page-btn ip-active">1</button>
-                <button className="ip-page-btn">2</button>
-                <button className="ip-page-btn">3</button>
-                <button className="ip-page-btn ip-arr">›</button>
+                <button
+                  type="button"
+                  className="ip-page-btn ip-arr"
+                  onClick={() => setInspectionPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={inspectionPage === 1}
+                >
+                  ‹
+                </button>
+                {Array.from({ length: pagedInspections.totalPages }, (_, index) => index + 1).map((pageNumber) => (
+                  <button
+                    key={pageNumber}
+                    type="button"
+                    className={`ip-page-btn ${inspectionPage === pageNumber ? "ip-active" : ""}`}
+                    onClick={() => setInspectionPage(pageNumber)}
+                  >
+                    {pageNumber}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="ip-page-btn ip-arr"
+                  onClick={() => setInspectionPage((prev) => Math.min(prev + 1, pagedInspections.totalPages))}
+                  disabled={inspectionPage === pagedInspections.totalPages || pagedInspections.totalPages === 0}
+                >
+                  ›
+                </button>
               </div>
             </div>
           </div>
