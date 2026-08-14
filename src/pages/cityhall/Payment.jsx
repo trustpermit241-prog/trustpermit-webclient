@@ -25,28 +25,49 @@ const DEFAULT_PERMIT_SIGNERS = [
   { id: "mayor", label: "Mayor", name: "HON. CASIMIRO A. YNARES III, M.D.", title: "City Mayor", signature: "" },
 ];
 
+const normalizePermitKey = (value) => {
+  if (!value) return null;
+
+  if (typeof value === "object") {
+    return normalizePermitKey(value._id || value.id || value.applicationId || value.paymentId);
+  }
+
+  const str = String(value).trim();
+  return str || null;
+};
+
 const getPermitSignatureKey = (payment) => {
-  if (!payment) return "default-permit-signers";
   const keys = [
     payment?.applicationId?._id,
     payment?.applicationId,
     payment?._id,
-    "default-permit-signers",
-  ].filter(Boolean);
-  return keys[0];
+    payment?.id,
+    payment?.application?._id,
+    payment?.application,
+  ]
+    .map(normalizePermitKey)
+    .filter(Boolean);
+
+  return keys[0] || "default-permit-signers";
 };
 
 const readStoredPermitSigners = (payment) => {
   try {
-    const key = getPermitSignatureKey(payment);
     const raw = localStorage.getItem("permitSigners");
     const map = raw ? JSON.parse(raw) : {};
-    const saved = map[key];
-    if (Array.isArray(saved) && saved.length > 0) {
-      return DEFAULT_PERMIT_SIGNERS.map((defaultSigner, index) => ({
-        ...defaultSigner,
-        ...(saved[index] || {}),
-      }));
+    const keys = [
+      getPermitSignatureKey(payment),
+      "default-permit-signers",
+    ];
+
+    for (const key of keys) {
+      const saved = map[key];
+      if (Array.isArray(saved) && saved.length > 0) {
+        return DEFAULT_PERMIT_SIGNERS.map((defaultSigner, index) => ({
+          ...defaultSigner,
+          ...(saved[index] || {}),
+        }));
+      }
     }
   } catch (error) {
     console.warn("Unable to read stored permit signatures:", error);
@@ -60,13 +81,20 @@ const writeStoredPermitSigners = (payment, signers) => {
     const raw = localStorage.getItem("permitSigners");
     const map = raw ? JSON.parse(raw) : {};
     const keys = [
+      getPermitSignatureKey(payment),
       payment?.applicationId?._id,
       payment?.applicationId,
       payment?._id,
-      getPermitSignatureKey(payment),
-    ].filter(Boolean);
+      payment?.id,
+      payment?.application?._id,
+      payment?.application,
+      "default-permit-signers",
+    ]
+      .map(normalizePermitKey)
+      .filter(Boolean);
 
-    keys.forEach((key) => {
+    const uniqueKeys = [...new Set(keys)];
+    uniqueKeys.forEach((key) => {
       map[key] = signers;
     });
 

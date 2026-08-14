@@ -27,21 +27,28 @@ const DEFAULT_PERMIT_SIGNERS = [
 const readPermitSigners = (permitKey) => {
   try {
     const raw = localStorage.getItem("permitSigners");
-    if (!raw) return DEFAULT_PERMIT_SIGNERS;
+    if (!raw) return DEFAULT_PERMIT_SIGNERS.map((signer) => ({ ...signer }));
 
     const map = JSON.parse(raw);
-    const saved = map[permitKey];
-    if (Array.isArray(saved) && saved.length > 0) {
-      return DEFAULT_PERMIT_SIGNERS.map((defaultSigner, index) => ({
-        ...defaultSigner,
-        ...(saved[index] || {}),
-      }));
+    const keysToTry = [
+      permitKey,
+      "default-permit-signers",
+    ].filter(Boolean);
+
+    for (const key of keysToTry) {
+      const saved = map[key];
+      if (Array.isArray(saved) && saved.length > 0) {
+        return DEFAULT_PERMIT_SIGNERS.map((defaultSigner, index) => ({
+          ...defaultSigner,
+          ...(saved[index] || {}),
+        }));
+      }
     }
   } catch (error) {
     console.warn("Unable to read permit signatures:", error);
   }
 
-  return DEFAULT_PERMIT_SIGNERS;
+  return DEFAULT_PERMIT_SIGNERS.map((signer) => ({ ...signer }));
 };
 
 export default function PrintPermit() {
