@@ -8,9 +8,26 @@ import ProfileSection from "./ProfileSection";
 import PermitProgressRealtime from "./PermitProgressRealtime";
 import "./Home.css";
 
+const HOME_ACTIVE_CARD_KEY = "homeActiveCard";
+
+const getStoredActiveCard = () => {
+  try {
+    return localStorage.getItem(HOME_ACTIVE_CARD_KEY) || null;
+  } catch (error) {
+    return null;
+  }
+};
+
 export default function Home() {
-  const [activeCard, setActiveCard] = useState(null);
+  const [activeCard, setActiveCard] = useState(() => getStoredActiveCard());
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const storedCard = getStoredActiveCard();
+    if (storedCard) {
+      setActiveCard(storedCard);
+    }
+  }, []);
 
   // Scroll animation trigger
   useEffect(() => {
@@ -27,6 +44,18 @@ export default function Home() {
     reveal();
     return () => window.removeEventListener("scroll", reveal);
   }, []);
+
+  useEffect(() => {
+    try {
+      if (activeCard) {
+        localStorage.setItem(HOME_ACTIVE_CARD_KEY, activeCard);
+      } else {
+        localStorage.removeItem(HOME_ACTIVE_CARD_KEY);
+      }
+    } catch (error) {
+      // Ignore storage errors.
+    }
+  }, [activeCard]);
 
   // Card button data
   const cardButtons = [
@@ -108,8 +137,11 @@ export default function Home() {
       {/* Show content when a card is selected */}
       {activeCard && (
         <div style={{ margin: "0 auto", width: "100%", maxWidth: "none", padding: "0 20px" }}>
-          <button style={{ margin: "18px 0 0 0", background: "#2563eb", color: "#fff", border: 0, borderRadius: 8, padding: "8px 22px", fontWeight: 600, cursor: "pointer" }} onClick={() => setActiveCard(null)}>
-            ← Back to Home
+          <button style={{ margin: "18px 0 0 0", background: "#2563eb", color: "#fff", border: 0, borderRadius: 8, padding: "12px 18px", fontWeight: 600, cursor: "pointer", fontSize: "40px", width: "60px", height: "60px", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: "1" }} onClick={() => {
+            setActiveCard(null);
+            localStorage.removeItem(HOME_ACTIVE_CARD_KEY);
+          }}>
+            ←
           </button>
           <div style={{ marginTop: 18 }}>{renderCardContent()}</div>
         </div>

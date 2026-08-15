@@ -3,6 +3,7 @@ import { useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import emailjs from "@emailjs/browser";
+import CenteredModal from "../components/CenteredModal";
 import "./Login.css";
 
 const API_BASE_URL = (() => {
@@ -29,10 +30,13 @@ export default function Login() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [otpVerified, setOtpVerified] = useState(false);
+  const [otpExpired, setOtpExpired] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(false);
   const [resendTimer, setResendTimer] = useState(60);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [otpExpiredModal, setOtpExpiredModal] = useState(false);
+  const [otpSuccessModal, setOtpSuccessModal] = useState(false);
 
   const [failedAttempts, setFailedAttempts] = useState(0);
 
@@ -158,16 +162,21 @@ export default function Login() {
         throw new Error(data.message || "Failed to store OTP on server.");
       }
 
-      setMessage(`OTP sent successfully to ${forgotEmail}`);
+      setOtpSuccessModal(true);
       setError("");
       setResendCooldown(true);
       setResendTimer(60);
+      setOtpExpired(false);
+      setOtp("");
 
       const interval = setInterval(() => {
         setResendTimer((prev) => {
           if (prev <= 1) {
             clearInterval(interval);
             setResendCooldown(false);
+            setOtpExpired(true);
+            setOtpExpiredModal(true);
+            setOtp("");
             return 60;
           }
 
@@ -454,9 +463,9 @@ export default function Login() {
                     {resendCooldown ? `Resend in ${resendTimer}s` : "Send OTP"}
                   </button>
 
-                  <input type="text" placeholder="Enter OTP" value={otp} onChange={(e) => setOtp(e.target.value)} maxLength={6} />
+                  <input type="text" placeholder="Enter OTP" value={otp} onChange={(e) => setOtp(e.target.value)} maxLength={6} disabled={otpExpired} />
 
-                  <button onClick={verifyOtp}>Verify OTP</button>
+                  <button onClick={verifyOtp} disabled={otpExpired}>Verify OTP</button>
 
                   <span
                     className="back-to-login-link"
@@ -486,6 +495,29 @@ export default function Login() {
           )}
         </div>
       </div>
+
+      {/* OTP Success Modal */}
+      <CenteredModal
+        open={otpSuccessModal}
+        title="OTP Sent"
+        message={`OTP sent successfully to ${forgotEmail}`}
+        buttonText="OK"
+        variant="success"
+        onClose={() => setOtpSuccessModal(false)}
+      />
+
+      {/* OTP Expired Error Modal */}
+      <CenteredModal
+        open={otpExpiredModal}
+        title="OTP Expired"
+        message="Your OTP has expired. Please request a new one."
+        buttonText="OK"
+        variant="error"
+        onClose={() => {
+          setOtpExpiredModal(false);
+          setOtpExpired(true);
+        }}
+      />
     </div>
   );
 }

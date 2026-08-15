@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import emailjs from "@emailjs/browser";
+import CenteredModal from "../components/CenteredModal";
 import "./Register.css";
 
 export default function SecurityVerification() {
@@ -13,8 +14,11 @@ export default function SecurityVerification() {
   const [otp, setOtp] = useState("");
   const [message, setMessage] = useState("");
   const [emailVerified, setEmailVerified] = useState(false);
+  const [otpExpired, setOtpExpired] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(false);
   const [resendTimer, setResendTimer] = useState(60);
+  const [otpExpiredModal, setOtpExpiredModal] = useState(false);
+  const [otpSuccessModal, setOtpSuccessModal] = useState(false);
 
   // Redirect if no state
   useEffect(() => {
@@ -49,9 +53,11 @@ export default function SecurityVerification() {
         body: JSON.stringify({ email, otp: otpCode }),
       });
 
-      setMessage(`OTP sent successfully to ${email}`);
+      setOtpSuccessModal(true);
       setResendCooldown(true);
       setResendTimer(60);
+      setOtpExpired(false);
+      setOtp("");
     } catch (err) {
       console.error(err);
       const errorMessage = err.text || err.message || "Failed to send OTP.";
@@ -117,6 +123,9 @@ export default function SecurityVerification() {
         if (prev <= 1) {
           clearInterval(interval);
           setResendCooldown(false);
+          setOtpExpired(true);
+          setOtpExpiredModal(true);
+          setOtp("");
           return 60;
         }
         return prev - 1;
@@ -204,10 +213,11 @@ export default function SecurityVerification() {
           value={otp}
           onChange={(e) => setOtp(e.target.value)}
           maxLength={6}
+          disabled={otpExpired}
           style={inputStyle}
         />
 
-        <button onClick={verifyOtp} disabled={emailVerified}>
+        <button onClick={verifyOtp} disabled={emailVerified || otpExpired}>
           {emailVerified ? "Verified" : "Verify and Register"}
         </button>
 
@@ -223,6 +233,29 @@ export default function SecurityVerification() {
           Already have an account? <a href="/">Login here</a>
         </p>
       </div>
+
+      {/* OTP Success Modal */}
+      <CenteredModal
+        open={otpSuccessModal}
+        title="OTP Sent"
+        message={`OTP sent successfully to ${email}`}
+        buttonText="OK"
+        variant="success"
+        onClose={() => setOtpSuccessModal(false)}
+      />
+
+      {/* OTP Expired Error Modal */}
+      <CenteredModal
+        open={otpExpiredModal}
+        title="OTP Expired"
+        message="Your OTP has expired. Please request a new one."
+        buttonText="OK"
+        variant="error"
+        onClose={() => {
+          setOtpExpiredModal(false);
+          setOtpExpired(true);
+        }}
+      />
     </div>
   );
 }

@@ -144,6 +144,8 @@ export default function PublicLayout() {
   }, []);
 
   const notificationItems = useMemo(() => {
+    const normalizeStatus = (value) => String(value ?? "").trim().toLowerCase();
+
     const userPayments = payments.filter((payment) => {
       const paymentEmail = String(payment.email || payment.userId?.email || "").toLowerCase();
       return paymentEmail === String(userEmail).toLowerCase();
@@ -151,41 +153,83 @@ export default function PublicLayout() {
 
     return [
       ...userPayments
-        .filter((payment) => payment.permitReleased === true)
-        .map((payment) => ({
-          id: `payment-${payment._id}`,
-          type: "payment",
-          status: "approved",
-          message: "Your payment was approved and your permit has been released.",
-          timestamp:
-            payment.permitReleasedAt ||
-            payment.updatedAt ||
-            payment.createdAt ||
-            "",
-        })),
+        .map((payment) => {
+          const status = normalizeStatus(
+            payment.status || payment.paymentStatus || payment.result || ""
+          );
+          const isApproved =
+            status === "approved" ||
+            status === "paid" ||
+            status === "success" ||
+            status === "completed" ||
+            payment.permitReleased === true;
+          const isRejected =
+            status === "rejected" ||
+            status === "declined" ||
+            status === "failed" ||
+            status === "cancelled" ||
+            status === "denied";
 
-      ...inspections.map((inspection) => ({
-        id: `inspection-${inspection._id || inspection.id}`,
-        type: "inspection",
-        message: `Inspection scheduled for ${
-          inspection.date
-            ? new Date(inspection.date).toLocaleDateString()
-            : "Unknown date"
-        }${inspection.type ? ` (${inspection.type})` : ""}`,
-        timestamp: inspection.updatedAt || inspection.createdAt || inspection.date || "",
-      })),
+          if (!isApproved && !isRejected) return null;
 
-      ...applications.map((app) => ({
-        id: `application-${app._id || app.id}`,
-        type: "application",
-        status: app.status || "Pending",
-        message: `${app.applicationType || "New Application"} ${
-          app.status || "Pending"
-        } for Permit #${app.permitId || app._id || app.id}`,
-        timestamp: app.updatedAt || app.createdAt || "",
-      })),
+          return {
+            id: `payment-${payment._id}`,
+            type: "payment",
+            status: isRejected ? "rejected" : "approved",
+            message: isRejected
+              ? "Your payment was rejected or failed. Please review and try again."
+              : "Your payment was approved and your permit has been released.",
+            timestamp:
+              payment.permitReleasedAt ||
+              payment.updatedAt ||
+              payment.createdAt ||
+              "",
+          };
+        })
+        .filter(Boolean),
+
+      ...inspections
+        .map((inspection) => {
+          const status = normalizeStatus(inspection.status || inspection.inspectionStatus || "");
+          const isRejected = ["rejected", "denied", "failed"].includes(status);
+
+          return {
+            id: `inspection-${inspection._id || inspection.id}`,
+            type: "inspection",
+            status,
+            message: isRejected
+              ? `Inspection was rejected for ${
+                  inspection.date
+                    ? new Date(inspection.date).toLocaleDateString()
+                    : "the scheduled date"
+                }${inspection.type ? ` (${inspection.type})` : ""}.`
+              : `Inspection scheduled for ${
+                  inspection.date
+                    ? new Date(inspection.date).toLocaleDateString()
+                    : "Unknown date"
+                }${inspection.type ? ` (${inspection.type})` : ""}`,
+            timestamp: inspection.updatedAt || inspection.createdAt || inspection.date || "",
+          };
+        })
+        .filter((item) => item.timestamp),
+
+      ...applications
+        .filter((app) => {
+          const status = normalizeStatus(app.status || "");
+          return !status || ["pending", "approved", "rejected", "submitted", "in_review", "review"].includes(status);
+        })
+        .map((app) => ({
+          id: `application-${app._id || app.id}`,
+          type: "application",
+          status: app.status || "Pending",
+          message: `${app.applicationType || "New Application"} ${
+            app.status || "Pending"
+          } for Permit #${app.permitId || app._id || app.id}`,
+          timestamp: app.updatedAt || app.createdAt || "",
+        }))
+        .filter((item) => item.timestamp),
     ]
-      .filter((item) => item.timestamp)
+      .filter((item) => item && item.timestamp)
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   }, [applications, inspections, payments, userEmail]);
 
@@ -220,9 +264,12 @@ export default function PublicLayout() {
   };
 
   const getNotificationIcon = (item) => {
-    if (item.type === "payment") return "💳";
-    if (item.type === "inspection") return "📅";
-    if ((item.status || "").toLowerCase() === "approved") return "✓";
+    const status = String(item.status || "").toLowerCase();
+
+    if (item.type === "payment") return status === "rejected" ? "⚠" : "💳";
+    if (item.type === "inspection") return status === "rejected" ? "⚠" : "📅";
+    if (status === "approved") return "✓";
+    if (status === "rejected") return "✕";
     return "📄";
   };
 
@@ -240,6 +287,11 @@ export default function PublicLayout() {
     refreshProfileImage();
     if (typeof window !== "undefined") {
       window.addEventListener("profileImageUpdated", refreshProfileImage);
+      window.addEventListener("storage", (event) => {
+        if (!event.key || event.key === "profileImage") {
+          refreshProfileImage();
+        }
+      });
     }
 
     return () => {
@@ -250,9 +302,12 @@ export default function PublicLayout() {
   }, []);
 
   const getNotificationClass = (item) => {
+    const status = String(item.status || "").toLowerCase();
+
+    if (status === "rejected") return "rejected";
     if (item.type === "payment") return "approved";
     if (item.type === "inspection") return "inspection";
-    if ((item.status || "").toLowerCase() === "approved") return "approved";
+    if (status === "approved") return "approved";
     return "pending";
   };
 

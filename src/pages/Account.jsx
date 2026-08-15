@@ -181,6 +181,16 @@ const Account = ({ initialMenu }) => {
     }
   };
 
+  useEffect(() => {
+    if (!activeMenu) return;
+
+    try {
+      localStorage.setItem("accountActiveMenu", activeMenu);
+    } catch (e) {
+      // Ignore localStorage errors.
+    }
+  }, [activeMenu]);
+
   const submittedApplicationsCount = applications.length;
   const applicationsInReviewCount = applications.filter(
     (app) => (app.status || "").toLowerCase() === "pending"
@@ -319,6 +329,7 @@ const Account = ({ initialMenu }) => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [pendingProfileImage, setPendingProfileImage] = useState("");
 
   const [appFormStep, setAppFormStep] = useState(1);
 
@@ -334,12 +345,28 @@ const Account = ({ initialMenu }) => {
   const [faxNo, setFaxNo] = useState("");
   const [tin, setTin] = useState("");
   const [outsideAntipolo, setOutsideAntipolo] = useState(false);
+  
+  // ================= RENEWAL-SPECIFIC FIELDS =================
+  const [businessPermitNo, setBusinessPermitNo] = useState("");
+  const [dateOfPreviousPermit, setDateOfPreviousPermit] = useState("");
+  const [dtiSecNumber, setDtiSecNumber] = useState("");
+  const [leaseLandTitleNo, setLeaseLandTitleNo] = useState("");
+  const [barangayClearanceFile, setBarangayClearanceFile] = useState(null);
+  const [sanitaryBfpFile, setSanitaryBfpFile] = useState(null);
+  const [previousMayorPermitFile, setPreviousMayorPermitFile] = useState(null);
+  const [officialReceiptsFile, setOfficialReceiptsFile] = useState(null);
+  
   const [showRequirements, setShowRequirements] = useState(true);
 
   // ================= INSPECTION =================
   const [inspections, setInspections] = useState([]);
   const [inspectionsLoading, setInspectionsLoading] = useState(true);
   const [inspectionsError, setInspectionsError] = useState(null);
+
+  // ================= PAYMENTS =================
+  const [payments, setPayments] = useState([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(true);
+  const [paymentsError, setPaymentsError] = useState(null);
 
   // Payment
   const isRenewalPayment = applicationType === "Renewal" || isRenewalMode || Boolean(renewalSourceApplicationId);
@@ -502,6 +529,50 @@ const Account = ({ initialMenu }) => {
     };
   }, [hasApprovedInspection]);
 
+  // ================= FETCH PAYMENTS =================
+  const fetchPayments = async () => {
+    setPaymentsLoading(true);
+    setPaymentsError(null);
+
+    const userEmail = localStorage.getItem("email") || userEmail;
+    if (!userEmail) {
+      setPayments([]);
+      setPaymentsError("Not logged in. Please sign in to view your payments.");
+      setPaymentsLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/payments`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || errData.msg || "Failed to fetch payments.");
+      }
+
+      const data = await res.json();
+      if (Array.isArray(data.payments)) {
+        setPayments(data.payments);
+      } else {
+        setPayments([]);
+        setPaymentsError("No payment data returned from server.");
+      }
+    } catch (err) {
+      console.error("Fetch payments error:", err);
+      setPayments([]);
+      setPaymentsError(err.message || "Failed to fetch payments.");
+    } finally {
+      setPaymentsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPayments();
+  }, []);
+
+
   useEffect(() => {
     if (activeMenu === "Application Forms") {
       setActiveMenu("Apply Permit");
@@ -520,7 +591,8 @@ const Account = ({ initialMenu }) => {
   const notificationItems = [
     ...inspections.map((inspection) => ({
       type: "inspection",
-      message: `Inspection scheduled for ${inspection.date ? new Date(inspection.date).toLocaleDateString() : "Unknown date"}${inspection.type ? ` (${inspection.type})` : ""}`,
+      status: inspection.status || "Pending",
+      message: `Inspection ${inspection.status || "scheduled"} for ${inspection.date ? new Date(inspection.date).toLocaleDateString() : "Unknown date"}${inspection.type ? ` (${inspection.type})` : ""}`,
       timestamp: inspection.updatedAt || inspection.createdAt || inspection.date || "",
     })),
     ...applications.map((app) => ({
@@ -528,6 +600,12 @@ const Account = ({ initialMenu }) => {
       status: app.status || "Pending",
       message: `${app.applicationType || "Application"} ${app.status || "updated"} for Permit #${app.permitId || app._id || app.id}`,
       timestamp: app.updatedAt || app.createdAt || "",
+    })),
+    ...payments.map((payment) => ({
+      type: "payment",
+      status: payment.status || "Pending",
+      message: `Payment ${payment.status || "pending"} for Permit #${payment.permitId || payment._id || payment.id}`,
+      timestamp: payment.updatedAt || payment.createdAt || "",
     })),
   ]
     .filter((item) => item.timestamp)
@@ -571,6 +649,34 @@ const Account = ({ initialMenu }) => {
 
   const stopDrawing = () => {
     setIsDrawing(false);
+    try {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        localStorage.setItem(`${APPLICATION_DRAFT_KEY}_signature`, canvas.toDataURL("image/png"));
+      }
+    } catch (error) {
+      console.error("Failed to save signature draft:", error);
+    }
+  };
+
+  const restoreSignatureDraft = () => {
+    try {
+      const savedSignature = localStorage.getItem(`${APPLICATION_DRAFT_KEY}_signature`);
+      const canvas = canvasRef.current;
+      if (!savedSignature || !canvas) return;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      const img = new Image();
+      img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      };
+      img.src = savedSignature;
+    } catch (error) {
+      console.error("Failed to restore signature draft:", error);
+    }
   };
 
   const clearSignature = () => {
@@ -580,11 +686,280 @@ const Account = ({ initialMenu }) => {
     if (!ctx) return;
 
     ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    try {
+      localStorage.removeItem(`${APPLICATION_DRAFT_KEY}_signature`);
+    } catch (error) {
+      console.error("Failed to clear signature draft:", error);
+    }
   };
 
   const [submittingApp, setSubmittingApp] = useState(false);
 
   const [missingFields, setMissingFields] = useState([]);
+  const [isDraftHydrated, setIsDraftHydrated] = useState(false);
+
+  const APPLICATION_DRAFT_KEY = "permitApplicationDraft";
+  const UPLOADED_FILES_KEY = "permitUploadedFiles";
+
+  const readApplicationDraft = () => {
+    try {
+      const raw = localStorage.getItem(APPLICATION_DRAFT_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (error) {
+      console.error("Failed to read permit draft:", error);
+      return {};
+    }
+  };
+
+  const fileToDataUrl = (file) =>
+    new Promise((resolve, reject) => {
+      if (!file) {
+        resolve("");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("Failed to read uploaded file"));
+      reader.readAsDataURL(file);
+    });
+
+  const saveUploadedFilesState = async (files) => {
+    try {
+      const serializable = {};
+
+      for (const [docName, file] of Object.entries(files || {})) {
+        if (!file) continue;
+
+        const dataUrl = await fileToDataUrl(file);
+        serializable[docName] = {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          lastModified: file.lastModified,
+          dataUrl,
+        };
+      }
+
+      localStorage.setItem(UPLOADED_FILES_KEY, JSON.stringify(serializable));
+    } catch (error) {
+      console.error("Failed to save uploaded files:", error);
+    }
+  };
+
+  const readUploadedFilesState = () => {
+    try {
+      const raw = localStorage.getItem(UPLOADED_FILES_KEY);
+      if (!raw) return {};
+
+      const parsed = JSON.parse(raw);
+      const restored = {};
+
+      Object.entries(parsed || {}).forEach(([docName, info]) => {
+        if (!info || !info.dataUrl) return;
+
+        try {
+          const [header, body] = String(info.dataUrl).split(",");
+          const mimeMatch = header.match(/:(.*?);/);
+          const mime = mimeMatch ? mimeMatch[1] : info.type || "application/octet-stream";
+          const binary = atob(body || "");
+          const byteArray = new Uint8Array(binary.length);
+
+          for (let i = 0; i < binary.length; i += 1) {
+            byteArray[i] = binary.charCodeAt(i);
+          }
+
+          restored[docName] = new File([byteArray], info.name || docName, {
+            type: mime,
+            lastModified: info.lastModified || Date.now(),
+          });
+        } catch (error) {
+          console.error("Failed to restore uploaded file:", docName, error);
+        }
+      });
+
+      return restored;
+    } catch (error) {
+      console.error("Failed to read uploaded files:", error);
+      return {};
+    }
+  };
+
+  const saveCurrentApplicationDraft = () => {
+    try {
+      const draft = {
+        businessName,
+        applicationType,
+        isRenewalMode,
+        renewalSourceApplicationId,
+        projectType,
+        zoneType,
+        firstName,
+        middleName,
+        lastName,
+        suffixName,
+        gender,
+        civilStatus,
+        nationality,
+        contactNumber,
+        applicantEmail,
+        province,
+        city,
+        barangay,
+        subdivision,
+        street,
+        building,
+        houseNo,
+        block,
+        lot,
+        landmark,
+        businessArea,
+        malePersonnel,
+        femalePersonnel,
+        ownershipType,
+        lineOfBusiness,
+        businessCategoryMain,
+        registrantName,
+        registrantPosition,
+        isIndividual,
+        birthDate,
+        telephone,
+        faxNo,
+        tin,
+        outsideAntipolo,
+        permitStep,
+        permitLicenseTab,
+        paypalMethod: paymentMethod,
+      };
+
+      localStorage.setItem(APPLICATION_DRAFT_KEY, JSON.stringify(draft));
+    } catch (error) {
+      console.error("Failed to save permit draft:", error);
+    }
+  };
+
+  const clearApplicationDraft = () => {
+    try {
+      localStorage.removeItem(APPLICATION_DRAFT_KEY);
+      localStorage.removeItem(`${APPLICATION_DRAFT_KEY}_signature`);
+      localStorage.removeItem(UPLOADED_FILES_KEY);
+    } catch (error) {
+      console.error("Failed to clear permit draft:", error);
+    }
+  };
+
+  useEffect(() => {
+    const savedDraft = readApplicationDraft();
+    const restoredFiles = readUploadedFilesState();
+
+    if (savedDraft && Object.keys(savedDraft).length > 0) {
+      setBusinessName(savedDraft.businessName ?? "");
+      setApplicationType(savedDraft.applicationType ?? "New Application");
+      setIsRenewalMode(Boolean(savedDraft.isRenewalMode));
+      setRenewalSourceApplicationId(savedDraft.renewalSourceApplicationId ?? null);
+      setProjectType(savedDraft.projectType ?? "Residential");
+      setZoneType(savedDraft.zoneType ?? "Residential Zone");
+      setFirstName(savedDraft.firstName ?? "");
+      setMiddleName(savedDraft.middleName ?? "");
+      setLastName(savedDraft.lastName ?? "");
+      setSuffixName(savedDraft.suffixName ?? "");
+      setGender(savedDraft.gender ?? "");
+      setCivilStatus(savedDraft.civilStatus ?? "");
+      setNationality(savedDraft.nationality ?? "");
+      setContactNumber(savedDraft.contactNumber ?? "");
+      setApplicantEmail(savedDraft.applicantEmail ?? "");
+      setProvince(savedDraft.province ?? "");
+      setCity(savedDraft.city ?? "");
+      setBarangay(savedDraft.barangay ?? "");
+      setSubdivision(savedDraft.subdivision ?? "");
+      setStreet(savedDraft.street ?? "");
+      setBuilding(savedDraft.building ?? "");
+      setHouseNo(savedDraft.houseNo ?? "");
+      setBlock(savedDraft.block ?? "");
+      setLot(savedDraft.lot ?? "");
+      setLandmark(savedDraft.landmark ?? "");
+      setBusinessArea(savedDraft.businessArea ?? "");
+      setMalePersonnel(Number(savedDraft.malePersonnel ?? 0));
+      setFemalePersonnel(Number(savedDraft.femalePersonnel ?? 0));
+      setOwnershipType(savedDraft.ownershipType ?? "");
+      setLineOfBusiness(savedDraft.lineOfBusiness ?? "");
+      setBusinessCategoryMain(savedDraft.businessCategoryMain ?? "");
+      setRegistrantName(savedDraft.registrantName ?? userName);
+      setRegistrantPosition(savedDraft.registrantPosition ?? "Owner");
+      setIsIndividual(Boolean(savedDraft.isIndividual));
+      setBirthDate(savedDraft.birthDate ?? "");
+      setTelephone(savedDraft.telephone ?? "");
+      setFaxNo(savedDraft.faxNo ?? "");
+      setTin(savedDraft.tin ?? "");
+      setOutsideAntipolo(Boolean(savedDraft.outsideAntipolo));
+      setPermitStep(Number(savedDraft.permitStep ?? 1));
+      setPermitLicenseTab(savedDraft.permitLicenseTab ?? "new");
+      setPaymentMethod(savedDraft.paypalMethod ?? "");
+    }
+
+    setUploadedFiles(restoredFiles);
+    setDocsUploaded(Object.keys(restoredFiles || {}).length > 0);
+    setIsDraftHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isDraftHydrated) return;
+    restoreSignatureDraft();
+  }, [isDraftHydrated]);
+
+  useEffect(() => {
+    if (!isDraftHydrated) return;
+    saveCurrentApplicationDraft();
+  }, [
+    businessName,
+    applicationType,
+    isRenewalMode,
+    renewalSourceApplicationId,
+    projectType,
+    zoneType,
+    firstName,
+    middleName,
+    lastName,
+    suffixName,
+    gender,
+    civilStatus,
+    nationality,
+    contactNumber,
+    applicantEmail,
+    province,
+    city,
+    barangay,
+    subdivision,
+    street,
+    building,
+    houseNo,
+    block,
+    lot,
+    landmark,
+    businessArea,
+    malePersonnel,
+    femalePersonnel,
+    ownershipType,
+    lineOfBusiness,
+    businessCategoryMain,
+    registrantName,
+    registrantPosition,
+    isIndividual,
+    birthDate,
+    telephone,
+    faxNo,
+    tin,
+    outsideAntipolo,
+    permitStep,
+    permitLicenseTab,
+    paymentMethod,
+    isDraftHydrated,
+  ]);
+
+  useEffect(() => {
+    if (!isDraftHydrated) return;
+    saveUploadedFilesState(uploadedFiles);
+  }, [uploadedFiles, isDraftHydrated]);
 
   // Step 1: Submit application form (no documents)
   const submitApplication = async () => {
@@ -729,6 +1104,7 @@ const Account = ({ initialMenu }) => {
         buttonText: "OK",
         variant: "success",
       });
+      clearApplicationDraft();
       setDocsUploaded(false);
       setPermitStep(5);
     } catch (err) {
@@ -920,6 +1296,7 @@ const Account = ({ initialMenu }) => {
       console.log("Upload success:", data);
 
       setDocsUploaded(true);
+      clearApplicationDraft();
       setModal({
         open: true,
         title: "Upload Successful",
@@ -983,10 +1360,8 @@ const Account = ({ initialMenu }) => {
     if (!files || files.length === 0) return;
 
     const file = files[0];
-    
-    // Validate file
+
     const validation = validateFile(file);
-    
     if (!validation.valid) {
       setModal({
         open: true,
@@ -998,13 +1373,15 @@ const Account = ({ initialMenu }) => {
       return;
     }
 
-    // File is valid, add it to uploaded files
-    setUploadedFiles((prev) => ({
-      ...prev,
-      [docName]: file,
-    }));
+    setUploadedFiles((prev) => {
+      const nextFiles = {
+        ...prev,
+        [docName]: file,
+      };
+      saveUploadedFilesState(nextFiles);
+      return nextFiles;
+    });
 
-    // Show success message
     setModal({
       open: true,
       title: "File Uploaded",
@@ -1147,6 +1524,111 @@ const Account = ({ initialMenu }) => {
   /**
    * Validate application form fields with detailed errors
    */
+  const validatePermitStepFields = (step) => {
+    const stepFields = {
+      1: [
+        { key: "firstName", label: "First Name", value: firstName },
+        { key: "lastName", label: "Last Name", value: lastName },
+        { key: "contactNumber", label: "Contact Number", value: contactNumber },
+        { key: "applicantEmail", label: "Email Address", value: applicantEmail },
+        { key: "province", label: "Province", value: province },
+        { key: "city", label: "City", value: city },
+        { key: "barangay", label: "Barangay", value: barangay },
+        { key: "street", label: "Street", value: street },
+      ],
+      2: [
+        // Taxpayer Information
+        { key: "businessName", label: "Business Name", value: businessName, section: "Business Information" },
+        { key: "lineOfBusiness", label: "Line of Business", value: lineOfBusiness, section: "Business Information" },
+        { key: "businessArea", label: "Business Area (sqm)", value: businessArea, section: "Business Information" },
+        { key: "ownershipType", label: "Ownership Type", value: ownershipType, section: "Business Information" },
+        { key: "street", label: "Business Address", value: street, section: "Business Information" },
+        { key: "city", label: "City / Municipality", value: city, section: "Business Information" },
+        { key: "province", label: "Province", value: province, section: "Business Information" },
+        { key: "barangay", label: "Barangay", value: barangay, section: "Business Information" },
+        { key: "landmark", label: "Landmark / Area", value: landmark, section: "Business Information" },
+        // Owner / Applicant Details
+        { key: "applicantFirstName", label: "First Name", value: firstName, section: "Owner / Applicant Details" },
+        { key: "applicantLastName", label: "Last Name", value: lastName, section: "Owner / Applicant Details" },
+        { key: "applicantContactNumber", label: "Contact Number", value: contactNumber, section: "Owner / Applicant Details" },
+        { key: "applicantEmail", label: "Email Address", value: applicantEmail, section: "Owner / Applicant Details" },
+        { key: "tin", label: "TIN", value: tin, section: "Owner / Applicant Details" },
+        { key: "registrantPosition", label: "Position", value: registrantPosition, section: "Owner / Applicant Details" },
+        ...(applicationType === "Renewal" ? [
+          // Additional Renewal Details
+          { key: "businessPermitNo", label: "Business Permit No.", value: businessPermitNo, section: "Additional Renewal Details" },
+          { key: "dateOfPreviousPermit", label: "Date of Previous Permit", value: dateOfPreviousPermit, section: "Additional Renewal Details" },
+          { key: "dtiSecNumber", label: "DTI / SEC Number", value: dtiSecNumber, section: "Additional Renewal Details" },
+          { key: "leaseLandTitleNo", label: "Lease / Land Title No.", value: leaseLandTitleNo, section: "Additional Renewal Details" },
+          // Clearances / Attachments
+          { key: "barangayClearanceFile", label: "Barangay Clearance", value: barangayClearanceFile, section: "Clearances / Attachments" },
+          { key: "sanitaryBfpFile", label: "Sanitary / BFP", value: sanitaryBfpFile, section: "Clearances / Attachments" },
+          { key: "previousMayorPermitFile", label: "Previous Mayor's Permit", value: previousMayorPermitFile, section: "Clearances / Attachments" },
+          { key: "officialReceiptsFile", label: "Official Receipts", value: officialReceiptsFile, section: "Clearances / Attachments" },
+        ] : []),
+      ],
+      3: [
+        { key: "signature", label: "Applicant Signature", value: isSignatureValid() ? "filled" : "" },
+      ],
+    };
+
+    const required = stepFields[step] || [];
+    const missing = required.filter(
+      (field) => !field.value || String(field.value).trim() === ""
+    );
+
+    return missing;
+  };
+
+  const showStepValidationModal = (step) => {
+    const missing = validatePermitStepFields(step);
+    
+    // Group fields by section
+    const groupedBySection = {};
+    missing.forEach(field => {
+      const section = field.section || "Required Fields";
+      if (!groupedBySection[section]) {
+        groupedBySection[section] = [];
+      }
+      groupedBySection[section].push(field.label);
+    });
+
+    // Build message with sections
+    let messageText = "Please complete all required fields before proceeding:\n\n";
+    let fieldCount = 1;
+    
+    Object.entries(groupedBySection).forEach(([section, fields]) => {
+      messageText += `📋 ${section}\n`;
+      fields.forEach(field => {
+        messageText += `   ${fieldCount}. ${field}\n`;
+        fieldCount++;
+      });
+      messageText += "\n";
+    });
+
+    setModal({
+      open: true,
+      title: "⚠️ Incomplete Information",
+      message: messageText,
+      buttonText: "Got it, let me fill these fields",
+      variant: "error",
+    });
+
+    setMissingFields(missing.map((field) => field.key));
+  };
+
+  const handlePermitNext = () => {
+    const missing = validatePermitStepFields(permitStep);
+
+    if (missing.length > 0) {
+      showStepValidationModal(permitStep);
+      return;
+    }
+
+    setMissingFields([]);
+    setPermitStep((prev) => Math.min(prev + 1, 3));
+  };
+
   const validateApplicationFields = () => {
     const errors = [];
 
@@ -1208,12 +1690,19 @@ const Account = ({ initialMenu }) => {
     localStorage.removeItem("token");
     localStorage.removeItem("name");
     localStorage.removeItem("email");
+    clearApplicationDraft();
     window.location.reload();
   };
 
   const saveDraft = () => {
-    console.log("Draft saved (stub)");
-    alert("Draft saved locally.");
+    saveCurrentApplicationDraft();
+    setModal({
+      open: true,
+      title: "Draft Saved",
+      message: "Your form progress has been saved and will still be here when you return.",
+      buttonText: "OK",
+      variant: "success",
+    });
   };
 
   const viewCompany = (name) => {
@@ -1469,21 +1958,59 @@ const Account = ({ initialMenu }) => {
     }
   };
 
-  const handleProfileImageChange = (files) => {
+  const compressImageToDataUrl = (file, maxWidth = 900, quality = 0.72) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        const img = new Image();
+
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const scale = Math.min(1, maxWidth / Math.max(img.width, 1));
+          canvas.width = Math.max(1, Math.round(img.width * scale));
+          canvas.height = Math.max(1, Math.round(img.height * scale));
+
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+          const mimeType = file.type === "image/png" ? "image/png" : "image/jpeg";
+          const dataUrl = canvas.toDataURL(mimeType, quality);
+          resolve(dataUrl);
+        };
+
+        img.onerror = () => reject(new Error("Failed to load image."));
+        img.src = reader.result;
+      };
+
+      reader.onerror = () => reject(new Error("Failed to read image file."));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleProfileImageChange = async (files) => {
     const file = files && files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const data = reader.result;
-      try {
-        localStorage.setItem("profileImage", data);
-        window.dispatchEvent(new Event("profileImageUpdated"));
-      } catch (e) {
-        // ignore storage errors
-      }
-      setProfileImage(data);
-    };
-    reader.readAsDataURL(file);
+    if (!file) {
+      setPendingProfileImage("");
+      return;
+    }
+
+    try {
+      const compressedImage = await compressImageToDataUrl(file);
+      setPendingProfileImage(compressedImage || "");
+    } catch (error) {
+      console.error("Profile image compression failed:", error);
+      setPendingProfileImage("");
+      setModal({
+        open: true,
+        title: "Image Error",
+        message: "Unable to process this image. Please try a smaller photo.",
+        buttonText: "OK",
+        variant: "error",
+      });
+    }
   };
 
   // Payment history (persisted locally)
@@ -2488,22 +3015,22 @@ if (!paymentApplicationId) {
                         <div className="permit-row permit-row-2">
                           <div className="permit-field">
                             <label className="permit-label">Business Name</label>
-                            <input className="input" value={businessName} onChange={e => setBusinessName(e.target.value)} />
+                            <input className={`input${missingFields.includes("businessName") ? " input-invalid" : ""}`} value={businessName} onChange={e => { setBusinessName(e.target.value); setMissingFields(p => p.filter(f => f !== "businessName")); }} />
                           </div>
                           <div className="permit-field">
                             <label className="permit-label">Business Line / Trade Name</label>
-                            <input className="input" value={lineOfBusiness} onChange={e => setLineOfBusiness(e.target.value)} />
+                            <input className={`input${missingFields.includes("lineOfBusiness") ? " input-invalid" : ""}`} value={lineOfBusiness} onChange={e => { setLineOfBusiness(e.target.value); setMissingFields(p => p.filter(f => f !== "lineOfBusiness")); }} />
                           </div>
                         </div>
 
                         <div className="permit-row permit-row-2">
                           <div className="permit-field">
                             <label className="permit-label">Business Area (sqm)</label>
-                            <input className="input" type="number" value={businessArea} onChange={e => setBusinessArea(e.target.value)} />
+                            <input className={`input${missingFields.includes("businessArea") ? " input-invalid" : ""}`} type="number" value={businessArea} onChange={e => { setBusinessArea(e.target.value); setMissingFields(p => p.filter(f => f !== "businessArea")); }} />
                           </div>
                           <div className="permit-field">
                             <label className="permit-label">Ownership Type</label>
-                            <select className="input" value={ownershipType} onChange={e => setOwnershipType(e.target.value)}>
+                            <select className={`input${missingFields.includes("ownershipType") ? " input-invalid" : ""}`} value={ownershipType} onChange={e => { setOwnershipType(e.target.value); setMissingFields(p => p.filter(f => f !== "ownershipType")); }}>
                               <option value="">Select ownership</option>
                               <option>Sole Proprietor</option>
                               <option>Partnership</option>
@@ -2515,26 +3042,26 @@ if (!paymentApplicationId) {
                         <div className="permit-row permit-row-2">
                           <div className="permit-field">
                             <label className="permit-label">Business Address</label>
-                            <input className="input" value={street} onChange={e => setStreet(e.target.value)} placeholder="Street / Bldg" />
+                            <input className={`input${missingFields.includes("street") ? " input-invalid" : ""}`} value={street} onChange={e => { setStreet(e.target.value); setMissingFields(p => p.filter(f => f !== "street")); }} placeholder="Street / Bldg" />
                           </div>
                           <div className="permit-field">
                             <label className="permit-label">Barangay</label>
-                            <input className="input" value={barangay} onChange={e => setBarangay(e.target.value)} />
+                            <input className={`input${missingFields.includes("barangay") ? " input-invalid" : ""}`} value={barangay} onChange={e => { setBarangay(e.target.value); setMissingFields(p => p.filter(f => f !== "barangay")); }} />
                           </div>
                         </div>
 
                         <div className="permit-row permit-row-3">
                           <div className="permit-field">
                             <label className="permit-label">City / Municipality</label>
-                            <input className="input" value={city} onChange={e => setCity(e.target.value)} />
+                            <input className={`input${missingFields.includes("city") ? " input-invalid" : ""}`} value={city} onChange={e => { setCity(e.target.value); setMissingFields(p => p.filter(f => f !== "city")); }} />
                           </div>
                           <div className="permit-field">
                             <label className="permit-label">Province</label>
-                            <input className="input" value={province} onChange={e => setProvince(e.target.value)} />
+                            <input className={`input${missingFields.includes("province") ? " input-invalid" : ""}`} value={province} onChange={e => { setProvince(e.target.value); setMissingFields(p => p.filter(f => f !== "province")); }} />
                           </div>
                           <div className="permit-field">
                             <label className="permit-label">Landmark / Area</label>
-                            <input className="input" value={landmark} onChange={e => setLandmark(e.target.value)} />
+                            <input className={`input${missingFields.includes("landmark") ? " input-invalid" : ""}`} value={landmark} onChange={e => { setLandmark(e.target.value); setMissingFields(p => p.filter(f => f !== "landmark")); }} />
                           </div>
                         </div>
 
@@ -2542,7 +3069,7 @@ if (!paymentApplicationId) {
                         <div className="permit-row permit-row-4">
                           <div className="permit-field">
                             <label className="permit-label">First Name</label>
-                            <input className="input" value={firstName} onChange={e => setFirstName(e.target.value)} />
+                            <input className={`input${missingFields.includes("applicantFirstName") ? " input-invalid" : ""}`} value={firstName} onChange={e => { setFirstName(e.target.value); setMissingFields(p => p.filter(f => f !== "applicantFirstName")); }} />
                           </div>
                           <div className="permit-field">
                             <label className="permit-label">Middle Name</label>
@@ -2550,7 +3077,7 @@ if (!paymentApplicationId) {
                           </div>
                           <div className="permit-field">
                             <label className="permit-label">Last Name</label>
-                            <input className="input" value={lastName} onChange={e => setLastName(e.target.value)} />
+                            <input className={`input${missingFields.includes("applicantLastName") ? " input-invalid" : ""}`} value={lastName} onChange={e => { setLastName(e.target.value); setMissingFields(p => p.filter(f => f !== "applicantLastName")); }} />
                           </div>
                           <div className="permit-field">
                             <label className="permit-label">Suffix</label>
@@ -2561,22 +3088,22 @@ if (!paymentApplicationId) {
                         <div className="permit-row permit-row-2">
                           <div className="permit-field">
                             <label className="permit-label">Contact Number</label>
-                            <input className="input" value={contactNumber} onChange={e => setContactNumber(e.target.value)} />
+                            <input className={`input${missingFields.includes("applicantContactNumber") ? " input-invalid" : ""}`} value={contactNumber} onChange={e => { setContactNumber(e.target.value); setMissingFields(p => p.filter(f => f !== "applicantContactNumber")); }} />
                           </div>
                           <div className="permit-field">
                             <label className="permit-label">Email Address</label>
-                            <input className="input" value={applicantEmail} onChange={e => setApplicantEmail(e.target.value)} />
+                            <input className={`input${missingFields.includes("applicantEmail") ? " input-invalid" : ""}`} value={applicantEmail} onChange={e => { setApplicantEmail(e.target.value); setMissingFields(p => p.filter(f => f !== "applicantEmail")); }} />
                           </div>
                         </div>
 
                         <div className="permit-row permit-row-2">
                           <div className="permit-field">
                             <label className="permit-label">TIN</label>
-                            <input className="input" value={tin} onChange={e => setTin(e.target.value)} />
+                            <input className={`input${missingFields.includes("tin") ? " input-invalid" : ""}`} value={tin} onChange={e => { setTin(e.target.value); setMissingFields(p => p.filter(f => f !== "tin")); }} />
                           </div>
                           <div className="permit-field">
                             <label className="permit-label">Position</label>
-                            <select className="input" value={registrantPosition} onChange={e => setRegistrantPosition(e.target.value)}>
+                            <select className={`input${missingFields.includes("registrantPosition") ? " input-invalid" : ""}`} value={registrantPosition} onChange={e => { setRegistrantPosition(e.target.value); setMissingFields(p => p.filter(f => f !== "registrantPosition")); }}>
                               <option>Owner</option>
                               <option>Manager</option>
                               <option>Representative</option>
@@ -2588,22 +3115,51 @@ if (!paymentApplicationId) {
                         <div className="permit-row permit-row-2">
                           <div className="permit-field">
                             <label className="permit-label">Business Permit No.</label>
-                            <input className="input" />
+                            <input 
+                              className={`input${missingFields.includes("businessPermitNo") ? " input-invalid" : ""}`}
+                              value={businessPermitNo}
+                              onChange={(e) => {
+                                setBusinessPermitNo(e.target.value);
+                                setMissingFields(p => p.filter(f => f !== "businessPermitNo"));
+                              }}
+                            />
                           </div>
                           <div className="permit-field">
                             <label className="permit-label">Date of Previous Permit</label>
-                            <input className="input" type="date" />
+                            <input 
+                              className={`input${missingFields.includes("dateOfPreviousPermit") ? " input-invalid" : ""}`}
+                              type="date"
+                              value={dateOfPreviousPermit}
+                              onChange={(e) => {
+                                setDateOfPreviousPermit(e.target.value);
+                                setMissingFields(p => p.filter(f => f !== "dateOfPreviousPermit"));
+                              }}
+                            />
                           </div>
                         </div>
 
                         <div className="permit-row permit-row-2">
                           <div className="permit-field">
                             <label className="permit-label">DTI / SEC Number</label>
-                            <input className="input" />
+                            <input 
+                              className={`input${missingFields.includes("dtiSecNumber") ? " input-invalid" : ""}`}
+                              value={dtiSecNumber}
+                              onChange={(e) => {
+                                setDtiSecNumber(e.target.value);
+                                setMissingFields(p => p.filter(f => f !== "dtiSecNumber"));
+                              }}
+                            />
                           </div>
                           <div className="permit-field">
                             <label className="permit-label">Lease / Land Title No.</label>
-                            <input className="input" />
+                            <input 
+                              className={`input${missingFields.includes("leaseLandTitleNo") ? " input-invalid" : ""}`}
+                              value={leaseLandTitleNo}
+                              onChange={(e) => {
+                                setLeaseLandTitleNo(e.target.value);
+                                setMissingFields(p => p.filter(f => f !== "leaseLandTitleNo"));
+                              }}
+                            />
                           </div>
                         </div>
 
@@ -2611,34 +3167,66 @@ if (!paymentApplicationId) {
                         <div className="permit-row permit-row-2">
                           <div className="permit-field">
                             <label className="permit-label">Barangay Clearance</label>
-                            <label className="file-upload-btn">
+                            <label className={`file-upload-btn${missingFields.includes("barangayClearanceFile") ? " input-invalid" : ""}`}>
                               Upload
-                              <input type="file" style={{ display: 'none' }} />
+                              <input 
+                                type="file" 
+                                style={{ display: 'none' }}
+                                onChange={(e) => {
+                                  setBarangayClearanceFile(e.target.files?.[0] || null);
+                                  setMissingFields(p => p.filter(f => f !== "barangayClearanceFile"));
+                                }}
+                              />
                             </label>
+                            {barangayClearanceFile && <span style={{ marginLeft: "10px", color: "#16a34a" }}>✓ {barangayClearanceFile.name}</span>}
                           </div>
                           <div className="permit-field">
                             <label className="permit-label">Sanitary / BFP</label>
-                            <label className="file-upload-btn">
+                            <label className={`file-upload-btn${missingFields.includes("sanitaryBfpFile") ? " input-invalid" : ""}`}>
                               Upload
-                              <input type="file" style={{ display: 'none' }} />
+                              <input 
+                                type="file"
+                                style={{ display: 'none' }}
+                                onChange={(e) => {
+                                  setSanitaryBfpFile(e.target.files?.[0] || null);
+                                  setMissingFields(p => p.filter(f => f !== "sanitaryBfpFile"));
+                                }}
+                              />
                             </label>
+                            {sanitaryBfpFile && <span style={{ marginLeft: "10px", color: "#16a34a" }}>✓ {sanitaryBfpFile.name}</span>}
                           </div>
                         </div>
 
                         <div className="permit-row permit-row-2">
                           <div className="permit-field">
                             <label className="permit-label">Previous Mayor's Permit</label>
-                            <label className="file-upload-btn">
+                            <label className={`file-upload-btn${missingFields.includes("previousMayorPermitFile") ? " input-invalid" : ""}`}>
                               Upload
-                              <input type="file" style={{ display: 'none' }} />
+                              <input 
+                                type="file"
+                                style={{ display: 'none' }}
+                                onChange={(e) => {
+                                  setPreviousMayorPermitFile(e.target.files?.[0] || null);
+                                  setMissingFields(p => p.filter(f => f !== "previousMayorPermitFile"));
+                                }}
+                              />
                             </label>
+                            {previousMayorPermitFile && <span style={{ marginLeft: "10px", color: "#16a34a" }}>✓ {previousMayorPermitFile.name}</span>}
                           </div>
                           <div className="permit-field">
                             <label className="permit-label">Official Receipts</label>
-                            <label className="file-upload-btn">
+                            <label className={`file-upload-btn${missingFields.includes("officialReceiptsFile") ? " input-invalid" : ""}`}>
                               Upload
-                              <input type="file" style={{ display: 'none' }} />
+                              <input 
+                                type="file"
+                                style={{ display: 'none' }}
+                                onChange={(e) => {
+                                  setOfficialReceiptsFile(e.target.files?.[0] || null);
+                                  setMissingFields(p => p.filter(f => f !== "officialReceiptsFile"));
+                                }}
+                              />
                             </label>
+                            {officialReceiptsFile && <span style={{ marginLeft: "10px", color: "#16a34a" }}>✓ {officialReceiptsFile.name}</span>}
                           </div>
                         </div>
                       </>
@@ -2812,7 +3400,7 @@ if (!paymentApplicationId) {
                     )}
                     <div className="permit-nav-btns">
                       <button className="permit-prev-btn" onClick={() => setActiveMenu("Account Details")}>&lt; Previous</button>
-                      <button className="permit-next-btn" onClick={() => setPermitStep(2)}>Next &gt;</button>
+                      <button className="permit-next-btn" onClick={handlePermitNext}>Next &gt;</button>
                     </div>
                   </div>
                 )}
@@ -2871,7 +3459,7 @@ if (!paymentApplicationId) {
 
                     <div className="permit-nav-btns">
                       <button className="permit-prev-btn" onClick={() => setPermitStep(1)}>&lt; Previous</button>
-                      <button className="permit-next-btn" onClick={() => setPermitStep(3)}>Next &gt;</button>
+                      <button className="permit-next-btn" onClick={handlePermitNext}>Next &gt;</button>
                     </div>
                   </div>
                 )}
@@ -2907,7 +3495,18 @@ if (!paymentApplicationId) {
 
                     <div className="permit-nav-btns">
                       <button className="permit-prev-btn" onClick={() => setPermitStep(2)}>&lt; Previous</button>
-                      <button className="permit-next-btn" onClick={submitApplication} disabled={submittingApp}>
+                      <button
+                        className="permit-next-btn"
+                        onClick={() => {
+                          const missing = validatePermitStepFields(3);
+                          if (missing.length > 0) {
+                            showStepValidationModal(3);
+                            return;
+                          }
+                          submitApplication();
+                        }}
+                        disabled={submittingApp}
+                      >
                         {submittingApp ? "Submitting..." : "Submit Application"}
                       </button>
                     </div>
@@ -3889,17 +4488,65 @@ if (!paymentApplicationId) {
                         <h2>Edit Profile</h2>
                         <form onSubmit={(e) => {
                           e.preventDefault();
-                          if (newPassword && newPassword !== confirmPassword) {
+
+                          const hasImageChange = Boolean(pendingProfileImage);
+                          const hasPasswordInput = Boolean(
+                            currentPassword.trim() || newPassword.trim() || confirmPassword.trim()
+                          );
+
+                          if (!hasImageChange && !hasPasswordInput) {
                             setModal({
                               open: true,
-                              title: "Password Mismatch",
-                              message: "New password and confirmation do not match.",
+                              title: "No Changes Made",
+                              message: "Please choose a profile image or enter a password to update your profile.",
                               buttonText: "OK",
                               variant: "error",
                             });
                             return;
                           }
-                          // In a real app, you'd call an API here.
+
+                          if (hasPasswordInput) {
+                            if (!currentPassword.trim() || !newPassword.trim() || !confirmPassword.trim()) {
+                              setModal({
+                                open: true,
+                                title: "Incomplete Password Update",
+                                message: "Please fill in the current password, new password, and confirm password fields.",
+                                buttonText: "OK",
+                                variant: "error",
+                              });
+                              return;
+                            }
+
+                            if (newPassword !== confirmPassword) {
+                              setModal({
+                                open: true,
+                                title: "Password Mismatch",
+                                message: "New password and confirmation do not match.",
+                                buttonText: "OK",
+                                variant: "error",
+                              });
+                              return;
+                            }
+                          }
+
+                          if (pendingProfileImage) {
+                            try {
+                              localStorage.setItem("profileImage", pendingProfileImage);
+                              window.dispatchEvent(new Event("profileImageUpdated"));
+                              setProfileImage(pendingProfileImage);
+                            } catch (e) {
+                              console.error("Failed to save profile image:", e);
+                              setModal({
+                                open: true,
+                                title: "Image Too Large",
+                                message: "The selected image is too large to save. Please choose a smaller photo.",
+                                buttonText: "OK",
+                                variant: "error",
+                              });
+                              return;
+                            }
+                          }
+
                           setModal({
                             open: true,
                             title: "Profile Updated",
@@ -3907,9 +4554,11 @@ if (!paymentApplicationId) {
                             buttonText: "OK",
                             variant: "success",
                           });
+
                           setCurrentPassword("");
                           setNewPassword("");
                           setConfirmPassword("");
+                          setPendingProfileImage("");
                           setIsEditingProfile(false);
                         }}>
                           <div style={{ marginBottom: 15 }}>
@@ -3934,7 +4583,13 @@ if (!paymentApplicationId) {
 
                           <div style={{ display: 'flex', gap: 12, marginTop: 18 }}>
                             <button type="submit" className="save-profile-btn">Save</button>
-                            <button type="button" className="cancel-profile-btn" onClick={() => setIsEditingProfile(false)}>Cancel</button>
+                            <button type="button" className="cancel-profile-btn" onClick={() => {
+                              setCurrentPassword("");
+                              setNewPassword("");
+                              setConfirmPassword("");
+                              setPendingProfileImage("");
+                              setIsEditingProfile(false);
+                            }}>Cancel</button>
                           </div>
                         </form>
                       </div>

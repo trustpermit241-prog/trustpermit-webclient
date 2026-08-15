@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useParams } from "react-router-dom";
+import html2pdf from "html2pdf.js/dist/html2pdf.js";
 import "./PaymentView.css";
 
 const getApiBaseUrl = () => {
@@ -18,10 +19,12 @@ const API_BASE_URL = getApiBaseUrl();
 
 export default function PaymentView({ paymentIdProp, paymentData }) {
   const { paymentId: routePaymentId, applicationId } = useParams();
+  const receiptRef = useRef(null);
 
   const [data, setData] = useState(paymentData || null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
 
   const safeText = (value) => {
     if (value === null || value === undefined || value === "") return "N/A";
@@ -204,11 +207,48 @@ export default function PaymentView({ paymentIdProp, paymentData }) {
   const orderDate = formatDate(data.timestamp || data.createdAt || data.updatedAt || data.date);
   const paymentMethod = getValue(data.paymentMethod, data.method, data.payment_method);
 
+  const downloadReceiptPDF = async () => {
+    if (!receiptRef.current) return;
+
+    setDownloadingPDF(true);
+
+    try {
+      const element = receiptRef.current;
+      const opt = {
+        margin: 10,
+        filename: `Receipt_${orderNumber || "Payment"}_${Date.now()}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
+      };
+
+      // Clone the element to avoid modifying the original
+      const element2 = element.cloneNode(true);
+      
+      // Remove the download button from the cloned element
+      const actionsDiv = element2.querySelector(".receipt-actions");
+      if (actionsDiv) {
+        actionsDiv.remove();
+      }
+
+      html2pdf().set(opt).from(element2).save();
+    } catch (err) {
+      console.error("Error downloading PDF:", err);
+      alert("Failed to download receipt. Please try again.");
+    } finally {
+      setDownloadingPDF(false);
+    }
+  };
+
   return (
     <div className="payment-view-page">
-      <div className="receipt-card">
+      <div className="receipt-card" ref={receiptRef}>
         <div className="receipt-top">
-          <div className="receipt-status">?</div>
+          <div className="receipt-status" aria-label="Payment successful" title="Payment successful">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M5 12.5L9.2 16.7L19 6.9" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
           <h1>Payment Successful</h1>
           <p className="receipt-subtitle">
             Order number: <span>{orderNumber}</span>
@@ -252,6 +292,25 @@ export default function PaymentView({ paymentIdProp, paymentData }) {
             <span>Tax</span>
             <span>{formatMoney(0)}</span>
           </div>
+        </div>
+
+        <div className="receipt-actions">
+          <button
+            className="download-receipt-btn"
+            onClick={downloadReceiptPDF}
+            disabled={downloadingPDF}
+            aria-label={downloadingPDF ? "Downloading receipt" : "Download receipt"}
+            title={downloadingPDF ? "Downloading receipt" : "Download receipt"}
+          >
+            <span className="download-button-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 3V14M12 14L7 9M12 14L17 9M5 17.5V18.75C5 19.9926 6.00736 21 7.25 21H16.75C17.9926 21 19 19.9926 19 18.75V17.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </span>
+            <span className="download-button-label">
+              {downloadingPDF ? "Downloading receipt" : "Download receipt"}
+            </span>
+          </button>
         </div>
       </div>
     </div>
