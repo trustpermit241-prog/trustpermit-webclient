@@ -53,7 +53,7 @@ export default function InspectionProgress() {
       if (!config) return;
       try {
         // Use the correct endpoint that returns an array of users
-        const res = await axios.get("https://trustpermitbackend.onrender.com/api/users", config);
+        const res = await axios.get("https://trustpermit-backend.onrender.com/api/users", config);
         setUsers(res.data);
       } catch (err) {
         console.error("Fetch users error:", err);
@@ -70,7 +70,7 @@ export default function InspectionProgress() {
       const config = getAuthConfig();
       if (!config) return;
       try {
-        const res = await axios.get("https://trustpermitbackend.onrender.com/api/inspection", config);
+        const res = await axios.get("https://trustpermit-backend.onrender.com/api/inspection", config);
         setInspections(res.data);
       } catch (err) {
         console.error("Fetch inspections error:", err);
@@ -171,7 +171,7 @@ const selectedCitizen = safeUsers.find(
         };
 
         const res = await axios.post(
-          "https://trustpermitbackend.onrender.com/api/inspection/schedule",
+          "https://trustpermit-backend.onrender.com/api/inspection/schedule",
           payload,
           config
         );
@@ -180,7 +180,7 @@ const selectedCitizen = safeUsers.find(
         if (savedInspection && savedInspection._id) {
           created.push(savedInspection);
           try {
-            const reportRes = await axios.get(`https://trustpermitbackend.onrender.com/api/inspection/${savedInspection._id}`, config);
+            const reportRes = await axios.get(`https://trustpermit-backend.onrender.com/api/inspection/${savedInspection._id}`, config);
             localStorage.setItem(`inspectionReport_${savedInspection._id}`, JSON.stringify(reportRes.data || { inspection: savedInspection }));
           } catch (cacheErr) {
             console.warn("Could not cache full inspection report details:", cacheErr);
@@ -229,7 +229,7 @@ const selectedCitizen = safeUsers.find(
     if (!config) return;
     try {
       const res = await axios.patch(
-        `https://trustpermitbackend.onrender.com/api/inspection/${inspection._id}/status`,
+        `https://trustpermit-backend.onrender.com/api/inspection/${inspection._id}/status`,
         { status },
         config
       );

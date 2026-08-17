@@ -8,7 +8,7 @@ import "./Login.css";
 
 const API_BASE_URL = (() => {
   const localUrl = "http://localhost:5000/api";
-  const remoteUrl = "https://trustpermitbackend.onrender.com/api";
+  const remoteUrl = "https://trustpermit-backend.onrender.com/api";
 
   if (typeof window !== "undefined" && window.location.hostname === "localhost") {
     return localUrl;

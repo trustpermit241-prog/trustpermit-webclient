@@ -10,7 +10,7 @@ const getSocketUrl = () => {
     }
   }
 
-  return process.env.REACT_APP_API_URL || "https://trustpermitbackend.onrender.com";
+  return process.env.REACT_APP_API_URL || "https://trustpermit-backend.onrender.com";
 };
 
 const SOCKET_URL = getSocketUrl();
