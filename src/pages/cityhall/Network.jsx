@@ -163,15 +163,7 @@ export default function Network() {
     const socket = io(API_BASE_URL, {
       path: "/socket.io",
       transports: ["polling", "websocket"],
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
-      withCredentials: true,
       auth: { token },
-      extraHeaders: {
-        "Authorization": token || "",
-      },
     });
 
     const refreshCounts = () => {

@@ -159,13 +159,6 @@ export default function Request() {
       path: "/socket.io",
       transports: ["polling", "websocket"],
       reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
-      withCredentials: true,
-      extraHeaders: {
-        "Authorization": localStorage.getItem("authToken") || "",
-      },
     });
 
     socket.on("new-application", (application) => {
