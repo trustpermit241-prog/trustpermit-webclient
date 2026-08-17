@@ -6,6 +6,22 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { PAGE_SIZE, getFilteredInspections, getPagedInspections } from "./inspectionListUtils";
 
+const getApiBaseUrl = () => {
+  const configuredUrl = (process.env.REACT_APP_API_URL || "")
+    .replace(/\/+$/, "");
+
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:5000";
+    }
+  }
+
+  return configuredUrl || "https://trustpermitbackend.onrender.com";
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
 export default function InspectionProgress() {
   const [inspections, setInspections] = useState([]);
   const [users, setUsers] = useState([]);
@@ -53,7 +69,7 @@ export default function InspectionProgress() {
       if (!config) return;
       try {
         // Use the correct endpoint that returns an array of users
-        const res = await axios.get("https://trustpermit-backend.onrender.com/api/users", config);
+        const res = await axios.get(`${API_BASE_URL}/api/users`, config);
         setUsers(res.data);
       } catch (err) {
         console.error("Fetch users error:", err);
@@ -70,7 +86,7 @@ export default function InspectionProgress() {
       const config = getAuthConfig();
       if (!config) return;
       try {
-        const res = await axios.get("https://trustpermit-backend.onrender.com/api/inspection", config);
+        const res = await axios.get(`${API_BASE_URL}/api/inspection`, config);
         setInspections(res.data);
       } catch (err) {
         console.error("Fetch inspections error:", err);
@@ -171,7 +187,7 @@ const selectedCitizen = safeUsers.find(
         };
 
         const res = await axios.post(
-          "https://trustpermit-backend.onrender.com/api/inspection/schedule",
+          `${API_BASE_URL}/api/inspection/schedule`,
           payload,
           config
         );
@@ -180,7 +196,7 @@ const selectedCitizen = safeUsers.find(
         if (savedInspection && savedInspection._id) {
           created.push(savedInspection);
           try {
-            const reportRes = await axios.get(`https://trustpermit-backend.onrender.com/api/inspection/${savedInspection._id}`, config);
+            const reportRes = await axios.get(`${API_BASE_URL}/api/inspection/${savedInspection._id}`, config);
             localStorage.setItem(`inspectionReport_${savedInspection._id}`, JSON.stringify(reportRes.data || { inspection: savedInspection }));
           } catch (cacheErr) {
             console.warn("Could not cache full inspection report details:", cacheErr);
@@ -229,7 +245,7 @@ const selectedCitizen = safeUsers.find(
     if (!config) return;
     try {
       const res = await axios.patch(
-        `https://trustpermit-backend.onrender.com/api/inspection/${inspection._id}/status`,
+        `${API_BASE_URL}/api/inspection/${inspection._id}/status`,
         { status },
         config
       );

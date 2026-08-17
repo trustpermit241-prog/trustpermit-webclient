@@ -18,6 +18,13 @@ const socket = io(API_URL, {
   path: "/socket.io",
   transports: ["polling", "websocket"],
   reconnection: true,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  reconnectionAttempts: 5,
+  withCredentials: true,
+  extraHeaders: {
+    "Authorization": localStorage.getItem("authToken") || "",
+  },
 });
 
 export default function Messages() {

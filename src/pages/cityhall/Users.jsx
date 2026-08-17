@@ -2,18 +2,17 @@ import { useState, useEffect } from "react";
 import "./User.css";
 
 const getApiBaseUrl = () => {
-  if (process.env.REACT_APP_API_BASE_URL) {
-    return process.env.REACT_APP_API_BASE_URL;
-  }
+  const configuredUrl = (process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || "")
+    .replace(/\/+$/, "");
 
   if (
     typeof window !== "undefined" &&
     (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
   ) {
-    return "http://localhost:5000/api";
+    return "http://localhost:5000";
   }
 
-  return "https://trustpermit-backend.onrender.com/api";
+  return configuredUrl || "https://trustpermitbackend.onrender.com";
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -26,7 +25,7 @@ export default function Users() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/users`);
+        const res = await fetch(`${API_BASE_URL}/api/users`);
 
         if (!res.ok) {
           throw new Error("Failed to fetch users");
@@ -52,7 +51,7 @@ export default function Users() {
     if (!confirmed) return;
 
     try {
-      const res = await fetch(`${API_BASE_URL}/users/${userId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
         method: "DELETE",
       });
 

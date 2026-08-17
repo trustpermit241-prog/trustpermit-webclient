@@ -19,10 +19,18 @@ export default function useSocket() {
   const socketRef = useRef(null);
 
   useEffect(() => {
-    // Initialize socket
+    // Initialize socket with CORS configuration
     socketRef.current = io(SOCKET_URL, {
       path: "/socket.io",      // must match server.js
       transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5,
+      withCredentials: true,
+      extraHeaders: {
+        "Authorization": localStorage.getItem("authToken") || "",
+      },
     });
 
     // Listen for new chat messages

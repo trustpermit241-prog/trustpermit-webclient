@@ -3,6 +3,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./PublicLayout.css";
 
 const getApiBaseUrl = () => {
+  const configuredUrl = (process.env.REACT_APP_API_URL || "")
+    .replace(/\/+$/, "");
+
   if (typeof window !== "undefined") {
     const hostname = window.location.hostname;
     if (hostname === "localhost" || hostname === "127.0.0.1") {
@@ -10,9 +13,7 @@ const getApiBaseUrl = () => {
     }
   }
 
-  return (
-    process.env.REACT_APP_API_URL || "https://trustpermit-backend.onrender.com"
-  );
+  return configuredUrl || "https://trustpermitbackend.onrender.com";
 };
 
 const API_BASE_URL = getApiBaseUrl();
