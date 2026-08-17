@@ -12,7 +12,7 @@ const getApiBaseUrl = () => {
     }
   }
 
-  return process.env.REACT_APP_API_URL || "https://trustpermit-backend.onrender.com";
+  return process.env.REACT_APP_API_URL || "https://trustpermitbackend.onrender.com";
 };
 
 const API_BASE_URL = getApiBaseUrl();

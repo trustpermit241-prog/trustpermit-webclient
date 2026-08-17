@@ -10,7 +10,7 @@ const getApiBaseUrl = () => {
     }
   }
 
-  return process.env.REACT_APP_API_URL || "https://trustpermit-backend.onrender.com/api";
+  return process.env.REACT_APP_API_URL || "https://trustpermitbackend.onrender.com/api";
 };
 
 const API_BASE = getApiBaseUrl();
@@ -139,6 +139,13 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
     role: "staff",
     password: "",
   });
+
+  // Pagination state
+  const [logsCurrentPage, setLogsCurrentPage] = useState(1);
+  const logsItemsPerPage = 18;
+
+  const [auditCurrentPage, setAuditCurrentPage] = useState(1);
+  const auditItemsPerPage = 18;
 
   const today = new Date().toISOString().slice(0, 10);
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
@@ -849,97 +856,147 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
             </>
           )}
 
-          {activePage === "auditTrail" && (
-            <div className="dash-panel users-panel">
-              <div className="dash-panel-hd">
-                <div className="dash-panel-title">
-                  <i className="ti ti-report-analytics" />
-                  Audit Trail
-                </div>
+          {activePage === "auditTrail" && (() => {
+            const totalAudit = filteredAuditActivities.length;
+            const totalAuditPages = Math.ceil(totalAudit / auditItemsPerPage);
+            const auditStartIdx = (auditCurrentPage - 1) * auditItemsPerPage;
+            const paginatedAuditActivities = filteredAuditActivities.slice(
+              auditStartIdx,
+              auditStartIdx + auditItemsPerPage
+            );
 
-                <div className="logs-controls">
-                  <button type="button" className="dash-view-all" onClick={fetchAuditTrail}>
-                    <i className="ti ti-refresh" /> Refresh
-                  </button>
-
-                  <div className="log-search-box">
-                    <i className="ti ti-search" />
-                    <input
-                      placeholder="Search audit trail…"
-                      value={auditSearch}
-                      onChange={(e) => setAuditSearch(e.target.value)}
-                    />
+            return (
+              <div className="dash-panel users-panel">
+                <div className="dash-panel-hd">
+                  <div className="dash-panel-title">
+                    <i className="ti ti-report-analytics" />
+                    Audit Trail
                   </div>
 
-                  <div className="filter-pills">
-                    {[
-                      ["all", "All"],
-                      ["user", "Users"],
-                      ["application", "Applications"],
-                      ["inspection", "Inspections"],
-                      ["uploaded document", "Documents"],
-                      ["payment", "Payments"],
-                    ].map(([val, lbl]) => (
-                      <button
-                        key={val}
-                        type="button"
-                        className={`fp${auditFilter === val ? " active" : ""}`}
-                        onClick={() => setAuditFilter(val)}
-                      >
-                        {lbl}
-                      </button>
-                    ))}
+                  <div className="logs-controls">
+                    <button type="button" className="dash-view-all" onClick={fetchAuditTrail}>
+                      <i className="ti ti-refresh" /> Refresh
+                    </button>
+
+                    <div className="log-search-box">
+                      <i className="ti ti-search" />
+                      <input
+                        placeholder="Search audit trail…"
+                        value={auditSearch}
+                        onChange={(e) => {
+                          setAuditSearch(e.target.value);
+                          setAuditCurrentPage(1);
+                        }}
+                      />
+                    </div>
+
+                    <div className="filter-pills">
+                      {[
+                        ["all", "All"],
+                        ["user", "Users"],
+                        ["application", "Applications"],
+                        ["inspection", "Inspections"],
+                        ["uploaded document", "Documents"],
+                        ["payment", "Payments"],
+                      ].map(([val, lbl]) => (
+                        <button
+                          key={val}
+                          type="button"
+                          className={`fp${auditFilter === val ? " active" : ""}`}
+                          onClick={() => {
+                            setAuditFilter(val);
+                            setAuditCurrentPage(1);
+                          }}
+                        >
+                          {lbl}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {loadingAudit ? (
-                <div className="empty-state">Loading audit trail…</div>
-              ) : (
-                <div className="table-responsive">
-                  <table className="users-table">
-                    <thead>
-                      <tr>
-                        <th>Activity Type</th>
-                        <th>Record</th>
-                        <th>User / Staff</th>
-                        <th>Status</th>
-                        <th>Date & Time</th>
-                        <th>Activity Log</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {filteredAuditActivities.length === 0 ? (
-                        <tr>
-                          <td colSpan="6" style={{ textAlign: "center", color: "#9ca3af" }}>
-                            No audit activities found.
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredAuditActivities.map((item) => (
-                          <tr key={`${item.type}-${item.id}`}>
-                            <td>
-                              <span className="role-pill role-staff">
-                                <i className={`ti ${item.icon}`} /> {item.type}
-                              </span>
-                            </td>
-                            <td>{item.title}</td>
-                            <td>{item.user}</td>
-                            <td>
-                              <span className="role-pill role-user">{item.status}</span>
-                            </td>
-                            <td>{formatDateTime(item.date)}</td>
-                            <td>{item.description}</td>
+                {loadingAudit ? (
+                  <div className="empty-state">Loading audit trail…</div>
+                ) : (
+                  <>
+                    <div className="table-responsive">
+                      <table className="users-table">
+                        <thead>
+                          <tr>
+                            <th>Activity Type</th>
+                            <th>Record</th>
+                            <th>User / Staff</th>
+                            <th>Status</th>
+                            <th>Date & Time</th>
+                            <th>Activity Log</th>
                           </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
+                        </thead>
+
+                        <tbody>
+                          {paginatedAuditActivities.length === 0 ? (
+                            <tr>
+                              <td colSpan="6" style={{ textAlign: "center", color: "#9ca3af" }}>
+                                No audit activities found.
+                              </td>
+                            </tr>
+                          ) : (
+                            paginatedAuditActivities.map((item) => (
+                              <tr key={`${item.type}-${item.id}`}>
+                                <td>
+                                  <span className="role-pill role-staff">
+                                    <i className={`ti ${item.icon}`} /> {item.type}
+                                  </span>
+                                </td>
+                                <td>{item.title}</td>
+                                <td>{item.user}</td>
+                                <td>
+                                  <span className="role-pill role-user">{item.status}</span>
+                                </td>
+                                <td>{formatDateTime(item.date)}</td>
+                                <td>{item.description}</td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Pagination Controls */}
+                    {totalAudit > auditItemsPerPage && (
+                      <div className="pagination-controls" style={{ marginTop: "20px", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                        {(() => {
+                          const pageNumbers = [];
+                          for (let i = 1; i <= totalAuditPages; i++) {
+                            pageNumbers.push(i);
+                          }
+                          return pageNumbers.map((page) => (
+                            <button
+                              key={page}
+                              type="button"
+                              onClick={() => setAuditCurrentPage(page)}
+                              className="pagination-btn"
+                              style={{
+                                padding: "6px 10px",
+                                borderRadius: "4px",
+                                border: auditCurrentPage === page ? "2px solid #2563eb" : "1px solid #ddd",
+                                background: auditCurrentPage === page ? "#eff6ff" : "#fff",
+                                color: auditCurrentPage === page ? "#2563eb" : "#666",
+                                cursor: "pointer",
+                                fontWeight: auditCurrentPage === page ? "600" : "400",
+                                fontSize: "14px",
+                              }}
+                            >
+                              {page}
+                            </button>
+                          ));
+                        })()}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })()}
 
           {activePage === "logs" && (
             <div className="dash-panel dash-logs-preview logs-full-panel">
@@ -969,7 +1026,10 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                         key={val}
                         type="button"
                         className={`fp${logFilter === val ? " active" : ""}`}
-                        onClick={() => setLogFilter(val)}
+                        onClick={() => {
+                          setLogFilter(val);
+                          setLogsCurrentPage(1);
+                        }}
                       >
                         {lbl}
                       </button>
@@ -982,55 +1042,107 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                 <div className="empty-state">Loading logs…</div>
               ) : Object.keys(groupedLogs).length === 0 ? (
                 <div className="empty-state">No system logs available.</div>
-              ) : (
-                Object.entries(groupedLogs).map(([date, items]) => (
-                  <div key={date}>
-                    <div className="log-hd-row">
-                      <div className="log-date-lbl">
-                        <i className="ti ti-calendar-event" style={{ fontSize: 13 }} />
-                        {formatDisplayDate(date)}
-                      </div>
-                      <span className="log-count-badge">{items.length} activities</span>
-                    </div>
+              ) : (() => {
+                // Flatten all logs from grouped logs
+                const allLogs = Object.entries(groupedLogs).flatMap(([date, items]) =>
+                  items.map((log) => ({ ...log, date }))
+                );
 
-                    <div className="log-scroll">
-                      {items.map((log, idx) => {
-                        const cfg = getLogConfig(log.type);
+                // Calculate pagination
+                const totalLogs = allLogs.length;
+                const totalPages = Math.ceil(totalLogs / logsItemsPerPage);
+                const startIdx = (logsCurrentPage - 1) * logsItemsPerPage;
+                const paginatedLogs = allLogs.slice(startIdx, startIdx + logsItemsPerPage);
 
-                        return (
-                          <div className="log-entry" key={idx}>
-                            <div className={`le-icon ${cfg.iconCls}`}>
-                              <i className={`ti ${cfg.icon}`} />
-                            </div>
+                // Group paginated logs by date
+                const paginatedGroupedLogs = paginatedLogs.reduce((acc, log) => {
+                  acc[log.date] = acc[log.date] || [];
+                  acc[log.date].push(log);
+                  return acc;
+                }, {});
 
-                            <div className="le-time">
-                              {log.time || formatDateTime(log.createdAt)}
-                            </div>
+                return (
+                  <>
+                    {Object.entries(paginatedGroupedLogs).map(([date, items]) => (
+                      <div key={date}>
+                        <div className="log-hd-row">
+                          <div className="log-date-lbl">
+                            <i className="ti ti-calendar-event" style={{ fontSize: 13 }} />
+                            {formatDisplayDate(date)}
+                          </div>
+                          <span className="log-count-badge">{items.length} activities</span>
+                        </div>
 
-                            <div className="le-body">
-                              <div className="le-actor">{log.message}</div>
-                              {log.ip && (
-                                <div className="le-meta">
-                                  <i className="ti ti-network" style={{ fontSize: 11 }} />
-                                  IP: {log.ip}
-                                  {log.role && (
-                                    <>
-                                      <span className="le-dot">•</span>
-                                      {log.role}
-                                    </>
+                        <div className="log-scroll">
+                          {items.map((log, idx) => {
+                            const cfg = getLogConfig(log.type);
+
+                            return (
+                              <div className="log-entry" key={idx}>
+                                <div className={`le-icon ${cfg.iconCls}`}>
+                                  <i className={`ti ${cfg.icon}`} />
+                                </div>
+
+                                <div className="le-time">
+                                  {log.time || formatDateTime(log.createdAt)}
+                                </div>
+
+                                <div className="le-body">
+                                  <div className="le-actor">{log.message}</div>
+                                  {log.ip && (
+                                    <div className="le-meta">
+                                      <i className="ti ti-network" style={{ fontSize: 11 }} />
+                                      IP: {log.ip}
+                                      {log.role && (
+                                        <>
+                                          <span className="le-dot">•</span>
+                                          {log.role}
+                                        </>
+                                      )}
+                                    </div>
                                   )}
                                 </div>
-                              )}
-                            </div>
 
-                            <span className={`le-badge ${cfg.cls}`}>{cfg.label}</span>
-                          </div>
-                        );
-                      })}
+                                <span className={`le-badge ${cfg.cls}`}>{cfg.label}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Pagination Controls */}
+                    <div className="pagination-controls" style={{ marginTop: "20px", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                      {(() => {
+                        const pageNumbers = [];
+                        for (let i = 1; i <= totalPages; i++) {
+                          pageNumbers.push(i);
+                        }
+                        return pageNumbers.map((page) => (
+                          <button
+                            key={page}
+                            type="button"
+                            onClick={() => setLogsCurrentPage(page)}
+                            className="pagination-btn"
+                            style={{
+                              padding: "6px 10px",
+                              borderRadius: "4px",
+                              border: logsCurrentPage === page ? "2px solid #2563eb" : "1px solid #ddd",
+                              background: logsCurrentPage === page ? "#eff6ff" : "#fff",
+                              color: logsCurrentPage === page ? "#2563eb" : "#666",
+                              cursor: "pointer",
+                              fontWeight: logsCurrentPage === page ? "600" : "400",
+                              fontSize: "14px",
+                            }}
+                          >
+                            {page}
+                          </button>
+                        ));
+                      })()}
                     </div>
-                  </div>
-                ))
-              )}
+                  </>
+                );
+              })()}
             </div>
           )}
 

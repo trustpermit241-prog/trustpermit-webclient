@@ -82,7 +82,7 @@ export default function UploadDocuments({ applicationId }) {
       });
 
       const res = await fetch(
-        "https://trustpermit-backend.onrender.com/api/applications/upload-documents",
+        "https://trustpermitbackend.onrender.com/api/applications/upload-documents",
         {
           method: "POST",
           headers: {

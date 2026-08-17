@@ -47,7 +47,7 @@ export default function SecurityVerification() {
       );
 
       // Save OTP to backend
-      await fetch("https://trustpermit-backend.onrender.com/api/otp/send-otp", {
+      await fetch("https://trustpermitbackend.onrender.com/api/otp/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp: otpCode }),
@@ -74,7 +74,7 @@ export default function SecurityVerification() {
 
     try {
       // ================= VERIFY OTP ON BACKEND =================
-      const verifyRes = await fetch("https://trustpermit-backend.onrender.com/api/otp/verify-otp", {
+      const verifyRes = await fetch("https://trustpermitbackend.onrender.com/api/otp/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp }),
@@ -89,7 +89,7 @@ export default function SecurityVerification() {
       setMessage("Email verified successfully!");
 
       // ================= REGISTER USER =================
-      const registerRes = await fetch("https://trustpermit-backend.onrender.com/api/auth/register", {
+      const registerRes = await fetch("https://trustpermitbackend.onrender.com/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fullName, email, password }),

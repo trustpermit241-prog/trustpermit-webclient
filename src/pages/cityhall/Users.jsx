@@ -13,7 +13,7 @@ const getApiBaseUrl = () => {
     return "http://localhost:5000/api";
   }
 
-  return "https://trustpermit-backend.onrender.com/api";
+  return "https://trustpermitbackend.onrender.com/api";
 };
 
 const API_BASE_URL = getApiBaseUrl();

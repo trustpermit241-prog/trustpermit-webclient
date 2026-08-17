@@ -3,7 +3,7 @@ import "./Requests.css";
 import CenteredModal from "../../components/CenteredModal";
 import { io } from "socket.io-client";
 
-const BACKEND_URL = "https://trustpermit-backend.onrender.com";
+const BACKEND_URL = "https://trustpermitbackend.onrender.com";
 const API_URL = `${BACKEND_URL}/api`;
 
 export default function Request() {
