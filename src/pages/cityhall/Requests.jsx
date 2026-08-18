@@ -3,8 +3,24 @@ import "./Requests.css";
 import CenteredModal from "../../components/CenteredModal";
 import { io } from "socket.io-client";
 
-const BACKEND_URL = "https://trustpermit-backend.onrender.com";
-const API_URL = `${BACKEND_URL}/api`;
+const getApiBaseUrl = () => {
+  const configuredUrl = (process.env.REACT_APP_API_URL || "").replace(/\/+$/, "");
+
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:5000";
+    }
+
+    if (hostname.endsWith(".vercel.app") || hostname === "trustpermit.com" || hostname === "www.trustpermit.com") {
+      return configuredUrl || "https://trustpermit-backend.onrender.com";
+    }
+  }
+
+  return configuredUrl || "https://trustpermit-backend.onrender.com";
+};
+
+const API_URL = `${getApiBaseUrl()}/api`;
 
 export default function Request() {
   const [dateFilter, setDateFilter] = useState("all");
@@ -155,7 +171,7 @@ export default function Request() {
 
     fetchApplications();
 
-    socket = io(BACKEND_URL, {
+    socket = io(getApiBaseUrl(), {
       path: "/socket.io",
       transports: ["polling", "websocket"],
       reconnection: true,

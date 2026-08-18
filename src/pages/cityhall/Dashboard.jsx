@@ -2,14 +2,20 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import "./Dashboard.css";
 
 const getApiBaseUrl = () => {
+  const configuredUrl = (process.env.REACT_APP_API_URL || "").replace(/\/+$/, "");
+
   if (typeof window !== "undefined") {
     const hostname = window.location.hostname;
     if (hostname === "localhost" || hostname === "127.0.0.1") {
       return "http://localhost:5000";
     }
+
+    if (hostname.endsWith(".vercel.app") || hostname === "trustpermit.com" || hostname === "www.trustpermit.com") {
+      return configuredUrl || "https://trustpermit-backend.onrender.com";
+    }
   }
 
-  return process.env.REACT_APP_API_URL || "https://trustpermit-backend.onrender.com";
+  return configuredUrl || "https://trustpermit-backend.onrender.com";
 };
 
 const API_BASE_URL = getApiBaseUrl();

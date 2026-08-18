@@ -12,6 +12,25 @@ const REQUIRED_DOCUMENTS = [
   "PROFILE OF G-CASH/PAYMAAYA"
 ];
 
+const getApiBaseUrl = () => {
+  const configuredUrl = (process.env.REACT_APP_API_URL || "").replace(/\/+$/, "");
+
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:5000";
+    }
+
+    if (hostname.endsWith(".vercel.app") || hostname === "trustpermit.com" || hostname === "www.trustpermit.com") {
+      return configuredUrl || "https://trustpermit-backend.onrender.com";
+    }
+  }
+
+  return configuredUrl || "https://trustpermit-backend.onrender.com";
+};
+
+const API_BASE_URL = `${getApiBaseUrl()}/api`;
+
 export default function UploadDocuments({ applicationId }) {
   const [uploadedFiles, setUploadedFiles] = useState({});
   const [uploading, setUploading] = useState(false);
@@ -81,16 +100,13 @@ export default function UploadDocuments({ applicationId }) {
         }
       });
 
-      const res = await fetch(
-        "https://trustpermit-backend.onrender.com/api/applications/upload-documents",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        }
-      );
+      const res = await fetch(`${API_BASE_URL}/applications/upload-documents`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
 
       const data = await res.json().catch(() => ({}));
 

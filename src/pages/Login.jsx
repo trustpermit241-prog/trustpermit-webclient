@@ -7,16 +7,22 @@ import CenteredModal from "../components/CenteredModal";
 import "./Login.css";
 
 const API_BASE_URL = (() => {
+  const configuredUrl = (process.env.REACT_APP_API_URL || "").replace(/\/+$/, "");
   const localUrl = "http://localhost:5000/api";
   const remoteUrl = "https://trustpermit-backend.onrender.com/api";
 
-  if (typeof window !== "undefined" && window.location.hostname === "localhost") {
-    return localUrl;
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return localUrl;
+    }
+
+    if (hostname.endsWith(".vercel.app") || hostname === "trustpermit.com" || hostname === "www.trustpermit.com") {
+      return configuredUrl ? `${configuredUrl}/api` : remoteUrl;
+    }
   }
 
-  return process.env.REACT_APP_API_URL
-    ? `${process.env.REACT_APP_API_URL}/api`
-    : remoteUrl;
+  return configuredUrl ? `${configuredUrl}/api` : remoteUrl;
 })();
 
 export default function Login() {

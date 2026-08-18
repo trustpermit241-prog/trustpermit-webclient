@@ -11,9 +11,13 @@ const getApiBaseUrl = () => {
     if (hostname === "localhost" || hostname === "127.0.0.1") {
       return "http://localhost:5000";
     }
+
+    if (hostname.endsWith(".vercel.app") || hostname === "trustpermit.com" || hostname === "www.trustpermit.com") {
+      return configuredUrl || "https://trustpermit-backend.onrender.com";
+    }
   }
 
-  return configuredUrl || "https://trustpermitbackend.onrender.com";
+  return configuredUrl || "https://trustpermit-backend.onrender.com";
 };
 
 const API_BASE_URL = getApiBaseUrl();

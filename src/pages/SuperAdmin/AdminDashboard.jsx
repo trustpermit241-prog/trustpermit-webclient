@@ -3,14 +3,20 @@ import { Navigate, useNavigate } from "react-router-dom";
 import "./AdminDashboard.css";
 
 const getApiBaseUrl = () => {
+  const configuredUrl = (process.env.REACT_APP_API_URL || "").replace(/\/+$/, "");
+
   if (typeof window !== "undefined") {
     const hostname = window.location.hostname;
     if (hostname === "localhost" || hostname === "127.0.0.1") {
       return "http://localhost:5000/api";
     }
+
+    if (hostname.endsWith(".vercel.app") || hostname === "trustpermit.com" || hostname === "www.trustpermit.com") {
+      return configuredUrl ? `${configuredUrl}/api` : "https://trustpermit-backend.onrender.com/api";
+    }
   }
 
-  return process.env.REACT_APP_API_URL || "https://trustpermit-backend.onrender.com/api";
+  return configuredUrl ? `${configuredUrl}/api` : "https://trustpermit-backend.onrender.com/api";
 };
 
 const API_BASE = getApiBaseUrl();

@@ -4,6 +4,25 @@ import emailjs from "@emailjs/browser";
 import CenteredModal from "../components/CenteredModal";
 import "./Register.css";
 
+const getApiBaseUrl = () => {
+  const configuredUrl = (process.env.REACT_APP_API_URL || "").replace(/\/+$/, "");
+
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:5000";
+    }
+
+    if (hostname.endsWith(".vercel.app") || hostname === "trustpermit.com" || hostname === "www.trustpermit.com") {
+      return configuredUrl || "https://trustpermit-backend.onrender.com";
+    }
+  }
+
+  return configuredUrl || "https://trustpermit-backend.onrender.com";
+};
+
+const API_BASE_URL = `${getApiBaseUrl()}/api`;
+
 export default function SecurityVerification() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -47,7 +66,7 @@ export default function SecurityVerification() {
       );
 
       // Save OTP to backend
-      await fetch("https://trustpermit-backend.onrender.com/api/otp/send-otp", {
+      await fetch(`${API_BASE_URL}/otp/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp: otpCode }),
@@ -74,7 +93,7 @@ export default function SecurityVerification() {
 
     try {
       // ================= VERIFY OTP ON BACKEND =================
-      const verifyRes = await fetch("https://trustpermit-backend.onrender.com/api/otp/verify-otp", {
+      const verifyRes = await fetch(`${API_BASE_URL}/otp/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp }),
@@ -89,7 +108,7 @@ export default function SecurityVerification() {
       setMessage("Email verified successfully!");
 
       // ================= REGISTER USER =================
-      const registerRes = await fetch("https://trustpermit-backend.onrender.com/api/auth/register", {
+      const registerRes = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fullName, email, password }),
