@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Component, useEffect, useState } from "react";
 import io from "socket.io-client";
 import "./Message.css";
 
@@ -32,7 +32,7 @@ const socket = io(API_URL, {
   timeout: 10000,
 });
 
-export default function Messages() {
+function MessagesView() {
   const [requests, setRequests] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [text, setText] = useState("");
@@ -61,9 +61,11 @@ export default function Messages() {
 
     if (!socket.connected) {
       try {
-        socket.io.opts.path = "/socket.io";
-        socket.io.opts.transports = ["polling", "websocket"];
-        socket.io.opts.reconnection = true;
+        if (socket.io) {
+          socket.io.opts.path = "/socket.io";
+          socket.io.opts.transports = ["polling", "websocket"];
+          socket.io.opts.reconnection = true;
+        }
         socket.connect();
       } catch (error) {
         console.warn("Socket connection skipped because backend is unavailable.");
@@ -103,6 +105,8 @@ export default function Messages() {
     });
 
     socket.on("receive_chat_message", (msg) => {
+      if (!msg || !msg.roomId) return;
+
       setSelectedChat((prev) => {
         if (!prev || prev.roomId !== msg.roomId) return prev;
 
@@ -227,5 +231,36 @@ export default function Messages() {
         </> : <div className="messages-placeholder"><h2>Select a user message request</h2><p>Choose a conversation to view the support thread.</p></div>}
       </div>
     </section>
+  );
+}
+
+class MessagesBoundary extends Component {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <section className="messages-workspace messages-error-state">
+          <div className="messages-placeholder">
+            <h2>Messages are temporarily unavailable</h2>
+            <p>Refresh this page to try loading staff messages again.</p>
+          </div>
+        </section>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+export default function Messages() {
+  return (
+    <MessagesBoundary>
+      <MessagesView />
+    </MessagesBoundary>
   );
 }

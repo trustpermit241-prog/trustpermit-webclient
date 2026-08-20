@@ -2,8 +2,10 @@
 	--blue: #2563d8;
 	--ink: #121722;
 	display: flex;
+	width: 100%;
 	height: calc(100vh - 40px);
 	min-height: 570px;
+	flex-shrink: 0;
 	overflow: hidden;
 	border: 1px solid #e3e8f0;
 	border-radius: 16px;
