@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useParams } from "react-router-dom";
-import html2pdf from "html2pdf.js/dist/html2pdf.js";
+import html2pdf from "html2pdf.js/dist/html2pdf.min.js";
 import "./PaymentView.css";
 
 const getApiBaseUrl = () => {
