@@ -6,7 +6,7 @@ const getApiBaseUrl = () => {
   if (typeof window !== "undefined") {
     const hostname = window.location.hostname;
     if (hostname === "localhost" || hostname === "127.0.0.1") {
-      return "http://localhost:5000";
+      return process.env.REACT_APP_API_URL || "http://localhost:5001";
     }
   }
 
@@ -19,6 +19,7 @@ const socket = io(API_URL, {
   path: "/socket.io",
   transports: ["polling", "websocket"],
   reconnection: true,
+  timeout: 10000,
 });
 
 export default function Messages() {
@@ -29,14 +30,15 @@ export default function Messages() {
 
   const fetchChats = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/chats`);
+      const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/chats`);
       const data = await res.json();
 
       setRequests(Array.isArray(data) ? data : []);
       setLoadError("");
     } catch (err) {
       console.error("Error fetching chats:", err);
-      setLoadError("Unable to connect to chat service. Start the backend to load support requests.");
+      setRequests([]);
+      setLoadError("Unable to connect to chat service. The backend is not responding right now.");
     }
   };
 
@@ -44,10 +46,14 @@ export default function Messages() {
     fetchChats();
 
     if (!socket.connected) {
-      socket.io.opts.path = "/socket.io";
-      socket.io.opts.transports = ["polling", "websocket"];
-      socket.io.opts.reconnection = true;
-      socket.connect();
+      try {
+        socket.io.opts.path = "/socket.io";
+        socket.io.opts.transports = ["polling", "websocket"];
+        socket.io.opts.reconnection = true;
+        socket.connect();
+      } catch (error) {
+        console.warn("Socket connection skipped because backend is unavailable.");
+      }
     }
 
     socket.on("new_staff_request", (chat) => {
