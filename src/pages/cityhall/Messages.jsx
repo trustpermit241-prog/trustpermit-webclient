@@ -18,6 +18,7 @@ const API_URL = getApiBaseUrl();
 const socket = io(API_URL, {
   path: "/socket.io",
   transports: ["polling", "websocket"],
+  autoConnect: false,
   reconnection: true,
   timeout: 10000,
 });
