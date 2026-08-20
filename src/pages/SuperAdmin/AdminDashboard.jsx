@@ -103,6 +103,45 @@ const logTypeConfig = {
 
 const getLogConfig = (type) => logTypeConfig[type] || logTypeConfig.system;
 
+const ITEMS_PER_PAGE = 12;
+
+const PaginationControls = ({ currentPage, totalItems, onPageChange }) => {
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="pagination-controls">
+      <button
+        type="button"
+        className="pagination-btn"
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+      >
+        Previous
+      </button>
+      {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+        <button
+          key={page}
+          type="button"
+          className={`pagination-btn${currentPage === page ? " active" : ""}`}
+          onClick={() => onPageChange(page)}
+        >
+          {page}
+        </button>
+      ))}
+      <button
+        type="button"
+        className="pagination-btn"
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+      >
+        Next
+      </button>
+    </div>
+  );
+};
+
 export default function AdminDashboard({ defaultPage = "dashboard" }) {
   const navigate = useNavigate();
 
@@ -148,10 +187,9 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
 
   // Pagination state
   const [logsCurrentPage, setLogsCurrentPage] = useState(1);
-  const logsItemsPerPage = 18;
 
   const [auditCurrentPage, setAuditCurrentPage] = useState(1);
-  const auditItemsPerPage = 18;
+  const [usersCurrentPage, setUsersCurrentPage] = useState(1);
 
   const today = new Date().toISOString().slice(0, 10);
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
@@ -864,11 +902,10 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
 
           {activePage === "auditTrail" && (() => {
             const totalAudit = filteredAuditActivities.length;
-            const totalAuditPages = Math.ceil(totalAudit / auditItemsPerPage);
-            const auditStartIdx = (auditCurrentPage - 1) * auditItemsPerPage;
+            const auditStartIdx = (auditCurrentPage - 1) * ITEMS_PER_PAGE;
             const paginatedAuditActivities = filteredAuditActivities.slice(
               auditStartIdx,
-              auditStartIdx + auditItemsPerPage
+              auditStartIdx + ITEMS_PER_PAGE
             );
 
             return (
@@ -967,37 +1004,11 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                       </table>
                     </div>
 
-                    {/* Pagination Controls */}
-                    {totalAudit > auditItemsPerPage && (
-                      <div className="pagination-controls" style={{ marginTop: "20px", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                        {(() => {
-                          const pageNumbers = [];
-                          for (let i = 1; i <= totalAuditPages; i++) {
-                            pageNumbers.push(i);
-                          }
-                          return pageNumbers.map((page) => (
-                            <button
-                              key={page}
-                              type="button"
-                              onClick={() => setAuditCurrentPage(page)}
-                              className="pagination-btn"
-                              style={{
-                                padding: "6px 10px",
-                                borderRadius: "4px",
-                                border: auditCurrentPage === page ? "2px solid #2563eb" : "1px solid #ddd",
-                                background: auditCurrentPage === page ? "#eff6ff" : "#fff",
-                                color: auditCurrentPage === page ? "#2563eb" : "#666",
-                                cursor: "pointer",
-                                fontWeight: auditCurrentPage === page ? "600" : "400",
-                                fontSize: "14px",
-                              }}
-                            >
-                              {page}
-                            </button>
-                          ));
-                        })()}
-                      </div>
-                    )}
+                    <PaginationControls
+                      currentPage={auditCurrentPage}
+                      totalItems={totalAudit}
+                      onPageChange={setAuditCurrentPage}
+                    />
                   </>
                 )}
               </div>
@@ -1056,9 +1067,8 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
 
                 // Calculate pagination
                 const totalLogs = allLogs.length;
-                const totalPages = Math.ceil(totalLogs / logsItemsPerPage);
-                const startIdx = (logsCurrentPage - 1) * logsItemsPerPage;
-                const paginatedLogs = allLogs.slice(startIdx, startIdx + logsItemsPerPage);
+                const startIdx = (logsCurrentPage - 1) * ITEMS_PER_PAGE;
+                const paginatedLogs = allLogs.slice(startIdx, startIdx + ITEMS_PER_PAGE);
 
                 // Group paginated logs by date
                 const paginatedGroupedLogs = paginatedLogs.reduce((acc, log) => {
@@ -1117,35 +1127,11 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                       </div>
                     ))}
 
-                    {/* Pagination Controls */}
-                    <div className="pagination-controls" style={{ marginTop: "20px", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                      {(() => {
-                        const pageNumbers = [];
-                        for (let i = 1; i <= totalPages; i++) {
-                          pageNumbers.push(i);
-                        }
-                        return pageNumbers.map((page) => (
-                          <button
-                            key={page}
-                            type="button"
-                            onClick={() => setLogsCurrentPage(page)}
-                            className="pagination-btn"
-                            style={{
-                              padding: "6px 10px",
-                              borderRadius: "4px",
-                              border: logsCurrentPage === page ? "2px solid #2563eb" : "1px solid #ddd",
-                              background: logsCurrentPage === page ? "#eff6ff" : "#fff",
-                              color: logsCurrentPage === page ? "#2563eb" : "#666",
-                              cursor: "pointer",
-                              fontWeight: logsCurrentPage === page ? "600" : "400",
-                              fontSize: "14px",
-                            }}
-                          >
-                            {page}
-                          </button>
-                        ));
-                      })()}
-                    </div>
+                    <PaginationControls
+                      currentPage={logsCurrentPage}
+                      totalItems={totalLogs}
+                      onPageChange={setLogsCurrentPage}
+                    />
                   </>
                 );
               })()}
@@ -1184,7 +1170,12 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                           </td>
                         </tr>
                       ) : (
-                        users.map((user) => (
+                        users
+                          .slice(
+                            (usersCurrentPage - 1) * ITEMS_PER_PAGE,
+                            usersCurrentPage * ITEMS_PER_PAGE
+                          )
+                          .map((user) => (
                           <tr key={user._id || user.id}>
                             <td>{user.fullName || user.name}</td>
                             <td>{user.email}</td>
@@ -1207,10 +1198,15 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                                 : "N/A"}
                             </td>
                           </tr>
-                        ))
+                          ))
                       )}
                     </tbody>
                   </table>
+                  <PaginationControls
+                    currentPage={usersCurrentPage}
+                    totalItems={users.length}
+                    onPageChange={setUsersCurrentPage}
+                  />
                 </div>
               )}
             </div>

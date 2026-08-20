@@ -717,6 +717,40 @@ input, select, textarea { font: inherit; }
    USERS TABLE
    ============================================================ */
 .users-panel { padding: 0; }
+
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+
+.pagination-btn {
+  min-width: 36px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid #dbe3ef;
+  border-radius: 6px;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.pagination-btn.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.pagination-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
 .table-responsive {
   width: 100%;
   overflow-x: auto;
