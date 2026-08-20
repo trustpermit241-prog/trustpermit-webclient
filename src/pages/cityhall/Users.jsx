@@ -12,7 +12,7 @@ const getApiBaseUrl = () => {
     return "http://localhost:5000";
   }
 
-  return configuredUrl || "https://trustpermitbackend.onrender.com";
+  return configuredUrl || "https://trustpermit-backend.onrender.com";
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -25,7 +25,10 @@ export default function Users() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/users`);
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${API_BASE_URL}/api/users`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
 
         if (!res.ok) {
           throw new Error("Failed to fetch users");
@@ -51,8 +54,10 @@ export default function Users() {
     if (!confirmed) return;
 
     try {
+      const token = localStorage.getItem("token");
       const res = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
         method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
       if (!res.ok) {
