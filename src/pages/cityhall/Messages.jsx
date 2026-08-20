@@ -15,6 +15,15 @@ const getApiBaseUrl = () => {
 
 const API_URL = getApiBaseUrl();
 
+const normalizeChat = (chat) => ({
+  ...(chat && typeof chat === "object" ? chat : {}),
+  roomId: String(chat?.roomId || `chat-${Date.now()}-${Math.random()}`),
+  userName: typeof chat?.userName === "string" && chat.userName.trim()
+    ? chat.userName.trim()
+    : "User",
+  messages: Array.isArray(chat?.messages) ? chat.messages : [],
+});
+
 const socket = io(API_URL, {
   path: "/socket.io",
   transports: ["polling", "websocket"],
@@ -28,18 +37,22 @@ export default function Messages() {
   const [selectedChat, setSelectedChat] = useState(null);
   const [text, setText] = useState("");
   const [loadError, setLoadError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchChats = async () => {
     try {
       const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/chats`);
+      if (!res.ok) throw new Error(`Chat request failed with status ${res.status}`);
       const data = await res.json();
 
-      setRequests(Array.isArray(data) ? data : []);
+      setRequests(Array.isArray(data) ? data.map(normalizeChat) : []);
       setLoadError("");
     } catch (err) {
       console.error("Error fetching chats:", err);
       setRequests([]);
       setLoadError("Unable to connect to chat service. The backend is not responding right now.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -58,32 +71,34 @@ export default function Messages() {
     }
 
     socket.on("new_staff_request", (chat) => {
+      const nextChat = normalizeChat(chat);
       setRequests((prev) => {
-        const exists = prev.some((item) => item.roomId === chat.roomId);
+        const exists = prev.some((item) => item.roomId === nextChat.roomId);
         if (exists) {
           return prev.map((item) =>
-            item.roomId === chat.roomId ? chat : item
+            item.roomId === nextChat.roomId ? nextChat : item
           );
         }
-        return [chat, ...prev];
+        return [nextChat, ...prev];
       });
     });
 
     socket.on("chat_updated", (updatedChat) => {
+      const nextChat = normalizeChat(updatedChat);
       setRequests((prev) => {
-        const exists = prev.some((item) => item.roomId === updatedChat.roomId);
+        const exists = prev.some((item) => item.roomId === nextChat.roomId);
 
         if (exists) {
           return prev.map((item) =>
-            item.roomId === updatedChat.roomId ? updatedChat : item
+            item.roomId === nextChat.roomId ? nextChat : item
           );
         }
 
-        return [updatedChat, ...prev];
+        return [nextChat, ...prev];
       });
 
       setSelectedChat((prev) =>
-        prev?.roomId === updatedChat.roomId ? updatedChat : prev
+        prev?.roomId === nextChat.roomId ? nextChat : prev
       );
     });
 
@@ -114,10 +129,11 @@ export default function Messages() {
   }, []);
 
   const openChat = (chat) => {
-    setSelectedChat(chat);
+    const nextChat = normalizeChat(chat);
+    setSelectedChat(nextChat);
 
     socket.emit("join_chat_room", {
-      roomId: chat.roomId,
+      roomId: nextChat.roomId,
     });
   };
 
@@ -146,7 +162,7 @@ export default function Messages() {
     setText("");
   };
 
-  const getInitial = (name = "U") => name.trim().charAt(0).toUpperCase();
+  const getInitial = (name = "U") => String(name || "U").trim().charAt(0).toUpperCase();
   const formatTime = (value) => {
     if (!value) return "";
     const date = new Date(value);
@@ -163,7 +179,7 @@ export default function Messages() {
           <p>User support requests</p>
         </div>
         {loadError && <div className="messages-connection-notice" role="alert">{loadError}</div>}
-        {requests.length === 0 ? <p className="messages-empty">No message requests yet.</p> : requests.map((chat) => {
+        {isLoading ? <p className="messages-empty">Loading message requests...</p> : requests.length === 0 ? <p className="messages-empty">No message requests yet.</p> : requests.map((chat) => {
           const name = chat.userName || "User";
           return (
             <button className={`conversation-card ${selectedChat?.roomId === chat.roomId ? "selected" : ""}`} key={chat.roomId} onClick={() => openChat(chat)}>
