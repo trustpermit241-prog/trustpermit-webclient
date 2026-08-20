@@ -25,6 +25,7 @@ export default function Messages() {
   const [requests, setRequests] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [text, setText] = useState("");
+  const [loadError, setLoadError] = useState("");
 
   const fetchChats = async () => {
     try {
@@ -32,8 +33,10 @@ export default function Messages() {
       const data = await res.json();
 
       setRequests(Array.isArray(data) ? data : []);
+      setLoadError("");
     } catch (err) {
       console.error("Error fetching chats:", err);
+      setLoadError("Unable to connect to chat service. Start the backend to load support requests.");
     }
   };
 
@@ -152,6 +155,7 @@ export default function Messages() {
           <h1>Messages</h1>
           <p>User support requests</p>
         </div>
+        {loadError && <div className="messages-connection-notice" role="alert">{loadError}</div>}
         {requests.length === 0 ? <p className="messages-empty">No message requests yet.</p> : requests.map((chat) => {
           const name = chat.userName || "User";
           return (
