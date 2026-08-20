@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import io from "socket.io-client";
+import "./Message.css";
 
 const getApiBaseUrl = () => {
   if (typeof window !== "undefined") {
@@ -135,233 +136,69 @@ export default function Messages() {
     setText("");
   };
 
+  const getInitial = (name = "U") => name.trim().charAt(0).toUpperCase();
+  const formatTime = (value) => {
+    if (!value) return "";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+      ? ""
+      : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
   return (
-    <div
-      style={{
-        display: "flex",
-        height: "calc(100vh - 40px)",
-        background: "#f8fafc",
-        borderRadius: "18px",
-        overflow: "hidden",
-        border: "1px solid #e5e7eb",
-      }}
-    >
-      <div
-        style={{
-          width: "330px",
-          background: "#ffffff",
-          borderRight: "1px solid #e5e7eb",
-          padding: "20px",
-          overflowY: "auto",
-        }}
-      >
-        <h2 style={{ marginBottom: "5px", fontSize: "28px", fontWeight: 700 }}>Messages</h2>
-
-        <p style={{ color: "#64748b", fontSize: "14px", marginBottom: "20px" }}>
-          User support requests
-        </p>
-
-        {requests.length === 0 ? (
-          <p style={{ color: "#64748b", fontSize: "14px" }}>
-            No message requests yet.
-          </p>
-        ) : (
-          requests.map((chat) => (
-            <div
-              key={chat.roomId}
-              onClick={() => openChat(chat)}
-              style={{
-                padding: "14px",
-                border: "1px solid #e5e7eb",
-                marginBottom: "12px",
-                borderRadius: "14px",
-                background:
-                  selectedChat?.roomId === chat.roomId ? "#eff6ff" : "#ffffff",
-                cursor: "pointer",
-              }}
-            >
-              <h4 style={{ margin: "0 0 6px" }}>
-                {chat.userName || "User"}
-              </h4>
-
-              <p
-                style={{
-                  margin: "0 0 8px",
-                  fontSize: "13px",
-                  color: "#64748b",
-                }}
-              >
-                {chat.lastMessage || "No message yet"}
-              </p>
-
-              <span
-                style={{
-                  display: "inline-block",
-                  padding: "5px 10px",
-                  borderRadius: "999px",
-                  fontSize: "12px",
-                  fontWeight: "700",
-                  background:
-                    chat.status === "approved" ? "#dcfce7" : "#fef3c7",
-                  color:
-                    chat.status === "approved" ? "#166534" : "#92400e",
-                }}
-              >
-                {chat.status}
+    <section className="messages-workspace">
+      <aside className="conversation-list">
+        <div className="messages-heading">
+          <h1>Messages</h1>
+          <p>User support requests</p>
+        </div>
+        {requests.length === 0 ? <p className="messages-empty">No message requests yet.</p> : requests.map((chat) => {
+          const name = chat.userName || "User";
+          return (
+            <button className={`conversation-card ${selectedChat?.roomId === chat.roomId ? "selected" : ""}`} key={chat.roomId} onClick={() => openChat(chat)}>
+              <span className={`conversation-avatar avatar-${getInitial(name).toLowerCase()}`}>{getInitial(name)}</span>
+              <span className="conversation-copy">
+                <span className="conversation-topline"><strong>{name}</strong><time>{formatTime(chat.updatedAt || chat.createdAt)}</time></span>
+                <span className="conversation-preview">{chat.lastMessage || "No message yet"}</span>
+                <span className={`status-pill ${chat.status === "approved" ? "approved" : "pending"}`}>{chat.status || "pending"}</span>
               </span>
+            </button>
+          );
+        })}
+      </aside>
+
+      <div className="active-conversation">
+        {selectedChat ? <>
+          <header className="conversation-header">
+            <div>
+              <h2>Active Chat: {selectedChat.userName || "User"} <span>(Permit Application Support)</span></h2>
+              <p>{selectedChat.status === "approved" ? "Support request approved" : "Support request awaiting approval"}</p>
             </div>
-          ))
-        )}
-      </div>
-
-      <div
-        style={{
-          flex: 1,
-          padding: "20px",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        {selectedChat ? (
-          <>
-            <div
-              style={{
-                paddingBottom: "15px",
-                borderBottom: "1px solid #e5e7eb",
-                marginBottom: "15px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <div>
-                <h2 style={{ margin: 0 }}>
-                  {selectedChat.userName || "User"}
-                </h2>
-
-                <p style={{ margin: "4px 0 0", color: "#64748b" }}>
-                  Status: {selectedChat.status}
-                </p>
-              </div>
-
-              {selectedChat.status !== "approved" && (
-                <button
-                  onClick={approveChat}
-                  style={{
-                    border: "none",
-                    padding: "10px 16px",
-                    borderRadius: "12px",
-                    background: "#2563eb",
-                    color: "#ffffff",
-                    cursor: "pointer",
-                    fontWeight: "700",
-                  }}
-                >
-                  Approve Chat
-                </button>
-              )}
+            <div className="conversation-actions">
+              {selectedChat.status !== "approved" && <button className="button button-approve" onClick={approveChat}>Approve Chat</button>}
+              <button className="button button-secondary" type="button">View Profile</button>
             </div>
+          </header>
 
-            <div
-              style={{
-                flex: 1,
-                overflowY: "auto",
-                background: "#ffffff",
-                border: "1px solid #e5e7eb",
-                borderRadius: "14px",
-                padding: "16px",
-                marginBottom: "15px",
-              }}
-            >
-              {!selectedChat.messages || selectedChat.messages.length === 0 ? (
-                <p style={{ color: "#64748b" }}>No messages yet.</p>
-              ) : (
-                selectedChat.messages.map((msg, index) => (
-                  <div
-                    key={msg._id || index}
-                    style={{
-                      display: "flex",
-                      justifyContent:
-                        msg.sender === "staff" ? "flex-end" : "flex-start",
-                      marginBottom: "10px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        maxWidth: "70%",
-                        padding: "10px 14px",
-                        borderRadius: "14px",
-                        background:
-                          msg.sender === "staff"
-                            ? "#2563eb"
-                            : msg.sender === "system"
-                            ? "#f1f5f9"
-                            : "#e5e7eb",
-                        color:
-                          msg.sender === "staff" ? "#ffffff" : "#111827",
-                      }}
-                    >
-                      <strong style={{ fontSize: "12px" }}>
-                        {msg.sender}
-                      </strong>
-
-                      <p style={{ margin: "4px 0 0" }}>
-                        {msg.text}
-                      </p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div style={{ display: "flex", gap: "10px" }}>
-              <input
-                type="text"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") sendMessage();
-                }}
-                placeholder="Type your reply..."
-                style={{
-                  flex: 1,
-                  padding: "12px",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "12px",
-                  outline: "none",
-                }}
-              />
-
-              <button
-                onClick={sendMessage}
-                style={{
-                  border: "none",
-                  padding: "12px 20px",
-                  borderRadius: "12px",
-                  background: "#16a34a",
-                  color: "#ffffff",
-                  cursor: "pointer",
-                  fontWeight: "700",
-                }}
-              >
-                Send
-              </button>
-            </div>
-          </>
-        ) : (
-          <div
-            style={{
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#64748b",
-            }}
-          >
-            <h3>Select a user message request</h3>
+          <div className="message-stream">
+            {(!selectedChat.messages || selectedChat.messages.length === 0) ? <p className="messages-empty">No messages yet.</p> : selectedChat.messages.map((msg, index) => {
+              const isStaff = msg.sender === "staff";
+              return <div className={`message-row ${isStaff ? "from-staff" : "from-user"}`} key={msg._id || index}>
+                {!isStaff && <span className="message-avatar">{getInitial(selectedChat.userName || "U")}</span>}
+                <div className="message-group">
+                  <div className="message-bubble"><strong>{isStaff ? "Staff (me)" : `${selectedChat.userName || "User"}:`}</strong><p>{msg.text}</p></div>
+                  <time>{formatTime(msg.createdAt || msg.time)}</time>
+                </div>
+              </div>;
+            })}
           </div>
-        )}
+
+          <form className="message-composer" onSubmit={(event) => { event.preventDefault(); sendMessage(); }}>
+            <textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="Type your reply..." rows="2" />
+            <div className="composer-footer"><div className="composer-tools"><button type="button" aria-label="Attach file">&#128206;</button><button type="button" aria-label="Add emoji">&#9786;</button></div><select aria-label="Canned responses" defaultValue=""><option value="" disabled>Canned Responses</option><option>We are checking your request.</option><option>Your application is being reviewed.</option></select><button className="send-button" type="submit">Send</button></div>
+          </form>
+        </> : <div className="messages-placeholder"><h2>Select a user message request</h2><p>Choose a conversation to view the support thread.</p></div>}
       </div>
-    </div>
+    </section>
   );
 }
