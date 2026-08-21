@@ -25,6 +25,7 @@
 .conversation-card:hover, .conversation-card.selected { border-color: #8aa7ce; background: #edf4ff; }
 .conversation-avatar, .message-avatar { display: flex; align-items: center; justify-content: center; flex: 0 0 27px; width: 27px; height: 27px; border-radius: 50%; color: #fff; font-size: 13px; background: #81909b; }
 .conversation-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.message-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 .avatar-c { background: #cf9b35; }.avatar-s { background: #c87958; }
 .conversation-copy { min-width: 0; flex: 1; }.conversation-topline { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }.conversation-topline time { color: #7d8793; font-size: 10px; white-space: nowrap; }
 .conversation-preview { display: -webkit-box; overflow: hidden; margin: 7px 0 8px; color: #374151; font-size: 11px; line-height: 1.4; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
