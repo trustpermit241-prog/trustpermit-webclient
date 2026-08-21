@@ -38,6 +38,10 @@ function MessagesView() {
   const [text, setText] = useState("");
   const [loadError, setLoadError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState("");
 
   const fetchChats = async () => {
     try {
@@ -151,12 +155,15 @@ function MessagesView() {
 
   const sendMessage = () => {
     if (!selectedChat) return;
-    if (!text.trim()) return;
+    if (!text.trim() && !selectedFile) return;
+
+    const attachmentText = selectedFile ? `Attachment: ${selectedFile.name}` : "";
+    const messageText = [text.trim(), attachmentText].filter(Boolean).join("\n");
 
     socket.emit("send_chat_message", {
       roomId: selectedChat.roomId,
       sender: "staff",
-      text,
+      text: messageText,
       time: new Date().toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
@@ -164,6 +171,40 @@ function MessagesView() {
     });
 
     setText("");
+    setSelectedFile(null);
+  };
+
+  const handleFileUpload = (event) => {
+    const file = event.target.files?.[0] || null;
+    setSelectedFile(file);
+    event.target.value = "";
+  };
+
+  const viewProfile = async () => {
+    if (!selectedChat) return;
+
+    setProfileLoading(true);
+    setProfileError("");
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_URL.replace(/\/$/, "")}/api/users`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) throw new Error("Unable to load user account");
+
+      const users = await response.json();
+      const account = Array.isArray(users)
+        ? users.find((user) => String(user._id || user.id) === String(selectedChat.userId))
+        : null;
+
+      if (!account) throw new Error("User account not found");
+      setProfile(account);
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      setProfileError(error.message || "Unable to load user account.");
+    } finally {
+      setProfileLoading(false);
+    }
   };
 
   const getInitial = (name = "U") => String(name || "U").trim().charAt(0).toUpperCase();
@@ -207,7 +248,9 @@ function MessagesView() {
             </div>
             <div className="conversation-actions">
               {selectedChat.status !== "approved" && <button className="button button-approve" onClick={approveChat}>Approve Chat</button>}
-              <button className="button button-secondary" type="button">View Profile</button>
+              <button className="button button-secondary" type="button" onClick={viewProfile} disabled={profileLoading}>
+                {profileLoading ? "Loading..." : "View Profile"}
+              </button>
             </div>
           </header>
 
@@ -226,10 +269,18 @@ function MessagesView() {
 
           <form className="message-composer" onSubmit={(event) => { event.preventDefault(); sendMessage(); }}>
             <textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="Type your reply..." rows="2" />
-            <div className="composer-footer"><div className="composer-tools"><button type="button" aria-label="Attach file">&#128206;</button><button type="button" aria-label="Add emoji">&#9786;</button></div><select aria-label="Canned responses" defaultValue=""><option value="" disabled>Canned Responses</option><option>We are checking your request.</option><option>Your application is being reviewed.</option></select><button className="send-button" type="submit">Send</button></div>
+            <div className="composer-footer"><div className="composer-tools"><label className="upload-button" htmlFor="staff-message-upload">Upload file</label><input id="staff-message-upload" className="upload-input" type="file" onChange={handleFileUpload} /></div>{selectedFile && <span className="selected-file" title={selectedFile.name}>{selectedFile.name}</span>}<select aria-label="Canned responses" defaultValue=""><option value="" disabled>Canned Responses</option><option>We are checking your request.</option><option>Your application is being reviewed.</option></select><button className="send-button" type="submit">Send</button></div>
           </form>
         </> : <div className="messages-placeholder"><h2>Select a user message request</h2><p>Choose a conversation to view the support thread.</p></div>}
       </div>
+
+      {(profile || profileError) && <div className="profile-modal-backdrop" role="presentation" onClick={() => { setProfile(null); setProfileError(""); }}>
+        <section className="profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title" onClick={(event) => event.stopPropagation()}>
+          <button className="profile-close" type="button" aria-label="Close profile" onClick={() => { setProfile(null); setProfileError(""); }}>X</button>
+          <h2 id="profile-title">User Account</h2>
+          {profileError ? <p className="profile-error">{profileError}</p> : <><strong>{profile.fullName || "User"}</strong><p>{profile.email || "No email available"}</p><p>Role: {profile.role || "citizen"}</p><p>Status: {profile.status || "Active"}</p></>}
+        </section>
+      </div>}
     </section>
   );
 }
