@@ -198,6 +198,9 @@
   padding: 12px 18px;
 }
 
+.chat-message .avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.typing-label { color: var(--text-muted); font-style: italic; }
+
 .chat-attachment-image {
   display: block;
   width: min(280px, 100%);

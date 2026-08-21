@@ -24,6 +24,7 @@ const socket = io(API_URL, {
 export default function AskHelp() {
   const messagesEndRef = useRef(null);
   const idleTimeoutRef = useRef(null);
+  const [staffTyping, setStaffTyping] = useState(false);
 
   const getTime = () =>
     new Date().toLocaleTimeString([], {
@@ -33,6 +34,7 @@ export default function AskHelp() {
 
   const user = JSON.parse(localStorage.getItem("user"));
   const userId = user?._id || user?.id || "guest";
+  const profileImage = localStorage.getItem("profileImage") || "";
 
   const CHAT_MESSAGES_KEY = `askhelp_messages_${userId}`;
   const CHAT_ROOM_KEY = `askhelp_roomId_${userId}`;
@@ -171,6 +173,10 @@ export default function AskHelp() {
       }
     });
 
+    socket.on("staff_typing", (data) => {
+      if (data?.roomId === roomId) setStaffTyping(Boolean(data.isTyping));
+    });
+
     socket.on("chat_updated", (chat) => {
       if (chat?.roomId === roomId && chat?.messages) {
         const updatedMessages = formatBackendMessages(chat.messages);
@@ -193,6 +199,7 @@ export default function AskHelp() {
     return () => {
       socket.off("chat_approved");
       socket.off("receive_chat_message");
+      socket.off("staff_typing");
       socket.off("chat_updated");
     };
   }, [roomId, CHAT_APPROVED_KEY, CHAT_MESSAGES_KEY]);
@@ -448,7 +455,7 @@ export default function AskHelp() {
         {messages.map((msg, i) => (
           <div key={i} className={`chat-message ${msg.sender}`}>
             <div className="avatar">
-              {msg.sender === "agent" ? "🏛️" : "🧑"}
+              {msg.sender === "agent" ? "🏛️" : profileImage ? <img src={profileImage} alt="" /> : "🧑"}
             </div>
 
             <div className="message-content">
@@ -471,6 +478,13 @@ export default function AskHelp() {
               <span className="dot"></span>
               <span className="dot"></span>
             </div>
+          </div>
+        )}
+
+        {staffTyping && (
+          <div className="chat-message agent typing">
+            <div className="avatar">🏛️</div>
+            <div className="message-content typing-label">Staff is typing...</div>
           </div>
         )}
 

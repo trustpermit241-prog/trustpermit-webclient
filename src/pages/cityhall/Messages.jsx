@@ -1,4 +1,4 @@
-import { Component, useEffect, useState } from "react";
+import { Component, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import io from "socket.io-client";
 import "./Message.css";
@@ -44,6 +44,7 @@ function MessagesView() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState("");
+  const typingTimeoutRef = useRef(null);
 
   const fetchChats = async () => {
     try {
@@ -203,6 +204,18 @@ function MessagesView() {
 
     setText("");
     setSelectedFile(null);
+    socket.emit("staff_typing", { roomId: selectedChat.roomId, isTyping: false });
+  };
+
+  const handleStaffTyping = (event) => {
+    setText(event.target.value);
+    if (!selectedChat) return;
+
+    socket.emit("staff_typing", { roomId: selectedChat.roomId, isTyping: true });
+    window.clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = window.setTimeout(() => {
+      socket.emit("staff_typing", { roomId: selectedChat.roomId, isTyping: false });
+    }, 1200);
   };
 
   const handleFileUpload = (event) => {
@@ -291,7 +304,7 @@ function MessagesView() {
             {(!selectedChat.messages || selectedChat.messages.length === 0) ? <p className="messages-empty">No messages yet.</p> : selectedChat.messages.map((msg, index) => {
               const isStaff = msg.sender === "staff";
               return <div className={`message-row ${isStaff ? "from-staff" : "from-user"}`} key={msg._id || index}>
-                {!isStaff && <span className="message-avatar">{getInitial(selectedChat.userName || "U")}</span>}
+                {!isStaff && <span className="message-avatar">{selectedChat.profileImage ? <img src={selectedChat.profileImage} alt="" /> : getInitial(selectedChat.userName || "U")}</span>}
                 <div className="message-group">
                   <div className="message-bubble"><strong>{isStaff ? "Staff (me)" : `${selectedChat.userName || "User"}:`}</strong>{(msg.attachmentUrl || String(msg.text || "").match(/^(?:Attachment|Image):\s*(.+)$/i)) && <img className="message-attachment-image" src={(msg.attachmentUrl || `/uploads/${String(msg.text).replace(/^(?:Attachment|Image):\s*/i, "")}`).startsWith("http") || (msg.attachmentUrl || "").startsWith("data:") ? (msg.attachmentUrl || `/uploads/${String(msg.text).replace(/^(?:Attachment|Image):\s*/i, "")}`) : `${API_URL.replace(/\/$/, "")}${msg.attachmentUrl || `/uploads/${String(msg.text).replace(/^(?:Attachment|Image):\s*/i, "")}`}`} alt={msg.attachmentName || "Chat attachment"} />}<p>{msg.text}</p></div>
                   <time>{formatTime(msg.createdAt || msg.time)}</time>
@@ -301,7 +314,7 @@ function MessagesView() {
           </div>
 
           <form className="message-composer" onSubmit={(event) => { event.preventDefault(); sendMessage(); }}>
-            <textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="Type your reply..." rows="2" />
+            <textarea value={text} onChange={handleStaffTyping} placeholder="Type your reply..." rows="2" />
             <div className="composer-footer"><div className="composer-tools"><label className="upload-button" htmlFor="staff-message-upload">Upload image</label><input id="staff-message-upload" className="upload-input" type="file" accept="image/*" onChange={handleFileUpload} /></div>{selectedFile && <span className="selected-file" title={selectedFile.name}>{selectedFile.name}</span>}<select aria-label="Canned responses" defaultValue=""><option value="" disabled>Canned Responses</option><option>We are checking your request.</option><option>Your application is being reviewed.</option></select><button className="send-button" type="submit">Send</button></div>
           </form>
         </> : <div className="messages-placeholder"><h2>Select a user message request</h2><p>Choose a conversation to view the support thread.</p></div>}
