@@ -3,6 +3,9 @@
 	--ink: #121722;
 	display: flex;
 	width: 100%;
+	display: flex !important;
+	visibility: visible !important;
+	opacity: 1 !important;
 	height: calc(100vh - 40px);
 	min-height: 570px;
 	flex-shrink: 0;
