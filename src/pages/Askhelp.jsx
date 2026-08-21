@@ -452,7 +452,7 @@ export default function AskHelp() {
             </div>
 
             <div className="message-content">
-              {msg.attachmentUrl && <img className="chat-attachment-image" src={msg.attachmentUrl.startsWith("http") ? msg.attachmentUrl : `${API_URL.replace(/\/$/, "")}${msg.attachmentUrl}`} alt={msg.attachmentName || "Chat attachment"} />}
+              {msg.attachmentUrl && <img className="chat-attachment-image" src={msg.attachmentUrl.startsWith("http") || msg.attachmentUrl.startsWith("data:") ? msg.attachmentUrl : `${API_URL.replace(/\/$/, "")}${msg.attachmentUrl}`} alt={msg.attachmentName || "Chat attachment"} />}
               <div className="text">{msg.text}</div>
 
               <div className="time">{msg.time}</div>

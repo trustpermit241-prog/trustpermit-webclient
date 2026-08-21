@@ -47,11 +47,26 @@ function MessagesView() {
 
   const fetchChats = async () => {
     try {
-      const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/chats`);
+      const apiBase = API_URL.replace(/\/$/, "");
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${apiBase}/api/chats`);
       if (!res.ok) throw new Error(`Chat request failed with status ${res.status}`);
       const data = await res.json();
+      let users = [];
 
-      setRequests(Array.isArray(data) ? data.map(normalizeChat) : []);
+      try {
+        const usersResponse = await fetch(`${apiBase}/api/users`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (usersResponse.ok) users = await usersResponse.json();
+      } catch (error) {
+        console.warn("User profile images could not be loaded.");
+      }
+
+      setRequests(Array.isArray(data) ? data.map((chat) => {
+        const account = users.find((user) => String(user._id || user.id) === String(chat.userId));
+        return normalizeChat({ ...chat, profileImage: account?.profileImage || "" });
+      }) : []);
       setLoadError("");
     } catch (err) {
       console.error("Error fetching chats:", err);
@@ -246,7 +261,7 @@ function MessagesView() {
           const name = chat.userName || "User";
           return (
             <button className={`conversation-card ${selectedChat?.roomId === chat.roomId ? "selected" : ""}`} key={chat.roomId} onClick={() => openChat(chat)}>
-              <span className={`conversation-avatar avatar-${getInitial(name).toLowerCase()}`}>{getInitial(name)}</span>
+              <span className={`conversation-avatar avatar-${getInitial(name).toLowerCase()}`}>{chat.profileImage ? <img src={chat.profileImage} alt="" /> : getInitial(name)}</span>
               <span className="conversation-copy">
                 <span className="conversation-topline"><strong>{name}</strong><time>{formatTime(chat.updatedAt || chat.createdAt)}</time></span>
                 <span className="conversation-preview">{chat.lastMessage || "No message yet"}</span>
@@ -278,7 +293,7 @@ function MessagesView() {
               return <div className={`message-row ${isStaff ? "from-staff" : "from-user"}`} key={msg._id || index}>
                 {!isStaff && <span className="message-avatar">{getInitial(selectedChat.userName || "U")}</span>}
                 <div className="message-group">
-                  <div className="message-bubble"><strong>{isStaff ? "Staff (me)" : `${selectedChat.userName || "User"}:`}</strong>{(msg.attachmentUrl || String(msg.text || "").match(/^(?:Attachment|Image):\s*(.+)$/i)) && <img className="message-attachment-image" src={(msg.attachmentUrl || `/uploads/${String(msg.text).replace(/^(?:Attachment|Image):\s*/i, "")}`).startsWith("http") ? (msg.attachmentUrl || `/uploads/${String(msg.text).replace(/^(?:Attachment|Image):\s*/i, "")}`) : `${API_URL.replace(/\/$/, "")}${msg.attachmentUrl || `/uploads/${String(msg.text).replace(/^(?:Attachment|Image):\s*/i, "")}`}`} alt={msg.attachmentName || "Chat attachment"} />}<p>{msg.text}</p></div>
+                  <div className="message-bubble"><strong>{isStaff ? "Staff (me)" : `${selectedChat.userName || "User"}:`}</strong>{(msg.attachmentUrl || String(msg.text || "").match(/^(?:Attachment|Image):\s*(.+)$/i)) && <img className="message-attachment-image" src={(msg.attachmentUrl || `/uploads/${String(msg.text).replace(/^(?:Attachment|Image):\s*/i, "")}`).startsWith("http") || (msg.attachmentUrl || "").startsWith("data:") ? (msg.attachmentUrl || `/uploads/${String(msg.text).replace(/^(?:Attachment|Image):\s*/i, "")}`) : `${API_URL.replace(/\/$/, "")}${msg.attachmentUrl || `/uploads/${String(msg.text).replace(/^(?:Attachment|Image):\s*/i, "")}`}`} alt={msg.attachmentName || "Chat attachment"} />}<p>{msg.text}</p></div>
                   <time>{formatTime(msg.createdAt || msg.time)}</time>
                 </div>
               </div>;
@@ -294,9 +309,8 @@ function MessagesView() {
 
       {profileOpen && createPortal(<div className="profile-modal-backdrop" role="presentation" onClick={() => { setProfileOpen(false); setProfile(null); setProfileError(""); }}>
         <section className="profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title" onClick={(event) => event.stopPropagation()}>
-          <button className="profile-close" type="button" aria-label="Close profile" onClick={() => { setProfileOpen(false); setProfile(null); setProfileError(""); }}>X</button>
-          <h2 id="profile-title">User Account</h2>
-          {profileLoading ? <p>Loading account...</p> : profileError ? <p className="profile-error">{profileError}</p> : profile && <><div className="profile-photo-wrap">{(profile.profileImage || profile.profilePicture || profile.avatar || profile.imageUrl) ? <img className="profile-photo" src={profile.profileImage || profile.profilePicture || profile.avatar || profile.imageUrl} alt={`${profile.fullName || "User"} profile`} /> : <span className="profile-photo-fallback">{getInitial(profile.fullName || selectedChat?.userName)}</span>}</div><strong>{profile.fullName || "User"}</strong><p>{profile.email || "No email available"}</p><p>Role: {profile.role || "citizen"}</p><p>Status: {profile.status || "Active"}</p></>}
+          <div className="profile-modal-titlebar"><h2 id="profile-title">User Account</h2><button className="profile-close" type="button" aria-label="Close profile" onClick={() => { setProfileOpen(false); setProfile(null); setProfileError(""); }}>X</button></div>
+          {profileLoading ? <p className="profile-loading">Loading account...</p> : profileError ? <p className="profile-error">{profileError}</p> : profile && <><div className="profile-photo-wrap">{(profile.profileImage || profile.profilePicture || profile.avatar || profile.imageUrl) ? <img className="profile-photo" src={profile.profileImage || profile.profilePicture || profile.avatar || profile.imageUrl} alt={`${profile.fullName || "User"} profile`} /> : <span className="profile-photo-fallback">{getInitial(profile.fullName || selectedChat?.userName)}</span>}</div><strong className="profile-name">{profile.fullName || "User"}</strong><p className="profile-email"><span aria-hidden="true">&#9993;</span> {profile.email || "No email available"}</p><div className="profile-details"><h3>Details</h3><div className="profile-detail-row"><span className="profile-detail-label">&#9876; Role:</span><span className="profile-role-badge">{profile.role || "Citizen"}</span><span className="profile-dot">•</span><span className="profile-detail-label">Status:</span><span className="profile-status-badge"><span className="profile-status-dot" />{profile.status || "Active"}</span></div></div></>}
         </section>
       </div>, document.body)}
     </section>
