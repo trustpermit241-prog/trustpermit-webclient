@@ -40,6 +40,7 @@ function MessagesView() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState("");
 
@@ -183,6 +184,8 @@ function MessagesView() {
   const viewProfile = async () => {
     if (!selectedChat) return;
 
+    setProfileOpen(true);
+    setProfile(null);
     setProfileLoading(true);
     setProfileError("");
     try {
@@ -274,11 +277,11 @@ function MessagesView() {
         </> : <div className="messages-placeholder"><h2>Select a user message request</h2><p>Choose a conversation to view the support thread.</p></div>}
       </div>
 
-      {(profile || profileError) && <div className="profile-modal-backdrop" role="presentation" onClick={() => { setProfile(null); setProfileError(""); }}>
+      {profileOpen && <div className="profile-modal-backdrop" role="presentation" onClick={() => { setProfileOpen(false); setProfile(null); setProfileError(""); }}>
         <section className="profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title" onClick={(event) => event.stopPropagation()}>
-          <button className="profile-close" type="button" aria-label="Close profile" onClick={() => { setProfile(null); setProfileError(""); }}>X</button>
+          <button className="profile-close" type="button" aria-label="Close profile" onClick={() => { setProfileOpen(false); setProfile(null); setProfileError(""); }}>X</button>
           <h2 id="profile-title">User Account</h2>
-          {profileError ? <p className="profile-error">{profileError}</p> : <><strong>{profile.fullName || "User"}</strong><p>{profile.email || "No email available"}</p><p>Role: {profile.role || "citizen"}</p><p>Status: {profile.status || "Active"}</p></>}
+          {profileLoading ? <p>Loading account...</p> : profileError ? <p className="profile-error">{profileError}</p> : profile && <><div className="profile-photo-wrap">{(profile.profileImage || profile.profilePicture || profile.avatar || profile.imageUrl) ? <img className="profile-photo" src={profile.profileImage || profile.profilePicture || profile.avatar || profile.imageUrl} alt={`${profile.fullName || "User"} profile`} /> : <span className="profile-photo-fallback">{getInitial(profile.fullName || selectedChat?.userName)}</span>}</div><strong>{profile.fullName || "User"}</strong><p>{profile.email || "No email available"}</p><p>Role: {profile.role || "citizen"}</p><p>Status: {profile.status || "Active"}</p></>}
         </section>
       </div>}
     </section>
