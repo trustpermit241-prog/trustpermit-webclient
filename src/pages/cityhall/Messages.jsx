@@ -278,7 +278,7 @@ function MessagesView() {
               return <div className={`message-row ${isStaff ? "from-staff" : "from-user"}`} key={msg._id || index}>
                 {!isStaff && <span className="message-avatar">{getInitial(selectedChat.userName || "U")}</span>}
                 <div className="message-group">
-                  <div className="message-bubble"><strong>{isStaff ? "Staff (me)" : `${selectedChat.userName || "User"}:`}</strong>{msg.attachmentUrl && <img className="message-attachment-image" src={msg.attachmentUrl.startsWith("http") ? msg.attachmentUrl : `${API_URL.replace(/\/$/, "")}${msg.attachmentUrl}`} alt={msg.attachmentName || "Chat attachment"} />}<p>{msg.text}</p></div>
+                  <div className="message-bubble"><strong>{isStaff ? "Staff (me)" : `${selectedChat.userName || "User"}:`}</strong>{(msg.attachmentUrl || String(msg.text || "").match(/^(?:Attachment|Image):\s*(.+)$/i)) && <img className="message-attachment-image" src={(msg.attachmentUrl || `/uploads/${String(msg.text).replace(/^(?:Attachment|Image):\s*/i, "")}`).startsWith("http") ? (msg.attachmentUrl || `/uploads/${String(msg.text).replace(/^(?:Attachment|Image):\s*/i, "")}`) : `${API_URL.replace(/\/$/, "")}${msg.attachmentUrl || `/uploads/${String(msg.text).replace(/^(?:Attachment|Image):\s*/i, "")}`}`} alt={msg.attachmentName || "Chat attachment"} />}<p>{msg.text}</p></div>
                   <time>{formatTime(msg.createdAt || msg.time)}</time>
                 </div>
               </div>;

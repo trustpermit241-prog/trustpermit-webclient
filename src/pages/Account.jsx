@@ -4486,7 +4486,7 @@ if (!paymentApplicationId) {
                     <div className="edit-profile-modal">
                       <div className="edit-profile-content">
                         <h2>Edit Profile</h2>
-                        <form onSubmit={(e) => {
+                        <form onSubmit={async (e) => {
                           e.preventDefault();
 
                           const hasImageChange = Boolean(pendingProfileImage);
@@ -4532,6 +4532,15 @@ if (!paymentApplicationId) {
                           if (pendingProfileImage) {
                             try {
                               localStorage.setItem("profileImage", pendingProfileImage);
+                              const token = localStorage.getItem("token");
+                              await fetch(`${API_BASE_URL}/api/users/profile-image`, {
+                                method: "PUT",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                                },
+                                body: JSON.stringify({ profileImage: pendingProfileImage }),
+                              });
                               window.dispatchEvent(new Event("profileImageUpdated"));
                               setProfileImage(pendingProfileImage);
                             } catch (e) {

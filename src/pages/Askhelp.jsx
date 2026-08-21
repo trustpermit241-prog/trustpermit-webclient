@@ -73,7 +73,9 @@ export default function AskHelp() {
   const [idlePromptVisible, setIdlePromptVisible] = useState(false);
 
   const formatBackendMessages = (backendMessages = []) => {
-    return backendMessages.map((msg) => ({
+    return backendMessages.map((msg) => {
+      const legacyAttachment = String(msg.text || "").match(/^(?:Attachment|Image):\s*(.+)$/i);
+      return {
       sender:
         msg.sender === "staff"
           ? "agent"
@@ -87,8 +89,12 @@ export default function AskHelp() {
           hour: "2-digit",
           minute: "2-digit",
         }),
+      attachmentUrl: msg.attachmentUrl || (legacyAttachment ? `/uploads/${legacyAttachment[1]}` : ""),
+      attachmentName: msg.attachmentName || "",
+      attachmentType: msg.attachmentType || "",
       showMenu: false,
-    }));
+      };
+    });
   };
 
   const fetchChatHistory = async (currentRoomId) => {
@@ -156,6 +162,8 @@ export default function AskHelp() {
           {
             sender: "agent",
             text: msg.text,
+            attachmentUrl: msg.attachmentUrl || "",
+            attachmentName: msg.attachmentName || "",
             time: getTime(),
             showMenu: false,
           },
@@ -444,6 +452,7 @@ export default function AskHelp() {
             </div>
 
             <div className="message-content">
+              {msg.attachmentUrl && <img className="chat-attachment-image" src={msg.attachmentUrl.startsWith("http") ? msg.attachmentUrl : `${API_URL.replace(/\/$/, "")}${msg.attachmentUrl}`} alt={msg.attachmentName || "Chat attachment"} />}
               <div className="text">{msg.text}</div>
 
               <div className="time">{msg.time}</div>
