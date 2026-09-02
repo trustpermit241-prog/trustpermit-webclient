@@ -33,6 +33,11 @@ export default function Review() {
 
   const getToken = () => localStorage.getItem("token");
 
+  const getAuthHeaders = () => {
+    const token = getToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   const getFileUrl = (doc) => {
     if (!doc) return "";
 
@@ -65,9 +70,17 @@ export default function Review() {
   };
 
   const checkFileExists = async (doc) => {
-    if (!doc?.fileName) return false;
+    const fileName = doc?.fileName || doc?.filename;
+    if (!fileName) return false;
+
     try {
-      const res = await fetch(`${API_BASE_URL}/api/uploads/check/${doc.fileName}`);
+      const res = await fetch(
+        `${API_BASE_URL}/api/uploads/check/${encodeURIComponent(fileName)}`,
+        { headers: getAuthHeaders() }
+      );
+
+      if (!res.ok) return null;
+
       const data = await res.json();
       return data.exists === true;
     } catch (err) {
@@ -545,7 +558,7 @@ export default function Review() {
                                   // Check if file exists on server
                                   checkFileExists(doc).then(exists => {
                                     console.log(`File exists on server: ${exists ? "✅ YES" : "❌ NO"}`);
-                                    if (!exists) {
+                                    if (exists === false) {
                                       setImageLoadError(`File not found on server: ${doc.fileName}. It may have been deleted or server restarted.`);
                                     }
                                   });
