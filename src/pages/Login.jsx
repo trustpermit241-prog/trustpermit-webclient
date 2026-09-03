@@ -1,8 +1,9 @@
 // Login.jsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import emailjs from "@emailjs/browser";
+import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
 import CenteredModal from "../components/CenteredModal";
 import "./Login.css";
 
@@ -31,6 +32,13 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [googleSetupToken, setGoogleSetupToken] = useState("");
+  const [googleVerificationToken, setGoogleVerificationToken] = useState("");
+  const [googleVerificationOptions, setGoogleVerificationOptions] = useState([]);
+  const [googlePassword, setGooglePassword] = useState("");
+  const [googlePasswordConfirm, setGooglePasswordConfirm] = useState("");
+  const [showGoogleCode, setShowGoogleCode] = useState(false);
+  const [showGoogleSetup, setShowGoogleSetup] = useState(false);
 
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
@@ -47,6 +55,98 @@ export default function Login() {
   const [failedAttempts, setFailedAttempts] = useState(0);
 
   const navigate = useNavigate();
+  const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const setupToken = query.get("googleSetupToken");
+    if (setupToken) window.history.replaceState({}, document.title, window.location.pathname);
+  }, []);
+
+  const finishLogin = (response) => {
+    const user = response.data.user || {};
+    const token = response.data.token;
+    const role = String(user.role || response.data.role || "citizen").toLowerCase().trim();
+    const userId = user.id || user._id || response.data.userId || "";
+    const userName = user.fullName || user.name || "";
+    const userEmail = user.email || "";
+
+    if (!token) {
+      setError("Login failed. No token received.");
+      return;
+    }
+
+    localStorage.setItem("token", token);
+    localStorage.setItem("role", role);
+    localStorage.setItem("citizenId", userId);
+    localStorage.setItem("name", userName);
+    localStorage.setItem("email", userEmail);
+    localStorage.setItem("user", JSON.stringify({
+      id: userId,
+      _id: userId,
+      name: userName,
+      fullName: userName,
+      email: userEmail,
+      role,
+    }));
+
+    window.location.href = role === "admin" ? "/dashboard" : role === "staff" ? "/staff/dashboard" : "/home";
+  };
+
+  const handleGoogleLogin = async (credentialResponse) => {
+    try {
+      setError("");
+      const response = await axios.post(`${API_BASE_URL}/auth/google`, {
+        credential: credentialResponse.credential,
+      });
+
+      if (response.data.token) {
+        finishLogin(response);
+        return;
+      }
+
+      setGoogleVerificationToken(response.data.setupToken || "");
+      setGoogleVerificationOptions(response.data.verificationOptions || []);
+      setMessage(response.data.message || "Enter the verification code sent to your email.");
+      setShowGoogleCode(true);
+    } catch (err) {
+      console.error("Google login error:", err.response?.data || err.message);
+      setError(err.response?.data?.message || "Google login failed. Please try again.");
+    }
+  };
+
+  const verifyGoogleCode = async (selectedCode) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/google/verify-code`, {
+        verificationToken: googleVerificationToken,
+        verificationCode: selectedCode,
+      });
+      setGoogleSetupToken(response.data.setupToken);
+      setShowGoogleCode(false);
+      setMessage(response.data.message);
+      setError("");
+      setShowGoogleSetup(true);
+    } catch (err) {
+      setError(err.response?.data?.message || "Incorrect verification code.");
+    }
+  };
+
+  const completeGoogleRegistration = async () => {
+    if (googlePassword.length < 8 || googlePassword !== googlePasswordConfirm) {
+      setError("Passwords must match and contain at least 8 characters.");
+      return;
+    }
+
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/google/complete`, {
+        setupToken: googleSetupToken,
+        password: googlePassword,
+      });
+      finishLogin(response);
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to finish Google registration.");
+    }
+  };
 
   const handleLogin = async () => {
     try {
@@ -423,10 +523,8 @@ export default function Login() {
                 <div style={{ flex: 1, height: 1, background: "#bdbdbd", opacity: 0.7 }}></div>
               </div>
 
-              <button
+              <div
                 className="login-google-btn"
-                type="button"
-                tabIndex={-1}
                 style={{
                   width: "100%",
                   padding: "14px 0",
@@ -445,10 +543,32 @@ export default function Login() {
                   boxShadow: "0 2px 8px rgba(66,133,244,0.08)",
                 }}
               >
-                <span style={{ color: "#1a237e", fontWeight: 700 }}>
-                  Sign in with Google
-                </span>
-              </button>
+                {googleClientId ? (
+                  <GoogleOAuthProvider clientId={googleClientId}>
+                    <GoogleLogin
+                      onSuccess={handleGoogleLogin}
+                      onError={() => setError("Google login failed. Please try again.")}
+                      text="continue_with"
+                      useOneTap={false}
+                      width="100%"
+                    />
+                  </GoogleOAuthProvider>
+                ) : (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setError("Google login is not configured. Set REACT_APP_GOOGLE_CLIENT_ID.")}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setError("Google login is not configured. Set REACT_APP_GOOGLE_CLIENT_ID.");
+                      }
+                    }}
+                  >
+                    Continue with Google
+                  </span>
+                )}
+              </div>
 
               <div className="login-footer-text" style={{ color: "#1a237e", fontSize: 18, marginTop: 16, fontWeight: 700, textAlign: "center", textShadow: "0 1px 8px #fff", opacity: 1 }}>
                 Are you new?{" "}
@@ -524,6 +644,36 @@ export default function Login() {
           setOtpExpired(true);
         }}
       />
+
+      {showGoogleSetup && (
+        <div className="google-setup-overlay" role="dialog" aria-modal="true" aria-labelledby="google-setup-title">
+          <div className="google-setup-modal">
+            <h2 id="google-setup-title">Create your password</h2>
+            <p>{message || "Choose a password to finish registering your account."}</p>
+            {error && <p className="error">{error}</p>}
+            <input type="password" placeholder="Create password" value={googlePassword} onChange={(event) => setGooglePassword(event.target.value)} />
+            <input type="password" placeholder="Confirm password" value={googlePasswordConfirm} onChange={(event) => setGooglePasswordConfirm(event.target.value)} />
+            <button type="button" onClick={completeGoogleRegistration}>Create account</button>
+          </div>
+        </div>
+      )}
+
+      {showGoogleCode && (
+        <div className="google-setup-overlay" role="dialog" aria-modal="true" aria-labelledby="google-code-title">
+          <div className="google-setup-modal">
+            <h2 id="google-code-title">Verify sign-in activity</h2>
+            <p>Enter the 6-digit code sent to your email.</p>
+            {error && <p className="error">{error}</p>}
+            <div className="google-code-options">
+              {googleVerificationOptions.map((option) => (
+                <button key={option} type="button" onClick={() => verifyGoogleCode(option)}>
+                  {String(option).replace(/(\d{2})(?=\d)/g, "$1 ")}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
