@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from "react-router-dom";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./PublicLayout.css";
 
 const getApiBaseUrl = () => {
@@ -21,6 +21,7 @@ const getApiBaseUrl = () => {
 };
 
 const API_BASE_URL = getApiBaseUrl();
+const getNotificationId = (item) => String(item?._id || item?.id || item?.sourceKey || "");
 
 const getStoredValue = (key) => {
   try {
@@ -47,10 +48,11 @@ export default function PublicLayout() {
 
   const [leftRailOpen, setLeftRailOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [applications, setApplications] = useState([]);
-  const [inspections, setInspections] = useState([]);
-  const [payments, setPayments] = useState([]);
-  const [seenNotificationIds, setSeenNotificationIds] = useState([]);
+  const [notificationItems, setNotificationItems] = useState([]);
+  const [selectedNotificationIds, setSelectedNotificationIds] = useState([]);
+  const [showDeleteMenu, setShowDeleteMenu] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [pendingDeleteIds, setPendingDeleteIds] = useState([]);
 
   const token = getStoredValue("token");
 
@@ -64,10 +66,8 @@ export default function PublicLayout() {
     storedUser = {};
   }
 
-  const userEmail = getStoredValue("email") || storedUser?.email || "";
   const userDisplayName =
     getStoredValue("name") || storedUser?.name || "Guest User";
-  const seenStorageKey = `seenNotifications_${userEmail || "guest"}`;
 
   const handleLogout = () => {
     removeStoredValue("token");
@@ -83,44 +83,17 @@ export default function PublicLayout() {
     if (!token) return;
 
     try {
-      const [appRes, inspectionRes, paymentRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/applications/my`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch(`${API_BASE_URL}/api/inspection/my`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch(`${API_BASE_URL}/api/payments`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }),
-      ]);
-
-      const appData = appRes.ok ? await appRes.json() : [];
-      const inspectionData = inspectionRes.ok ? await inspectionRes.json() : [];
-      const paymentData = paymentRes.ok ? await paymentRes.json() : { payments: [] };
-
-      setApplications(Array.isArray(appData) ? appData : []);
-      setInspections(Array.isArray(inspectionData) ? inspectionData : []);
-      setPayments(Array.isArray(paymentData.payments) ? paymentData.payments : []);
+      const response = await fetch(`${API_BASE_URL}/api/notifications`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = response.ok ? await response.json() : { notifications: [] };
+      setNotificationItems(Array.isArray(data.notifications) ? data.notifications : []);
     } catch (err) {
       console.error("Failed to fetch notifications:", err);
     }
   }, [token]);
 
   useEffect(() => {
-    let savedSeen = [];
-
-    try {
-      const storedSeen = getStoredValue(seenStorageKey);
-      savedSeen = storedSeen ? JSON.parse(storedSeen) : [];
-    } catch (error) {
-      console.error("Invalid seen notifications JSON:", error);
-      removeStoredValue(seenStorageKey);
-      savedSeen = [];
-    }
-
-    setSeenNotificationIds(Array.isArray(savedSeen) ? savedSeen : []);
-
     if (token) {
       fetchNotificationData();
     }
@@ -132,7 +105,7 @@ export default function PublicLayout() {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [fetchNotificationData, seenStorageKey, token]);
+  }, [fetchNotificationData, token]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -148,124 +121,37 @@ export default function PublicLayout() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const notificationItems = useMemo(() => {
-    const normalizeStatus = (value) => String(value ?? "").trim().toLowerCase();
-
-    const userPayments = payments.filter((payment) => {
-      const paymentEmail = String(payment.email || payment.userId?.email || "").toLowerCase();
-      return paymentEmail === String(userEmail).toLowerCase();
-    });
-
-    return [
-      ...userPayments
-        .map((payment) => {
-          const status = normalizeStatus(
-            payment.status || payment.paymentStatus || payment.result || ""
-          );
-          const isApproved =
-            status === "approved" ||
-            status === "paid" ||
-            status === "success" ||
-            status === "completed" ||
-            payment.permitReleased === true;
-          const isRejected =
-            status === "rejected" ||
-            status === "declined" ||
-            status === "failed" ||
-            status === "cancelled" ||
-            status === "denied";
-
-          if (!isApproved && !isRejected) return null;
-
-          return {
-            id: `payment-${payment._id}`,
-            type: "payment",
-            status: isRejected ? "rejected" : "approved",
-            message: isRejected
-              ? "Your payment was rejected or failed. Please review and try again."
-              : "Your payment was approved and your permit has been released.",
-            timestamp:
-              payment.permitReleasedAt ||
-              payment.updatedAt ||
-              payment.createdAt ||
-              "",
-          };
-        })
-        .filter(Boolean),
-
-      ...inspections
-        .map((inspection) => {
-          const status = normalizeStatus(inspection.status || inspection.inspectionStatus || "");
-          const isRejected = ["rejected", "denied", "failed"].includes(status);
-
-          return {
-            id: `inspection-${inspection._id || inspection.id}`,
-            type: "inspection",
-            status,
-            message: isRejected
-              ? `Inspection was rejected for ${
-                  inspection.date
-                    ? new Date(inspection.date).toLocaleDateString()
-                    : "the scheduled date"
-                }${inspection.type ? ` (${inspection.type})` : ""}.`
-              : `Inspection scheduled for ${
-                  inspection.date
-                    ? new Date(inspection.date).toLocaleDateString()
-                    : "Unknown date"
-                }${inspection.type ? ` (${inspection.type})` : ""}`,
-            timestamp: inspection.updatedAt || inspection.createdAt || inspection.date || "",
-          };
-        })
-        .filter((item) => item.timestamp),
-
-      ...applications
-        .filter((app) => {
-          const status = normalizeStatus(app.status || "");
-          return !status || ["pending", "approved", "rejected", "submitted", "in_review", "review"].includes(status);
-        })
-        .map((app) => ({
-          id: `application-${app._id || app.id}`,
-          type: "application",
-          status: app.status || "Pending",
-          message: `${app.applicationType || "New Application"} ${
-            app.status || "Pending"
-          } for Permit #${app.permitId || app._id || app.id}`,
-          timestamp: app.updatedAt || app.createdAt || "",
-        }))
-        .filter((item) => item.timestamp),
-    ]
-      .filter((item) => item && item.timestamp)
-      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  }, [applications, inspections, payments, userEmail]);
-
-  const unreadCount = notificationItems.filter(
-    (item) => !seenNotificationIds.includes(item.id)
-  ).length;
+  const unreadCount = notificationItems.length;
 
   const latestNotifications = notificationItems.slice(0, 8);
 
-  const markNotificationsAsSeen = () => {
-    const ids = notificationItems.map((item) => item.id);
+  const deleteNotifications = (ids = []) => {
+    if (!ids.length) return;
+    setPendingDeleteIds(ids);
+  };
+
+  const confirmDeleteNotifications = async () => {
+    const ids = pendingDeleteIds;
+    if (!ids.length) return;
+
     try {
-      if (typeof window !== "undefined") {
-        localStorage.setItem(seenStorageKey, JSON.stringify(ids));
-      }
+      const response = await fetch(`${API_BASE_URL}/api/notifications`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ids }),
+      });
+      if (!response.ok) throw new Error("Unable to delete notifications");
+      setNotificationItems((items) => items.filter((item) => !ids.includes(getNotificationId(item))));
+      setSelectedNotificationIds([]);
+      setSelectionMode(false);
+      setPendingDeleteIds([]);
     } catch (error) {
-      console.error("Unable to save notifications state:", error);
+      console.error("Unable to delete notifications:", error);
     }
-    setSeenNotificationIds(ids);
   };
 
   const handleBellClick = () => {
-    setShowNotifications((prev) => {
-      const next = !prev;
-
-      if (next) {
-        markNotificationsAsSeen();
-      }
-
-      return next;
-    });
+    setShowNotifications((prev) => !prev);
   };
 
   const getNotificationIcon = (item) => {
@@ -371,15 +257,44 @@ export default function PublicLayout() {
 
                     <div className="notification-dropdown-header">
                       <h3>Notifications</h3>
-                      <button type="button" onClick={markNotificationsAsSeen}>
-                        Mark all read
-                      </button>
+                    </div>
+
+                    <div className="notification-dropdown-actions">
+                      <div className="notification-delete-menu">
+                        <button
+                          type="button"
+                          className={`notification-delete-menu-trigger${showDeleteMenu || selectionMode ? " active" : ""}`}
+                          onClick={() => setShowDeleteMenu((open) => !open)}
+                          aria-expanded={showDeleteMenu}
+                        >
+                          {selectionMode ? "Delete all" : "Delete"} <span aria-hidden="true">▾</span>
+                        </button>
+                        {showDeleteMenu && (
+                          <div className="notification-delete-menu-list">
+                            <button type="button" onClick={() => {
+                              setSelectionMode(true);
+                              setSelectedNotificationIds(notificationItems.map(getNotificationId).filter(Boolean));
+                              setShowDeleteMenu(false);
+                            }} disabled={!notificationItems.length}>
+                              Delete all
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="notification-list">
                       {latestNotifications.length > 0 ? (
                         latestNotifications.map((item) => (
-                          <div className="notification-row" key={item.id}>
+                          <div className="notification-row" key={getNotificationId(item)}>
+                            {selectionMode && (
+                              <input
+                                type="checkbox"
+                                checked={selectedNotificationIds.includes(getNotificationId(item))}
+                                onChange={() => { const id = getNotificationId(item); setSelectedNotificationIds((ids) => ids.includes(id) ? ids.filter((selectedId) => selectedId !== id) : [...ids, id]); }}
+                                aria-label={`Select ${item.title || "notification"}`}
+                              />
+                            )}
                             <div
                               className={`notification-icon ${getNotificationClass(
                                 item
@@ -393,7 +308,7 @@ export default function PublicLayout() {
                             </div>
 
                             <span className="notification-time">
-                              {new Date(item.timestamp).toLocaleString(
+                              {new Date(item.occurredAt).toLocaleString(
                                 "en-US",
                                 {
                                   month: "short",
@@ -404,6 +319,15 @@ export default function PublicLayout() {
                                 }
                               )}
                             </span>
+                            <button
+                              type="button"
+                              className="notification-delete-btn"
+                              onClick={() => deleteNotifications([getNotificationId(item)])}
+                              aria-label={`Delete ${item.title || "notification"}`}
+                              title="Delete notification"
+                            >
+                              ×
+                            </button>
                           </div>
                         ))
                       ) : (
@@ -412,6 +336,18 @@ export default function PublicLayout() {
                         </div>
                       )}
                     </div>
+
+                    {selectionMode && (
+                      <div className="notification-selection-actions">
+                        <span>{selectedNotificationIds.length} selected</span>
+                        <button type="button" onClick={() => { setSelectionMode(false); setSelectedNotificationIds([]); }}>
+                          Cancel
+                        </button>
+                        <button type="button" onClick={() => deleteNotifications(selectedNotificationIds)} disabled={!selectedNotificationIds.length}>
+                          Delete checked
+                        </button>
+                      </div>
+                    )}
 
                     <button className="notification-footer-btn" type="button">
                       View All Notifications →
@@ -529,6 +465,19 @@ export default function PublicLayout() {
             </div>
           </div>
         </footer>
+
+        {pendingDeleteIds.length > 0 && (
+          <div className="notification-confirm-backdrop" role="presentation">
+            <div className="notification-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-notification-title">
+              <h2 id="delete-notification-title">Delete notification?</h2>
+              <p>Are you sure you want to delete it?</p>
+              <div className="notification-confirm-actions">
+                <button type="button" onClick={() => setPendingDeleteIds([])}>Cancel</button>
+                <button type="button" className="confirm-delete" onClick={confirmDeleteNotifications}>Delete</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

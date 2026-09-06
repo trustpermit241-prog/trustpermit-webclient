@@ -19,6 +19,7 @@ const getApiBaseUrl = () => {
 };
 
 const API_BASE_URL = getApiBaseUrl();
+const getNotificationId = (item) => String(item?._id || item?.id || item?.sourceKey || "");
 
 export default function Dashboard() {
   const [requests, setRequests] = useState([]);
@@ -28,6 +29,10 @@ export default function Dashboard() {
   const [messages, setMessages] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [selectedNotificationIds, setSelectedNotificationIds] = useState([]);
+  const [showDeleteMenu, setShowDeleteMenu] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [pendingDeleteIds, setPendingDeleteIds] = useState([]);
   const [showNotif, setShowNotif] = useState(false);
   const [activeRightContent, setActiveRightContent] = useState(null);
   const notificationsRef = useRef(null);
@@ -303,13 +308,14 @@ export default function Dashboard() {
           "Content-Type": "application/json",
         };
 
-        const [appsRes, inspectionsRes, paymentsRes, chatsRes, usersRes] =
+        const [appsRes, inspectionsRes, paymentsRes, chatsRes, usersRes, notificationsRes] =
           await Promise.allSettled([
             fetch(`${API_BASE_URL}/api/applications`, { headers }),
             fetch(`${API_BASE_URL}/api/inspection`, { headers }),
             fetch(`${API_BASE_URL}/api/payments`, { headers }),
             fetch(`${API_BASE_URL}/api/chats`, { headers }),
             fetch(`${API_BASE_URL}/api/users`, { headers }),
+            fetch(`${API_BASE_URL}/api/notifications`, { headers }),
           ]);
 
         let appsData = [];
@@ -318,6 +324,14 @@ export default function Dashboard() {
         let usersData = [];
         let messagesData = [];
         let docsData = [];
+        let backendNotifications = null;
+
+        if (notificationsRes.status === "fulfilled" && notificationsRes.value.ok) {
+          const data = await notificationsRes.value.json();
+          backendNotifications = Array.isArray(data.notifications) ? data.notifications : [];
+          setNotifications(backendNotifications);
+          setUnreadCount(backendNotifications.length);
+        }
 
         if (appsRes.status === "fulfilled" && appsRes.value.ok) {
           const data = await appsRes.value.json();
@@ -407,8 +421,10 @@ export default function Dashboard() {
           docsData,
         });
 
-        setNotifications(builtNotifs);
-        setUnreadCount(builtNotifs.length);
+        if (backendNotifications === null) {
+          setNotifications(builtNotifs);
+          setUnreadCount(builtNotifs.length);
+        }
       } catch (err) {
         console.error("Dashboard fetch error:", err);
         setNotice("Dashboard loaded, but some backend data is not reachable.");
@@ -419,6 +435,36 @@ export default function Dashboard() {
 
     fetchDashboardData();
   }, []);
+
+  const deleteNotifications = (ids = []) => {
+    if (!ids.length) return;
+    setPendingDeleteIds(ids);
+  };
+
+  const confirmDeleteNotifications = async () => {
+    const ids = pendingDeleteIds;
+    if (!ids.length) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/notifications`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+        },
+        body: JSON.stringify({ ids }),
+      });
+      if (!response.ok) throw new Error("Unable to delete notifications");
+      setNotifications((items) => items.filter((item) => !ids.includes(getNotificationId(item))));
+      setSelectedNotificationIds([]);
+      setSelectionMode(false);
+      setUnreadCount((count) => Math.max(0, count - ids.length));
+      setPendingDeleteIds([]);
+    } catch (error) {
+      console.error("Unable to delete notifications:", error);
+      setNotice("Unable to delete notifications. Please try again.");
+    }
+  };
 
   const latestPayment = payments.length
     ? [...payments].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0]
@@ -540,6 +586,42 @@ export default function Dashboard() {
                   </button>
                 </div>
 
+                <div className="notification-dropdown-actions">
+                  <div className="notification-delete-menu">
+                    <button
+                      type="button"
+                      className={`notification-delete-menu-trigger${showDeleteMenu || selectionMode ? " active" : ""}`}
+                      onClick={() => setShowDeleteMenu((open) => !open)}
+                      aria-expanded={showDeleteMenu}
+                    >
+                      {selectionMode ? "Delete all" : "Delete"} <span aria-hidden="true">▾</span>
+                    </button>
+                    {showDeleteMenu && (
+                      <div className="notification-delete-menu-list">
+                        <button type="button" onClick={() => {
+                          setSelectionMode(true);
+                          setSelectedNotificationIds(notifications.map(getNotificationId).filter(Boolean));
+                          setShowDeleteMenu(false);
+                        }} disabled={!notifications.length}>
+                          Delete all
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {selectionMode && (
+                  <div className="notification-selection-actions">
+                    <span>{selectedNotificationIds.length} selected</span>
+                    <button type="button" onClick={() => { setSelectionMode(false); setSelectedNotificationIds([]); }}>
+                      Cancel
+                    </button>
+                    <button type="button" onClick={() => deleteNotifications(selectedNotificationIds)} disabled={!selectedNotificationIds.length}>
+                      Delete checked
+                    </button>
+                  </div>
+                )}
+
                 {notifications.length === 0 ? (
                   <div className="empty-state">
                     <div className="empty-icon pending">{renderSvgIcon("bell", 40)}</div>
@@ -549,13 +631,34 @@ export default function Dashboard() {
                 ) : (
                   <div className="notif-list">
                     {notifications.map((notif) => (
-                      <div key={notif.id} className="notif-item" onClick={() => { if (notif.link) window.location.href = notif.link; }}>
+                      <div key={getNotificationId(notif)} className="notif-item" onClick={() => { if (notif.link) window.location.href = notif.link; }}>
+                        {selectionMode && (
+                          <input
+                            type="checkbox"
+                            checked={selectedNotificationIds.includes(getNotificationId(notif))}
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={() => { const id = getNotificationId(notif); setSelectedNotificationIds((ids) => ids.includes(id) ? ids.filter((selectedId) => selectedId !== id) : [...ids, id]); }}
+                            aria-label={`Select ${notif.title || "notification"}`}
+                          />
+                        )}
                         <div className="notif-icon">{renderSvgIcon(notif.icon, 18)}</div>
                         <div>
                           <strong>{notif.title}</strong>
                           <p>{notif.message}</p>
-                          <small>{formatDateTime(notif.date)}</small>
+                          <small>{formatDateTime(notif.occurredAt)}</small>
                         </div>
+                        <button
+                          type="button"
+                          className="notification-delete-btn"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            deleteNotifications([getNotificationId(notif)]);
+                          }}
+                          aria-label={`Delete ${notif.title || "notification"}`}
+                          title="Delete notification"
+                        >
+                          ×
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -837,6 +940,19 @@ export default function Dashboard() {
         )}
         {/* notifications panel is now rendered under the bell inside notif-wrapper */}
       </div>
+
+      {pendingDeleteIds.length > 0 && (
+        <div className="notification-confirm-backdrop" role="presentation">
+          <div className="notification-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="staff-delete-notification-title">
+            <h2 id="staff-delete-notification-title">Delete notification?</h2>
+            <p>Are you sure you want to delete it?</p>
+            <div className="notification-confirm-actions">
+              <button type="button" onClick={() => setPendingDeleteIds([])}>Cancel</button>
+              <button type="button" className="confirm-delete" onClick={confirmDeleteNotifications}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

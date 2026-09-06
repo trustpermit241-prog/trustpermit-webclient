@@ -53,6 +53,7 @@ export default function Login() {
   const [otpSuccessModal, setOtpSuccessModal] = useState(false);
 
   const [failedAttempts, setFailedAttempts] = useState(0);
+  const [loginSubmitting, setLoginSubmitting] = useState(false);
 
   const navigate = useNavigate();
   const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
@@ -149,6 +150,9 @@ export default function Login() {
   };
 
   const handleLogin = async () => {
+    if (loginSubmitting) return;
+    setLoginSubmitting(true);
+
     try {
       const normalizedEmail = email.toLowerCase().trim();
 
@@ -231,6 +235,8 @@ export default function Login() {
       console.error("Login error:", err.response?.data || err.message);
       setFailedAttempts((prev) => prev + 1);
       setError(err.response?.data?.message || "Invalid login credentials.");
+    } finally {
+      setLoginSubmitting(false);
     }
   };
 
@@ -499,6 +505,7 @@ export default function Login() {
               <button
                 className="login-submit-btn"
                 onClick={handleLogin}
+                disabled={loginSubmitting}
                 style={{
                   width: "100%",
                   padding: "13px 0",
@@ -510,11 +517,12 @@ export default function Login() {
                   borderRadius: 8,
                   marginTop: 10,
                   marginBottom: 18,
-                  cursor: "pointer",
+                  cursor: loginSubmitting ? "not-allowed" : "pointer",
+                  opacity: loginSubmitting ? 0.7 : 1,
                   letterSpacing: 1,
                 }}
               >
-                SIGN IN
+                {loginSubmitting ? "SIGNING IN..." : "SIGN IN"}
               </button>
 
               <div className="login-divider" style={{ display: "flex", alignItems: "center", width: "100%", margin: "18px 0" }}>
