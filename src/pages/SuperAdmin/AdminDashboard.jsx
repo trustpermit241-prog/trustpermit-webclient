@@ -173,6 +173,7 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
   const [inspections, setInspections] = useState([]);
   const [uploadedDocuments, setUploadedDocuments] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [auditRecords, setAuditRecords] = useState([]);
 
   const [loadingAudit, setLoadingAudit] = useState(true);
   const [auditSearch, setAuditSearch] = useState("");
@@ -276,22 +277,19 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
     setLoadingAudit(true);
 
     try {
-      const [apps, insp, docs, pays] = await Promise.all([
-        fetchFirstWorking(["/applications", "/application", "/applicationRoutes"]),
-        fetchFirstWorking(["/inspections", "/inspection"]),
-        fetchFirstWorking([
-          "/uploadeddocuments",
-          "/uploaded-documents",
-          "/documents",
-          "/uploads",
-        ]),
-        fetchFirstWorking(["/payments", "/payment"]),
+      const [apps, insp, docs, pays, audit] = await Promise.all([
+        fetchFirstWorking(["/applications"]),
+        fetchFirstWorking(["/inspection"]),
+        fetchFirstWorking(["/applications/upload-documents"]),
+        fetchFirstWorking(["/payments"]),
+        fetchFirstWorking(["/audit"]),
       ]);
 
       setApplications(apps);
       setInspections(insp);
       setUploadedDocuments(docs);
       setPayments(pays);
+      setAuditRecords(audit);
     } catch (err) {
       console.error("Error fetching audit trail:", err);
     } finally {
@@ -384,116 +382,18 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
   ).length;
 
   const auditActivities = useMemo(() => {
-    const appRows = applications.map((item) => ({
+    return auditRecords.map((item) => ({
+      ...item,
       id: item._id || item.id,
-      type: "Application",
-      icon: "ti-file-description",
-      title:
-        item.applicationNo ||
-        item.applicationNumber ||
-        item.permitType ||
-        item.businessName ||
-        "Permit Application",
-      user:
-        item.fullName ||
-        item.applicantName ||
-        item.ownerName ||
-        item.user?.fullName ||
-        item.user?.email ||
-        "Unknown user",
-      status: item.status || item.applicationStatus || "Submitted",
-      date: item.updatedAt || item.createdAt || item.dateSubmitted,
-      description: "Application record was viewed/fetched in audit trail.",
+      type: item.type || item.resource || "System",
+      icon: item.icon || "ti-activity",
+      title: item.title || item.description || "Audit activity",
+      user: item.user || "Unknown user",
+      status: item.status || "Recorded",
+      date: item.date || item.createdAt,
+      description: item.description || "Audit activity recorded.",
     }));
-
-    const inspectionRows = inspections.map((item) => ({
-      id: item._id || item.id,
-      type: "Inspection",
-      icon: "ti-clipboard-check",
-      title:
-        item.inspectionNo ||
-        item.inspectionNumber ||
-        item.businessName ||
-        item.applicationNo ||
-        "Inspection Activity",
-      user:
-        item.inspectorName ||
-        item.staffName ||
-        item.user?.fullName ||
-        item.applicantName ||
-        "Unknown user",
-      status: item.status || item.inspectionStatus || "Pending",
-      date: item.updatedAt || item.createdAt || item.inspectionDate,
-      description: "Inspection record was viewed/fetched in audit trail.",
-    }));
-
-    const documentRows = uploadedDocuments.map((item) => ({
-      id: item._id || item.id,
-      type: "Uploaded Document",
-      icon: "ti-file-upload",
-      title:
-        item.originalName ||
-        item.fileName ||
-        item.filename ||
-        item.documentName ||
-        item.name ||
-        "Uploaded Document",
-      user:
-        item.uploadedBy?.fullName ||
-        item.uploadedBy?.email ||
-        item.user?.fullName ||
-        item.user?.email ||
-        item.ownerName ||
-        "Unknown user",
-      status: item.status || item.documentStatus || "Uploaded",
-      date: item.updatedAt || item.createdAt || item.uploadedAt,
-      description: "Uploaded document record was viewed/fetched in audit trail.",
-    }));
-
-    const paymentRows = payments.map((item) => ({
-      id: item._id || item.id,
-      type: "Payment",
-      icon: "ti-credit-card",
-      title: item.paymentMethod
-        ? `${String(item.paymentMethod).toUpperCase()} Payment`
-        : "Payment Record",
-      user:
-        item.name ||
-        item.fullName ||
-        item.email ||
-        item.userId?.fullName ||
-        item.userId?.email ||
-        "Unknown user",
-      status: item.status || "Paid",
-      date: item.updatedAt || item.createdAt,
-      description: `Payment record was viewed/fetched in audit trail. Amount: ₱${
-        item.amount || 0
-      }`,
-    }));
-
-    const userRows = users.map((item) => ({
-      id: item._id || item.id,
-      type: "User",
-      icon: "ti-user-circle",
-      title: item.fullName || item.name || item.email || "Registered User",
-      user: item.email || "Unknown email",
-      status: roleLabel(item.role),
-      date: item.updatedAt || item.createdAt,
-      description: "User account record was viewed/fetched in audit trail.",
-    }));
-
-    return [
-      ...userRows,
-      ...appRows,
-      ...inspectionRows,
-      ...documentRows,
-      ...paymentRows,
-    ].sort((a, b) => {
-      const dateA = new Date(a.date || 0).getTime();
-      const dateB = new Date(b.date || 0).getTime();
-      return dateB - dateA;
-    });
-  }, [users, applications, inspections, uploadedDocuments, payments]);
+  }, [auditRecords]);
 
   const filteredAuditActivities = auditActivities.filter((item) => {
     const search = auditSearch.toLowerCase();
