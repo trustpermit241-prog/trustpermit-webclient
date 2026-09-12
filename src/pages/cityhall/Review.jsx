@@ -14,6 +14,13 @@ const getApiBaseUrl = () => {
 };
 
 const API_BASE_URL = getApiBaseUrl();
+const FILE_SERVER_URL = API_BASE_URL.replace(/\/api\/?$/, "");
+
+const encodeFilePath = (filePath) =>
+  filePath
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
 
 export default function Review() {
   const { applicationId } = useParams();
@@ -47,11 +54,12 @@ export default function Review() {
     if (filePath.startsWith("http")) return filePath;
 
     if (filePath) {
-      return `${API_BASE_URL}${filePath.startsWith("/") ? filePath : `/${filePath}`}`;
+      const normalizedPath = filePath.startsWith("/") ? filePath : `/${filePath}`;
+      return `${FILE_SERVER_URL}${encodeFilePath(normalizedPath)}`;
     }
 
     if (fileName) {
-      return `${API_BASE_URL}/uploads/documents/${fileName}`;
+      return `${FILE_SERVER_URL}/uploads/documents/${encodeURIComponent(fileName)}`;
     }
 
     return "";

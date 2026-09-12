@@ -45,12 +45,12 @@
   background: rgba(15, 23, 42, 0.14);
 }
 .cm-card.request-details-modal {
-  width: min(900px, calc(100vw - 48px));
-  max-width: 900px;
+  width: min(960px, calc(100vw - 32px));
+  max-width: 960px;
   max-height: calc(100vh - 40px);
   min-height: auto;
   border-radius: 18px;
-  padding: 18px;
+  padding: 22px;
   box-shadow: 0 28px 80px rgba(15, 23, 42, 0.18);
   overflow: hidden;
   margin: 0;
@@ -61,7 +61,8 @@
   margin-bottom: 18px;
   max-height: calc(100vh - 180px);
   overflow-y: auto;
-  padding-right: 14px;
+  padding-right: 8px;
+  box-sizing: border-box;
 }
 .cm-card.request-details-modal .cm-title {
   font-size: 22px;
@@ -81,6 +82,47 @@
   font-size: 14px;
   line-height: 1.5;
   margin-bottom: 18px;
+}
+
+.cm-card.privacy-consent-modal {
+  width: min(680px, calc(100vw - 32px));
+  max-width: 680px;
+  padding: 30px 36px 24px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+}
+
+.privacy-consent-modal .cm-title {
+  margin-bottom: 18px;
+  color: #1f2937;
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.privacy-consent-modal .cm-message {
+  margin-bottom: 24px;
+  color: #374151;
+  font-size: 15px;
+  line-height: 1.65;
+  text-align: justify;
+  white-space: pre-line;
+}
+
+.privacy-consent-modal .cm-actions {
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.privacy-consent-modal .cm-btn {
+  min-width: 112px;
+  padding: 10px 20px;
+  border-radius: 6px;
+  background: #374151;
+}
+
+.privacy-consent-modal .cm-btn-cancel {
+  background: #374151;
+  color: #ffffff;
 }
 .cm-content {
   margin-bottom: 18px;

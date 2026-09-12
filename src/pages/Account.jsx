@@ -11,6 +11,8 @@ import { getCanvasPoint } from "./signatureUtils";
 import "./Account.css";
 import CenteredModal from "../components/CenteredModal";
 
+const FRONTEND_URL = "https://trustpermit-webclient.vercel.app";
+
 const getApiBaseUrl = () => {
   if (typeof window !== "undefined") {
     const hostname = window.location.hostname;
@@ -169,16 +171,33 @@ const Account = ({ initialMenu }) => {
   }, []);
 
   const [activeMenu, setActiveMenuState] = useState(() => getInitialActiveMenu(initialMenu));
+  const [showPrivacyConsent, setShowPrivacyConsent] = useState(
+    () => getInitialActiveMenu(initialMenu) === "Apply Permit"
+  );
   const [showNotifications, setShowNotifications] = useState(false);
 
   const setActiveMenu = (menu) => {
     setActiveMenuState(menu);
+    if (menu === "Apply Permit") {
+      setShowPrivacyConsent(true);
+    }
 
     try {
       localStorage.setItem("accountActiveMenu", menu);
     } catch (e) {
       // Ignore localStorage errors.
     }
+  };
+
+  const cancelPrivacyConsent = () => {
+    setShowPrivacyConsent(false);
+    try {
+      localStorage.removeItem("accountActiveMenu");
+      localStorage.removeItem("homeActiveCard");
+    } catch (e) {
+      // Ignore localStorage errors.
+    }
+    window.location.assign("/home");
   };
 
   useEffect(() => {
@@ -2047,6 +2066,9 @@ const Account = ({ initialMenu }) => {
   const normalizeReleasedPermit = (payment) => {
     const app = payment.applicationId || {};
     const appId = typeof app === "object" ? app._id : app;
+    const inspectionCertificates = Array.isArray(payment.inspectionCertificates)
+      ? payment.inspectionCertificates
+      : [];
     const releaseDate = payment.permitReleasedAt ? new Date(payment.permitReleasedAt) : payment.updatedAt ? new Date(payment.updatedAt) : payment.createdAt ? new Date(payment.createdAt) : null;
     const expiryDateFromApp = app.expiryDate ? new Date(app.expiryDate) : null;
     const expiryDate = expiryDateFromApp
@@ -2080,6 +2102,7 @@ const Account = ({ initialMenu }) => {
       permitReleased: Boolean(payment.permitReleased),
       releasedAt: releaseDate,
       verificationUrl: payment.verificationUrl || "",
+      inspectionCertificates,
     };
   };
 
@@ -2213,6 +2236,70 @@ const Account = ({ initialMenu }) => {
     printWindow.document.open();
     printWindow.document.write(html);
     printWindow.document.close();
+  };
+
+  const clearanceOptions = [
+    { key: "fire", label: "Fire Safety Inspection certificate", match: "fire" },
+    { key: "sanitary", label: "Sanitary Inspection certificate", match: "sanit" },
+    { key: "building", label: "Building & Electrical certificate", match: "build|elect" },
+    { key: "locational", label: "Locational / Zoning certificate", match: "locat|zoning" },
+    { key: "environmental", label: "Environmental certificate", match: "environ" },
+  ];
+
+  const getClearanceDocuments = (permit) => {
+    const savedCertificates = Array.isArray(permit.inspectionCertificates)
+      ? permit.inspectionCertificates
+      : [];
+    const certificates = savedCertificates;
+
+    const inspectionDocuments = clearanceOptions.map((option) => {
+      const certificate = certificates.find((item) =>
+        new RegExp(option.match, "i").test(String(item.type || ""))
+      );
+
+      return {
+        ...option,
+        url: certificate?.inspectionId
+          ? `${window.location.origin}/inspection-certificate/${certificate.inspectionId}`
+          : certificate?.certificateUrl
+            ? certificate.certificateUrl.replace("/inspection-report/", "/inspection-certificate/")
+            : "",
+        available: Boolean(certificate?.inspectionId || certificate?.certificateUrl),
+      };
+    }).filter((document) => document.available);
+
+    const customInspectionDocuments = certificates
+      .filter((certificate) => certificate?.type && certificate?.certificateUrl)
+      .filter((certificate) => !clearanceOptions.some((option) =>
+        new RegExp(option.match, "i").test(String(certificate.type))
+      ))
+      .map((certificate) => ({
+        key: `inspection-${certificate.inspectionId}`,
+        label: `${certificate.type} certificate`,
+        url: certificate.inspectionId
+          ? `${window.location.origin}/inspection-certificate/${certificate.inspectionId}`
+          : certificate.certificateUrl,
+        available: true,
+      }));
+
+    return [
+      ...inspectionDocuments,
+      ...customInspectionDocuments,
+      {
+        key: "mayors-permit",
+        label: "Mayor's Permit",
+        url: permit.applicationId
+          ? `${window.location.origin}/permit/print/${permit.applicationId}`
+          : "",
+        available: Boolean(permit.applicationId),
+      },
+    ];
+  };
+
+  const downloadSelectedClearance = (permit, selection) => {
+    const document = getClearanceDocuments(permit).find((item) => item.key === selection);
+    if (!document?.available) return;
+    window.open(document.url, "_blank", "noopener,noreferrer");
   };
 
   const savePaymentRecord = (record) => {
@@ -2592,24 +2679,25 @@ if (!paymentApplicationId) {
                           Renew
                         </button>
 
-                        {/* Print Permit */}
-                        {company.paymentStatus === "approved" && company.permitReleased === true && (
-                          <button
-                            className="action-btn action-btn-download"
-                            type="button"
-                            onClick={() =>
-                              window.open(`/permit/print/${company.applicationId}`, "_blank")
-                            }
-                          >
-                            <span className="action-btn-icon" aria-hidden="true">
-                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M8 11.3334V3.99998" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-                                <path d="M4 7.99998L8 11.99998L12 7.99998" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                <path d="M3.3335 13.3333H12.6668" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-                              </svg>
-                            </span>
-                            Download
-                          </button>
+                        {/* User chooses which released clearance to open/print. */}
+                        {company.permitReleased === true && (
+                          <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>Download document:</span>
+                            <select
+                              className="action-btn action-btn-outline"
+                              defaultValue=""
+                              aria-label={`Choose a clearance for ${company.companyName}`}
+                              onChange={(event) => downloadSelectedClearance(company, event.target.value)}
+                              style={{ minWidth: 210, background: "#fff" }}
+                            >
+                              <option value="" disabled>Choose clearance</option>
+                              {getClearanceDocuments(company).map((document) => (
+                                <option key={document.key} value={document.key} disabled={!document.available}>
+                                  {document.label}{document.available ? "" : " (not issued)"}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
                         )}
                       </div>
                     </td>
@@ -4747,6 +4835,20 @@ if (!paymentApplicationId) {
       >
         {modal.children}
       </CenteredModal>
+      <CenteredModal
+        open={showPrivacyConsent}
+        title="Data Privacy Consent"
+        message={
+          "By clicking \"I Agree\" below, I acknowledge that I have read and understood the Privacy Notice and provide my full consent to the City of Antipolo, its affiliates, partners, and service providers, where applicable, to collect, store, access, and process the personal information I provide. This may include my name, address, telephone number, and email address. The information will be processed for the purpose of evaluating and managing my online application or request, in accordance with applicable laws and regulations.\n\nI acknowledge that the collection and processing of my personal information are necessary for these purposes. I also consent to the verification and validation of the information submitted in connection with my application or request. I understand that I have the right to be informed, access my personal information, object to its processing, request its erasure or blocking, seek damages, file a complaint, request correction, and exercise data portability, subject to applicable procedures, conditions, and legal exceptions."
+        }
+        buttonText="I Agree"
+        cancelText="Cancel"
+        variant="default"
+        className="privacy-consent-modal"
+        onConfirm={() => setShowPrivacyConsent(false)}
+        onCancel={cancelPrivacyConsent}
+        onClose={cancelPrivacyConsent}
+      />
       </>
     );
 };

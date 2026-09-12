@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
+import QRCode from "react-qr-code";
+import antipoloLogo from "../assets/antipolologo.jpg";
 import "./InspectionReport.css";
 
 const getApiBaseUrl = () => {
@@ -15,6 +17,7 @@ const getApiBaseUrl = () => {
 };
 
 const API_BASE_URL = getApiBaseUrl();
+const FRONTEND_URL = "https://trustpermit-webclient.vercel.app";
 
 export default function InspectionReport() {
   const { id } = useParams();
@@ -90,12 +93,6 @@ export default function InspectionReport() {
     }
   }, [id]);
 
-  useEffect(() => {
-    if (!loading && inspection) {
-      window.print();
-    }
-  }, [loading, inspection]);
-
   const formatAddress = (addr) => {
     if (!addr) return null;
     const parts = [
@@ -143,8 +140,24 @@ export default function InspectionReport() {
     application?.contact?.email ||
     "N/A";
 
-  const role = inspection?.citizenId?.role || "N/A";
   const inspectionType = inspection?.type || "N/A";
+  const issueDate = inspection?.certificateIssuedAt || inspection?.updatedAt || inspection?.date || new Date().toISOString();
+  const issueDateText = new Date(issueDate).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+  const expiryDate = application?.expiryDate
+    ? new Date(application.expiryDate)
+    : new Date(new Date(issueDate).setFullYear(new Date(issueDate).getFullYear() + 1));
+  const expiryDateText = expiryDate.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+  const certificateNumber = inspection?._id || id;
+  const trainingTitle = inspectionType.toUpperCase();
+  const trainingDescription = `inspection covering ${inspectionType.toLowerCase()}, regulatory compliance, hazard awareness, and required safety protocols.`;
   const inspectionDate = inspection?.date
     ? new Date(inspection.date).toLocaleDateString("en-US", {
         month: "long",
@@ -165,30 +178,10 @@ export default function InspectionReport() {
     inspection?.scheduledBy?.fullName ||
     inspection?.scheduledBy ||
     "N/A";
-
-  const checklistItems = useMemo(() => {
-    const typesFromInspection = [];
-    if (inspection) {
-      if (Array.isArray(inspection.types) && inspection.types.length) {
-        typesFromInspection.push(...inspection.types.map((t) => String(t).toLowerCase()));
-      } else if (inspection.type) {
-        typesFromInspection.push(String(inspection.type).toLowerCase());
-      }
-    }
-
-    const matchesType = (label) => {
-      const l = String(label).toLowerCase();
-      return typesFromInspection.some((t) => t.includes(l) || l.includes(t) || t === l);
-    };
-
-    return [
-      { label: "Fire Safety", checked: inspection ? matchesType("Fire Safety") : false },
-      { label: "Electrical", checked: inspection ? matchesType("Electrical") : false },
-      { label: "Sanitary", checked: inspection ? matchesType("Sanitary") : false },
-      { label: "Building", checked: inspection ? matchesType("Building") : false },
-      { label: "Environmental", checked: inspection ? matchesType("Environmental") : false },
-    ];
-  }, [inspection]);
+  const applicationId = application?._id || application?.id || inspection?.applicationId;
+  const verificationUrl = applicationId
+    ? `${FRONTEND_URL}/verify/${applicationId}`
+    : "";
 
   if (loading) {
     return <div className="inspection-report-loading">Loading inspection report...</div>;
@@ -198,43 +191,52 @@ export default function InspectionReport() {
     <div className="inspection-report-page">
       <div className="inspection-report-sheet">
         <div className="inspection-report-header">
-          <div className="inspection-report-title">CITY GOVERNMENT OF ANTIPOLO</div>
-          <div className="inspection-report-subtitle">BUSINESS PERMITS AND LICENSING OFFICE</div>
-          <div className="inspection-report-main">BUSINESS PERMIT INSPECTION REPORT</div>
+          <div className="inspection-report-organization">
+            <img src={antipoloLogo} alt="Antipolo City logo" className="inspection-report-logo" />
+            <div>
+              <div className="inspection-report-title">CITY GOVERNMENT OF ANTIPOLO</div>
+              <div className="inspection-report-subtitle">BUSINESS PERMITS AND LICENSING OFFICE</div>
+              <div className="inspection-report-contact">Antipolo City, Rizal | Business Permit and Inspection Services</div>
+            </div>
+            <div className="inspection-report-qr">
+              {verificationUrl && <QRCode value={verificationUrl} size={104} />}
+              <span>Scan to verify</span>
+            </div>
+          </div>
+          <div className="inspection-report-main">CERTIFICATE OF COMPLETION</div>
+          <div className="inspection-report-certificate-type">{trainingTitle}</div>
         </div>
 
-        <div className="inspection-report-body">
-          <div className="inspection-report-row">
-            <span className="inspection-report-label">Inspection No.</span>
-            <span className="inspection-report-value">{inspection?._id || "N/A"}</span>
-          </div>
-          <div className="inspection-report-row">
-            <span className="inspection-report-label">Business Name</span>
-            <span className="inspection-report-value">{businessName}</span>
-          </div>
-          <div className="inspection-report-row">
-            <span className="inspection-report-label">Owner</span>
-            <span className="inspection-report-value">{owner}</span>
-          </div>
+        <div className="inspection-report-certificate-copy">
+          <p>This is to proudly certify that</p>
+          <h1>{owner}</h1>
+          <p>has successfully completed the inspection and compliance review for</p>
+          <h2>{businessName}</h2>
+          <p>
+            This certificate confirms completion of the {trainingDescription} The inspection was reviewed against the submitted permit application and recorded requirements.
+          </p>
+        </div>
+
+        <div className="inspection-report-certificate-meta">
+          <div><strong>Date of Issuance:</strong><span>{issueDateText}</span></div>
+          <div><strong>Certificate No:</strong><span>{certificateNumber}</span></div>
+          <div><strong>Validity Period:</strong><span>{issueDateText} - {expiryDateText}</span></div>
+          <div><strong>Status:</strong><span>{userStatus}</span></div>
+        </div>
+
+        <div className="inspection-report-section inspection-report-details">
+          <div className="inspection-report-section-title">Inspection and Application Details</div>
           <div className="inspection-report-row">
             <span className="inspection-report-label">Business Address</span>
             <span className="inspection-report-value">{address}</span>
           </div>
           <div className="inspection-report-row">
-            <span className="inspection-report-label">Email</span>
+            <span className="inspection-report-label">Applicant Email</span>
             <span className="inspection-report-value">{email}</span>
           </div>
           <div className="inspection-report-row">
-            <span className="inspection-report-label">Role</span>
-            <span className="inspection-report-value">{role}</span>
-          </div>
-          <div className="inspection-report-row">
-            <span className="inspection-report-label">Inspection Date</span>
-            <span className="inspection-report-value">{inspectionDate}</span>
-          </div>
-          <div className="inspection-report-row">
-            <span className="inspection-report-label">Inspection Time</span>
-            <span className="inspection-report-value">{inspectionTime}</span>
+            <span className="inspection-report-label">Inspection Date and Time</span>
+            <span className="inspection-report-value">{inspectionDate} at {inspectionTime}</span>
           </div>
           <div className="inspection-report-row">
             <span className="inspection-report-label">Assigned Inspector</span>
@@ -242,65 +244,26 @@ export default function InspectionReport() {
           </div>
           <div className="inspection-report-row">
             <span className="inspection-report-label">Scheduled By</span>
-            <span className="inspection-report-value">{scheduledBy}</span>
-          </div>
-          <div className="inspection-report-row">
-            <span className="inspection-report-label">Status</span>
-            <span className="inspection-report-value">{userStatus}</span>
-          </div>
-        </div>
-
-        <div className="inspection-report-section">
-          <div className="inspection-report-section-title">Inspection Checklist</div>
-          <div className="inspection-report-checklist">
-            {checklistItems.map((item) => (
-              <div key={item.label} className="inspection-report-check-item">
-                <span className="inspection-report-checkbox">{item.checked ? "☑" : "☐"}</span>
-                <span>{item.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="inspection-report-section">
-          <div className="inspection-report-section-title">Remarks</div>
-          <div className="inspection-report-section-content">
-            <p>{remarksText}</p>
-          </div>
-        </div>
-
-        <div className="inspection-report-section">
-          <div className="inspection-report-section-title">Recommendation</div>
-          <div className="inspection-report-recommendations">
-            <div className="inspection-report-check-item">
-              <span className="inspection-report-checkbox">☐</span>
-              <span>Approved</span>
-            </div>
-            <div className="inspection-report-check-item">
-              <span className="inspection-report-checkbox">☐</span>
-              <span>Re-inspection</span>
-            </div>
-            <div className="inspection-report-check-item">
-              <span className="inspection-report-checkbox">☐</span>
-              <span>Disapproved</span>
-            </div>
+            <span className="inspection-report-value">{remarksText}</span>
           </div>
         </div>
 
         <div className="inspection-report-signature-row">
           <div>
-            <div className="inspection-report-signature-title">Inspector Signature</div>
+            <div className="inspection-report-signature-title">{assignedInspector}</div>
             <div className="inspection-report-signature-line" />
+            <span>Authorized Inspector</span>
           </div>
           <div>
-            <div className="inspection-report-signature-title">Date</div>
+            <div className="inspection-report-signature-title">{scheduledBy}</div>
             <div className="inspection-report-signature-line" />
+            <span>Head of Operations / Safety Officer</span>
           </div>
         </div>
 
         <div className="inspection-report-footer">
           <button type="button" onClick={() => window.print()}>
-            Print Report
+            Print Certificate
           </button>
         </div>
       </div>

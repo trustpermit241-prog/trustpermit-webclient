@@ -51,6 +51,7 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [otpExpiredModal, setOtpExpiredModal] = useState(false);
   const [otpSuccessModal, setOtpSuccessModal] = useState(false);
+  const [loginErrorModal, setLoginErrorModal] = useState("");
 
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [loginSubmitting, setLoginSubmitting] = useState(false);
@@ -193,12 +194,12 @@ export default function Login() {
       const userEmail = user.email || normalizedEmail;
 
       if (!token) {
-        setError("Login failed. No token received.");
+        setLoginErrorModal("Login failed. No token was received. Please try again.");
         return;
       }
 
       if (!role) {
-        setError("Login failed. User role not found.");
+        setLoginErrorModal("Login failed because your user role could not be found. Please contact support.");
         return;
       }
 
@@ -234,7 +235,8 @@ export default function Login() {
     } catch (err) {
       console.error("Login error:", err.response?.data || err.message);
       setFailedAttempts((prev) => prev + 1);
-      setError(err.response?.data?.message || "Invalid login credentials.");
+      setError("");
+      setLoginErrorModal(err.response?.data?.message || "Invalid email or password. Please check your credentials and try again.");
     } finally {
       setLoginSubmitting(false);
     }
@@ -651,6 +653,15 @@ export default function Login() {
           setOtpExpiredModal(false);
           setOtpExpired(true);
         }}
+      />
+
+      <CenteredModal
+        open={Boolean(loginErrorModal)}
+        title="Sign-in failed"
+        message={loginErrorModal}
+        buttonText="Try again"
+        variant="error"
+        onClose={() => setLoginErrorModal("")}
       />
 
       {showGoogleSetup && (

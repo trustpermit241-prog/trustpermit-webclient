@@ -11,19 +11,48 @@ body {
 }
 
 .inspection-report-sheet {
-  max-width: 850px;
+  max-width: 920px;
   margin: 0 auto;
   background: #fff;
   border: 1px solid #d1d5db;
-  padding: 36px 40px;
+  padding: 44px 54px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 
 .inspection-report-header {
-  text-align: center;
   border-bottom: 2px solid #111827;
-  padding-bottom: 16px;
-  margin-bottom: 20px;
+  padding-bottom: 22px;
+  margin-bottom: 28px;
+  position: relative;
+}
+
+.inspection-report-organization {
+  min-height: 112px;
+  display: grid;
+  grid-template-columns: 86px 1fr 122px;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+}
+
+.inspection-report-logo {
+  width: 78px;
+  height: 78px;
+  object-fit: contain;
+}
+
+.inspection-report-contact {
+  margin-top: 7px;
+  font-size: 11px;
+  color: #4b5563;
+}
+
+.inspection-report-qr {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: #374151;
 }
 
 .inspection-report-title {
@@ -40,9 +69,62 @@ body {
 
 .inspection-report-main {
   margin-top: 12px;
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 700;
   text-transform: uppercase;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+.inspection-report-certificate-type {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+}
+
+.inspection-report-certificate-copy {
+  max-width: 720px;
+  margin: 0 auto;
+  text-align: center;
+  line-height: 1.65;
+}
+
+.inspection-report-certificate-copy p {
+  margin: 12px 0;
+}
+
+.inspection-report-certificate-copy h1,
+.inspection-report-certificate-copy h2 {
+  margin: 10px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.inspection-report-certificate-copy h1 {
+  font-size: 28px;
+  color: #1d4ed8;
+}
+
+.inspection-report-certificate-copy h2 {
+  font-size: 20px;
+}
+
+.inspection-report-certificate-meta {
+  max-width: 720px;
+  margin: 28px auto 0;
+  display: grid;
+  gap: 9px;
+  border-top: 1px solid #d1d5db;
+  border-bottom: 1px solid #d1d5db;
+  padding: 16px 0;
+}
+
+.inspection-report-certificate-meta div {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  gap: 12px;
 }
 
 .inspection-report-body {
@@ -71,6 +153,12 @@ body {
 
 .inspection-report-section {
   margin-top: 18px;
+}
+
+.inspection-report-details {
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .inspection-report-section-title {
@@ -123,6 +211,14 @@ body {
   margin-bottom: 10px;
 }
 
+.inspection-report-signature-row span {
+  display: block;
+  margin-top: 7px;
+  font-size: 12px;
+  color: #4b5563;
+  text-align: center;
+}
+
 .inspection-report-footer {
   margin-top: 24px;
   display: flex;
@@ -158,6 +254,14 @@ body {
     max-width: none;
     margin: 0;
     padding: 0;
+  }
+
+  .inspection-report-page {
+    font-size: 12px;
+  }
+
+  .inspection-report-certificate-copy h1 {
+    font-size: 24px;
   }
 
   .inspection-report-footer button,

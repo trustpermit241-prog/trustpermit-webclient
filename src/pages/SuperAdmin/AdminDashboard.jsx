@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import "./AdminDashboard.css";
+import LogoutConfirmModal from "../../components/LogoutConfirmModal";
 
 const getApiBaseUrl = () => {
   const configuredUrl = (process.env.REACT_APP_API_URL || "").replace(/\/+$/, "");
@@ -161,6 +162,7 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
   const isAdmin = role === "admin";
 
   const [activePage, setActivePage] = useState(defaultPage);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [logFilter, setLogFilter] = useState("today");
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -606,7 +608,7 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
               <i className="ti ti-calendar" style={{ fontSize: 13 }} />
               {nowStr}
             </div>
-            <button type="button" className="tb-logout" onClick={handleLogout}>
+            <button type="button" className="tb-logout" onClick={() => setShowLogoutConfirm(true)} aria-label="Log out">
               <i className="ti ti-logout" />
             </button>
           </div>
@@ -1194,6 +1196,11 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
           )}
         </div>
       </div>
+      <LogoutConfirmModal
+        open={showLogoutConfirm}
+        onCancel={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+      />
     </div>
   );
 }

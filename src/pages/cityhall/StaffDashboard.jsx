@@ -1,4 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
+import { useState } from "react";
 import Dashboard from "./Dashboard";
 import Review from "./Review";
 import Requests from "./Requests";
@@ -8,6 +9,7 @@ import Users from "./Users";
 import Payment from "./Payment";
 import Messages from "./Messages";
 import "./StaffDashboard.css";
+import LogoutConfirmModal from "../../components/LogoutConfirmModal";
 
 const Icons = {
   Dashboard: () => (
@@ -90,6 +92,7 @@ const Icons = {
 export default function StaffDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -239,7 +242,7 @@ export default function StaffDashboard() {
         <div className="sidebar-footer">
           
 
-          <button type="button" onClick={handleLogout} className="logout-btn">
+          <button type="button" onClick={() => setShowLogoutConfirm(true)} className="logout-btn">
             <Icons.Logout /> Logout
           </button>
         </div>
@@ -248,6 +251,11 @@ export default function StaffDashboard() {
       <main className="content staff-content">
         {renderPage()}
       </main>
+      <LogoutConfirmModal
+        open={showLogoutConfirm}
+        onCancel={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+      />
     </div>
   );
 }

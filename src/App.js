@@ -16,6 +16,7 @@ import Register from "./pages/Register";
 import Verify from "./pages/Verify";
 import PrintPermit from "./pages/PrintPermit";
 import InspectionReport from "./pages/InspectionReport";
+import StaffInspectionReport from "./pages/StaffInspectionReport";
 import SecurityVerification from "./pages/SecurityVerification";
 import AskHelp from "./pages/Askhelp";
 
@@ -160,6 +161,11 @@ function App() {
 
         <Route
           path="/inspection-report/:id"
+          element={<StaffInspectionReport />}
+        />
+
+        <Route
+          path="/inspection-certificate/:id"
           element={<InspectionReport />}
         />
 

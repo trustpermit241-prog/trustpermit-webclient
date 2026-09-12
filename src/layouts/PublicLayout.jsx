@@ -1,6 +1,7 @@
 import { Outlet, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./PublicLayout.css";
+import LogoutConfirmModal from "../components/LogoutConfirmModal";
 
 const getApiBaseUrl = () => {
   const configuredUrl = (process.env.REACT_APP_API_URL || "")
@@ -53,6 +54,7 @@ export default function PublicLayout() {
   const [showDeleteMenu, setShowDeleteMenu] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [pendingDeleteIds, setPendingDeleteIds] = useState([]);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const token = getStoredValue("token");
 
@@ -402,7 +404,7 @@ export default function PublicLayout() {
                 <span className="public-left-sidebar-label">Payment History</span>
               </button>
 
-              <button type="button" className="public-left-sidebar-item logout" onClick={handleLogout}>
+              <button type="button" className="public-left-sidebar-item logout" onClick={() => setShowLogoutConfirm(true)}>
                 <span className="public-left-sidebar-icon" aria-hidden="true">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M16 17l5-5-5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
@@ -465,6 +467,11 @@ export default function PublicLayout() {
             </div>
           </div>
         </footer>
+        <LogoutConfirmModal
+          open={showLogoutConfirm}
+          onCancel={() => setShowLogoutConfirm(false)}
+          onConfirm={handleLogout}
+        />
 
         {pendingDeleteIds.length > 0 && (
           <div className="notification-confirm-backdrop" role="presentation">

@@ -622,7 +622,7 @@ export default function Payment() {
       <CenteredModal
         open={confirmModal.open}
         title="Approve Payment"
-        message="Approve this payment and automatically release the permit?"
+        message="Release the permit only after payment and all inspections are approved?"
         buttonText="Approve"
         cancelText="Cancel"
         variant="default"
@@ -647,6 +647,7 @@ export default function Payment() {
                 const verificationLink = applicationId 
                   ? `${FRONTEND_URL}/verify/${applicationId}` 
                   : "";
+                const certificateLinks = qrModalPayment?.inspectionCertificates || [];
                 return (
                   <>
                     {verificationLink ? (
@@ -656,6 +657,12 @@ export default function Payment() {
                         
                       </div>
                     ) : null}
+                    {certificateLinks.map((certificate) => (
+                      <div key={String(certificate.inspectionId)} style={{ textAlign: "center" }}>
+                        <div style={{ marginBottom: 10 }}>{certificate.type || "Inspection"} certificate</div>
+                        <QRCode value={verificationLink || certificate.certificateUrl} size={140} />
+                      </div>
+                    ))}
                   </>
                 );
               })()}
