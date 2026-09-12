@@ -2244,14 +2244,6 @@ const Account = ({ initialMenu }) => {
     printWindow.document.close();
   };
 
-  const clearanceOptions = [
-    { key: "fire", label: "Fire Safety Inspection certificate", match: "fire" },
-    { key: "sanitary", label: "Sanitary Inspection certificate", match: "sanit" },
-    { key: "building", label: "Building & Electrical certificate", match: "build|elect" },
-    { key: "locational", label: "Locational / Zoning certificate", match: "locat|zoning" },
-    { key: "environmental", label: "Environmental certificate", match: "environ" },
-  ];
-
   const getClearanceDocuments = (permit) => {
     const savedCertificates = Array.isArray(permit.inspectionCertificates)
       ? permit.inspectionCertificates
@@ -2261,57 +2253,42 @@ const Account = ({ initialMenu }) => {
       ? permit.releasedDocuments
       : [];
 
-    const permitDocuments = releasedDocuments.map((document) => ({
+    const releasedDocumentOrder = { "work-permit": 0, "barangay-clearance": 1 };
+    const permitDocuments = [...releasedDocuments]
+      .sort((a, b) => (releasedDocumentOrder[a.key] ?? 99) - (releasedDocumentOrder[b.key] ?? 99))
+      .map((document) => ({
       key: document.key,
       label: document.label,
+      url: permit.applicationId
+        ? `${window.location.origin}/permit/document/${document.key}/${permit.applicationId}`
+        : "",
+      available: Boolean(permit.applicationId),
+      }));
+
+    const inspectionDocuments = certificates
+      .filter((certificate) => certificate?.type && (certificate?.inspectionId || certificate?.certificateUrl))
+      .map((certificate) => ({
+        key: `inspection-${certificate.inspectionId || certificate.type}`,
+        label: `${certificate.type} certificate`,
+        url: certificate.inspectionId
+          ? `${window.location.origin}/inspection-certificate/${certificate.inspectionId}`
+          : certificate.certificateUrl.replace("/inspection-report/", "/inspection-certificate/"),
+        available: true,
+      }));
+
+    const mayorPermit = {
+      key: "mayors-permit",
+      label: "Mayor's Permit",
       url: permit.applicationId
         ? `${window.location.origin}/permit/print/${permit.applicationId}`
         : "",
       available: Boolean(permit.applicationId),
-    }));
-
-    const inspectionDocuments = clearanceOptions.map((option) => {
-      const certificate = certificates.find((item) =>
-        new RegExp(option.match, "i").test(String(item.type || ""))
-      );
-
-      return {
-        ...option,
-        url: certificate?.inspectionId
-          ? `${window.location.origin}/inspection-certificate/${certificate.inspectionId}`
-          : certificate?.certificateUrl
-            ? certificate.certificateUrl.replace("/inspection-report/", "/inspection-certificate/")
-            : "",
-        available: Boolean(certificate?.inspectionId || certificate?.certificateUrl),
-      };
-    }).filter((document) => document.available);
-
-    const customInspectionDocuments = certificates
-      .filter((certificate) => certificate?.type && certificate?.certificateUrl)
-      .filter((certificate) => !clearanceOptions.some((option) =>
-        new RegExp(option.match, "i").test(String(certificate.type))
-      ))
-      .map((certificate) => ({
-        key: `inspection-${certificate.inspectionId}`,
-        label: `${certificate.type} certificate`,
-        url: certificate.inspectionId
-          ? `${window.location.origin}/inspection-certificate/${certificate.inspectionId}`
-          : certificate.certificateUrl,
-        available: true,
-      }));
+    };
 
     return [
+      mayorPermit,
       ...permitDocuments,
       ...inspectionDocuments,
-      ...customInspectionDocuments,
-      {
-        key: "mayors-permit",
-        label: "Mayor's Permit",
-        url: permit.applicationId
-          ? `${window.location.origin}/permit/print/${permit.applicationId}`
-          : "",
-        available: Boolean(permit.applicationId),
-      },
     ];
   };
 
