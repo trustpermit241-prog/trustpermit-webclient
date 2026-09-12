@@ -182,6 +182,7 @@ const PermitProgressRealtime = () => {
     application?.documentsUploaded === true ||
       application?.requirements?.locational_clearance ||
       application?.requirements?.barangay_clearance ||
+      application?.requirements?.work_permit ||
       application?.requirements?.fire_safety_certification ||
       application?.requirements?.building_permit ||
       application?.requirements?.wiring_permit ||

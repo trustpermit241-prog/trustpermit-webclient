@@ -48,6 +48,7 @@ export default function InspectionProgress() {
     "Building & Electrical",
     "Locational / Zoning",
     "Environmental",
+    "City Vet Clearance Certificate",
   ];
   const [modal, setModal] = useState({ open: false, title: "", message: "", buttonText: "OK", variant: "default" });
   const [confirmAction, setConfirmAction] = useState({ open: false, inspection: null, status: "" });
@@ -317,6 +318,7 @@ const selectedCitizen = safeUsers.find(
     if (t.includes("build") || t.includes("electr")) return { icon: "", cls: "type-building" };
     if (t.includes("locat") || t.includes("zone") || t.includes("zoning")) return { icon: "", cls: "type-location" };
     if (t.includes("environ")) return { icon: "", cls: "type-env" };
+    if (t.includes("vet") || t.includes("veterinary")) return { icon: "", cls: "type-vet" };
     return { icon: "", cls: "type-default" };
   };
 

@@ -2103,6 +2103,12 @@ const Account = ({ initialMenu }) => {
       releasedAt: releaseDate,
       verificationUrl: payment.verificationUrl || "",
       inspectionCertificates,
+      releasedDocuments: Array.isArray(payment.releasedDocuments) && payment.releasedDocuments.length
+        ? payment.releasedDocuments
+        : [
+            { key: "barangay-clearance", label: "Barangay Clearance", status: "Released" },
+            { key: "work-permit", label: "Work Permit", status: "Released" },
+          ],
     };
   };
 
@@ -2251,6 +2257,18 @@ const Account = ({ initialMenu }) => {
       ? permit.inspectionCertificates
       : [];
     const certificates = savedCertificates;
+    const releasedDocuments = Array.isArray(permit.releasedDocuments)
+      ? permit.releasedDocuments
+      : [];
+
+    const permitDocuments = releasedDocuments.map((document) => ({
+      key: document.key,
+      label: document.label,
+      url: permit.applicationId
+        ? `${window.location.origin}/permit/print/${permit.applicationId}`
+        : "",
+      available: Boolean(permit.applicationId),
+    }));
 
     const inspectionDocuments = clearanceOptions.map((option) => {
       const certificate = certificates.find((item) =>
@@ -2283,6 +2301,7 @@ const Account = ({ initialMenu }) => {
       }));
 
     return [
+      ...permitDocuments,
       ...inspectionDocuments,
       ...customInspectionDocuments,
       {
