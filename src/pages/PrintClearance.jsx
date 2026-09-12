@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import QRCode from "react-qr-code";
 import axios from "axios";
+import "./PrintPermit.css";
 
 const getApiBaseUrl = () => {
   if (typeof window !== "undefined") {
@@ -61,32 +62,69 @@ export default function PrintClearance() {
   const address = application.address || {};
   const businessName = application.businessName || application.businessDetails?.businessName || "N/A";
   const businessAddress = [address.houseNo, address.street, address.barangay, address.city, address.province].filter(Boolean).join(", ") || "N/A";
-  const issuedOn = new Date(application.updatedAt || application.createdAt).toLocaleDateString();
+  const issuedOn = new Date(application.updatedAt || application.createdAt).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+  const permitNumber = application._id || permitId;
+  const kindOfBusiness = application.businessDetails?.lineOfBusiness || application.applicationType || "N/A";
+  const expiryDate = application.expiryDate
+    ? new Date(application.expiryDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    : "December 31, " + new Date().getFullYear();
   const verificationUrl = `${FRONTEND_URL}/verify/${application._id || permitId}`;
 
   return (
-    <main style={{ minHeight: "100vh", padding: 32, background: "#f3f4f6", fontFamily: "Georgia, serif" }}>
-      <section style={{ maxWidth: 850, margin: "0 auto", padding: 48, background: "#fff", border: "2px solid #1d4ed8", textAlign: "center" }}>
-        <p style={{ margin: 0 }}>REPUBLIC OF THE PHILIPPINES</p>
-        <p style={{ margin: "6px 0" }}>CITY OF ANTIPOLO</p>
-        <h1 style={{ color: "#1d4ed8", margin: "28px 0 8px", fontSize: 30 }}>{document.title}</h1>
-        <p style={{ marginBottom: 36 }}>{document.subtitle}</p>
-
-        <div style={{ textAlign: "left", borderTop: "1px solid #d1d5db", borderBottom: "1px solid #d1d5db", padding: "24px 0", lineHeight: 2 }}>
-          <div><strong>Name:</strong> {name}</div>
-          <div><strong>Business:</strong> {businessName}</div>
-          <div><strong>Business Address:</strong> {businessAddress}</div>
-          <div><strong>Issued On:</strong> {issuedOn}</div>
-          <div><strong>Status:</strong> <span style={{ color: "#15803d", fontWeight: 700 }}>RELEASED</span></div>
+    <div className="permit-print-page">
+      <div className="permit-print-sheet official-permit">
+        <div className="permit-top-row">
+          <div className="permit-seal-logo"><div className="seal-circle">City Seal</div></div>
+          <div className="permit-title-block">
+            <div className="permit-government">Republic of the Philippines</div>
+            <div className="permit-government">Province of Rizal</div>
+            <div className="permit-government">City of Antipolo</div>
+            <h1 className="permit-main-title">{document.title}</h1>
+          </div>
+          <div className="permit-qr-block">
+            <QRCode value={verificationUrl} size={110} />
+            <small>Scan to verify</small>
+          </div>
         </div>
 
-        <p style={{ margin: "32px auto", maxWidth: 650, lineHeight: 1.7 }}>
-          This document is issued separately from the Business Permit and is valid for the approved application identified above.
-        </p>
+        <div className="permit-subtext">
+          This {document.subtitle.toLowerCase()} is issued for the approved application below and is separate from the Mayor&apos;s Business Permit.
+        </div>
 
-        <QRCode value={verificationUrl} size={110} />
-        <p style={{ marginTop: 28, paddingTop: 18, borderTop: "1px solid #d1d5db" }}>Authorized City Hall Officer</p>
-      </section>
-    </main>
+        <div className="permit-fields-grid">
+          <div className="permit-field-row"><div className="permit-field-label">Name of Permittee:</div><div className="permit-field-value">{name}</div></div>
+          <div className="permit-field-row"><div className="permit-field-label">Document No.:</div><div className="permit-field-value">{permitNumber}</div></div>
+          <div className="permit-field-row"><div className="permit-field-label">Issued on:</div><div className="permit-field-value">{issuedOn}</div></div>
+          <div className="permit-field-row"><div className="permit-field-label">Residential Address:</div><div className="permit-field-value">{businessAddress}</div></div>
+          <div className="permit-field-row"><div className="permit-field-label">Business Name:</div><div className="permit-field-value permit-trade-name">{businessName}</div></div>
+          <div className="permit-field-row"><div className="permit-field-label">Kind/Nature of Business:</div><div className="permit-field-value">{kindOfBusiness}</div></div>
+          <div className="permit-field-row"><div className="permit-field-label">Validity:</div><div className="permit-field-value">{issuedOn} - {expiryDate}</div></div>
+        </div>
+
+        <div className="permit-notice-box">
+          This document is <strong>RELEASED</strong> upon approved payment and application review. It is valid only for the permittee and business identified above.
+        </div>
+
+        <div className="permit-conditions">
+          <div className="permit-conditions-title">Conditions for Validity</div>
+          <ol>
+            <li>This document must be presented together with the Mayor&apos;s Business Permit when required.</li>
+            <li>This document is non-transferable and may be revoked for misrepresentation or non-compliance.</li>
+            <li>The QR code provides verification for this approved application.</li>
+          </ol>
+        </div>
+
+        <div className="permit-signatures-row">
+          <div className="permit-signature-block"><div className="signature-line" /><div className="signature-name">Authorized City Hall Officer</div><div className="signature-title">Issuing Office</div></div>
+          <div className="permit-signature-block"><div className="signature-line" /><div className="signature-name">{name}</div><div className="signature-title">Permittee</div></div>
+        </div>
+
+        <button className="permit-print-button" onClick={() => window.print()}>Print / Save as PDF</button>
+      </div>
+    </div>
   );
 }
