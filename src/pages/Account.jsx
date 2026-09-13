@@ -2275,7 +2275,11 @@ const Account = ({ initialMenu }) => {
         label: `${certificate.type} certificate`,
         url: certificate.inspectionId
           ? `${window.location.origin}/inspection-certificate/${certificate.inspectionId}`
-          : certificate.certificateUrl.replace("/inspection-report/", "/inspection-certificate/"),
+          : (() => {
+              const certificateUrl = new URL(certificate.certificateUrl, window.location.origin);
+              certificateUrl.pathname = certificateUrl.pathname.replace("/inspection-report/", "/inspection-certificate/");
+              return `${window.location.origin}${certificateUrl.pathname}${certificateUrl.search}`;
+            })(),
         available: true,
       }));
 
