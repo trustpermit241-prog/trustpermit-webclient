@@ -68,6 +68,33 @@
   font-size: 22px;
   margin-bottom: 18px;
 }
+
+.cm-card.certificate-viewer-modal {
+  width: min(980px, calc(100vw - 32px));
+  max-width: 980px;
+  height: min(92vh, 920px);
+  max-height: calc(100vh - 32px);
+  padding: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.certificate-viewer-modal .cm-content {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+}
+
+.certificate-viewer-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 600px;
+  border: 0;
+  border-radius: 8px;
+  background: #f3f4f6;
+}
 .cm-icon {
   font-size: 48px;
   margin-bottom: 6px;

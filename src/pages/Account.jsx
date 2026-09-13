@@ -1544,47 +1544,50 @@ const Account = ({ initialMenu }) => {
    * Validate application form fields with detailed errors
    */
   const validatePermitStepFields = (step) => {
+    const hasValue = (value) => Boolean(value && String(value).trim());
+    const validName = (value) => hasValue(value) && !/\d/.test(String(value));
+    const validEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value).trim());
+    const validPhone = (value) => String(value).replace(/\D/g, "").length >= 10;
+
     const stepFields = {
       1: [
-        { key: "firstName", label: "First Name", value: firstName },
-        { key: "lastName", label: "Last Name", value: lastName },
-        { key: "contactNumber", label: "Contact Number", value: contactNumber },
-        { key: "applicantEmail", label: "Email Address", value: applicantEmail },
+        { key: "applicationType", label: "Application Type", value: applicationType },
+        { key: "lineOfBusiness", label: "Line of Business", value: businessSubSearch || lineOfBusiness },
+        { key: "registrantName", label: "Registrant Name", value: registrantName, valid: validName(registrantName) },
+        { key: "registrantPosition", label: "Registrant Position", value: registrantPosition },
+        { key: "ownershipType", label: "Ownership Type", value: isIndividual ? "Individual" : "Organization" },
+        { key: "firstName", label: "First Name", value: firstName, valid: validName(firstName) },
+        { key: "middleName", label: "Middle Name / Initial", value: middleName, valid: validName(middleName) },
+        { key: "lastName", label: "Last Name", value: lastName, valid: validName(lastName) },
+        { key: "suffixName", label: "Suffix Name", value: suffixName, optional: true, valid: !hasValue(suffixName) || validName(suffixName) },
+        { key: "birthDate", label: "Birth Date", value: birthDate },
+        { key: "gender", label: "Gender", value: gender },
+        { key: "civilStatus", label: "Civil Status", value: civilStatus },
+        { key: "nationality", label: "Nationality", value: nationality },
         { key: "province", label: "Province", value: province },
         { key: "city", label: "City", value: city },
         { key: "barangay", label: "Barangay", value: barangay },
+        { key: "subdivision", label: "Subdivision", value: subdivision },
         { key: "street", label: "Street", value: street },
+        { key: "building", label: "Business Address", value: building },
+        { key: "houseNo", label: "House No.", value: houseNo },
+        { key: "block", label: "Block", value: block },
+        { key: "lot", label: "Lot", value: lot },
+        { key: "landmark", label: "Landmark / Corner / Avenue", value: landmark },
+        { key: "telephone", label: "Telephone Number", value: telephone, optional: true, valid: !hasValue(telephone) || validPhone(telephone) },
+        { key: "contactNumber", label: "Contact Number", value: contactNumber, valid: validPhone(contactNumber) },
+        { key: "faxNo", label: "Fax Number", value: faxNo, optional: true },
+        { key: "applicantEmail", label: "Email Address", value: applicantEmail, valid: validEmail(applicantEmail) },
+        { key: "tin", label: "TIN", value: tin, optional: true },
       ],
       2: [
-        // Taxpayer Information
         { key: "businessName", label: "Business Name", value: businessName, section: "Business Information" },
-        { key: "lineOfBusiness", label: "Line of Business", value: lineOfBusiness, section: "Business Information" },
-        { key: "businessArea", label: "Business Area (sqm)", value: businessArea, section: "Business Information" },
         { key: "ownershipType", label: "Ownership Type", value: ownershipType, section: "Business Information" },
-        { key: "street", label: "Business Address", value: street, section: "Business Information" },
-        { key: "city", label: "City / Municipality", value: city, section: "Business Information" },
-        { key: "province", label: "Province", value: province, section: "Business Information" },
-        { key: "barangay", label: "Barangay", value: barangay, section: "Business Information" },
-        { key: "landmark", label: "Landmark / Area", value: landmark, section: "Business Information" },
-        // Owner / Applicant Details
-        { key: "applicantFirstName", label: "First Name", value: firstName, section: "Owner / Applicant Details" },
-        { key: "applicantLastName", label: "Last Name", value: lastName, section: "Owner / Applicant Details" },
-        { key: "applicantContactNumber", label: "Contact Number", value: contactNumber, section: "Owner / Applicant Details" },
-        { key: "applicantEmail", label: "Email Address", value: applicantEmail, section: "Owner / Applicant Details" },
-        { key: "tin", label: "TIN", value: tin, section: "Owner / Applicant Details" },
-        { key: "registrantPosition", label: "Position", value: registrantPosition, section: "Owner / Applicant Details" },
-        ...(applicationType === "Renewal" ? [
-          // Additional Renewal Details
-          { key: "businessPermitNo", label: "Business Permit No.", value: businessPermitNo, section: "Additional Renewal Details" },
-          { key: "dateOfPreviousPermit", label: "Date of Previous Permit", value: dateOfPreviousPermit, section: "Additional Renewal Details" },
-          { key: "dtiSecNumber", label: "DTI / SEC Number", value: dtiSecNumber, section: "Additional Renewal Details" },
-          { key: "leaseLandTitleNo", label: "Lease / Land Title No.", value: leaseLandTitleNo, section: "Additional Renewal Details" },
-          // Clearances / Attachments
-          { key: "barangayClearanceFile", label: "Barangay Clearance", value: barangayClearanceFile, section: "Clearances / Attachments" },
-          { key: "sanitaryBfpFile", label: "Sanitary / BFP", value: sanitaryBfpFile, section: "Clearances / Attachments" },
-          { key: "previousMayorPermitFile", label: "Previous Mayor's Permit", value: previousMayorPermitFile, section: "Clearances / Attachments" },
-          { key: "officialReceiptsFile", label: "Official Receipts", value: officialReceiptsFile, section: "Clearances / Attachments" },
-        ] : []),
+        { key: "projectType", label: "Project Type", value: projectType, section: "Business Information" },
+        { key: "zoneType", label: "Zone Type", value: zoneType, section: "Business Information" },
+        { key: "businessArea", label: "Business Area (sqm)", value: businessArea, section: "Business Information" },
+        { key: "malePersonnel", label: "Male Personnel", value: malePersonnel, section: "Business Information" },
+        { key: "femalePersonnel", label: "Female Personnel", value: femalePersonnel, section: "Business Information" },
       ],
       3: [
         { key: "signature", label: "Applicant Signature", value: isSignatureValid() ? "filled" : "" },
@@ -1593,7 +1596,7 @@ const Account = ({ initialMenu }) => {
 
     const required = stepFields[step] || [];
     const missing = required.filter(
-      (field) => !field.value || String(field.value).trim() === ""
+      (field) => (!field.optional && !hasValue(field.value)) || field.valid === false
     );
 
     return missing;
@@ -2278,7 +2281,7 @@ const Account = ({ initialMenu }) => {
 
     const mayorPermit = {
       key: "mayors-permit",
-      label: "Mayor's Permit",
+      label: "Business Permit",
       url: permit.applicationId
         ? `${window.location.origin}/permit/print/${permit.applicationId}`
         : "",
@@ -2295,7 +2298,23 @@ const Account = ({ initialMenu }) => {
   const downloadSelectedClearance = (permit, selection) => {
     const document = getClearanceDocuments(permit).find((item) => item.key === selection);
     if (!document?.available) return;
-    window.open(document.url, "_blank", "noopener,noreferrer");
+    setModal({
+      open: true,
+      title: document.label,
+      message: "",
+      buttonText: "Close",
+      variant: "default",
+      hideActions: true,
+      className: "certificate-viewer-modal",
+      children: (
+        <iframe
+          title={document.label}
+          src={document.url}
+          className="certificate-viewer-frame"
+        />
+      ),
+      onClose: () => setModal({ open: false }),
+    });
   };
 
   const savePaymentRecord = (record) => {
@@ -2982,7 +3001,7 @@ if (!paymentApplicationId) {
                         </select>
                       </div>
                       <div className="permit-field" style={{ position: "relative" }}>
-                        <label className="permit-label">Line of Business</label>
+                        <label className="permit-label">Line of Business <span className="req-star">*</span></label>
                         <input
                           className="input"
                           type="text"
@@ -3098,22 +3117,22 @@ if (!paymentApplicationId) {
                         <h4 className="permit-section-subtitle">Business Information</h4>
                         <div className="permit-row permit-row-2">
                           <div className="permit-field">
-                            <label className="permit-label">Business Name</label>
+                            <label className="permit-label">Business Name <span className="req-star">*</span></label>
                             <input className={`input${missingFields.includes("businessName") ? " input-invalid" : ""}`} value={businessName} onChange={e => { setBusinessName(e.target.value); setMissingFields(p => p.filter(f => f !== "businessName")); }} />
                           </div>
                           <div className="permit-field">
-                            <label className="permit-label">Business Line / Trade Name</label>
+                            <label className="permit-label">Business Line / Trade Name <span className="req-star">*</span></label>
                             <input className={`input${missingFields.includes("lineOfBusiness") ? " input-invalid" : ""}`} value={lineOfBusiness} onChange={e => { setLineOfBusiness(e.target.value); setMissingFields(p => p.filter(f => f !== "lineOfBusiness")); }} />
                           </div>
                         </div>
 
                         <div className="permit-row permit-row-2">
                           <div className="permit-field">
-                            <label className="permit-label">Business Area (sqm)</label>
+                            <label className="permit-label">Business Area (sqm) <span className="req-star">*</span></label>
                             <input className={`input${missingFields.includes("businessArea") ? " input-invalid" : ""}`} type="number" value={businessArea} onChange={e => { setBusinessArea(e.target.value); setMissingFields(p => p.filter(f => f !== "businessArea")); }} />
                           </div>
                           <div className="permit-field">
-                            <label className="permit-label">Ownership Type</label>
+                            <label className="permit-label">Ownership Type <span className="req-star">*</span></label>
                             <select className={`input${missingFields.includes("ownershipType") ? " input-invalid" : ""}`} value={ownershipType} onChange={e => { setOwnershipType(e.target.value); setMissingFields(p => p.filter(f => f !== "ownershipType")); }}>
                               <option value="">Select ownership</option>
                               <option>Sole Proprietor</option>
@@ -3125,26 +3144,26 @@ if (!paymentApplicationId) {
 
                         <div className="permit-row permit-row-2">
                           <div className="permit-field">
-                            <label className="permit-label">Business Address</label>
+                            <label className="permit-label">Business Address <span className="req-star">*</span></label>
                             <input className={`input${missingFields.includes("street") ? " input-invalid" : ""}`} value={street} onChange={e => { setStreet(e.target.value); setMissingFields(p => p.filter(f => f !== "street")); }} placeholder="Street / Bldg" />
                           </div>
                           <div className="permit-field">
-                            <label className="permit-label">Barangay</label>
+                            <label className="permit-label">Barangay <span className="req-star">*</span></label>
                             <input className={`input${missingFields.includes("barangay") ? " input-invalid" : ""}`} value={barangay} onChange={e => { setBarangay(e.target.value); setMissingFields(p => p.filter(f => f !== "barangay")); }} />
                           </div>
                         </div>
 
                         <div className="permit-row permit-row-3">
                           <div className="permit-field">
-                            <label className="permit-label">City / Municipality</label>
+                            <label className="permit-label">City / Municipality <span className="req-star">*</span></label>
                             <input className={`input${missingFields.includes("city") ? " input-invalid" : ""}`} value={city} onChange={e => { setCity(e.target.value); setMissingFields(p => p.filter(f => f !== "city")); }} />
                           </div>
                           <div className="permit-field">
-                            <label className="permit-label">Province</label>
+                            <label className="permit-label">Province <span className="req-star">*</span></label>
                             <input className={`input${missingFields.includes("province") ? " input-invalid" : ""}`} value={province} onChange={e => { setProvince(e.target.value); setMissingFields(p => p.filter(f => f !== "province")); }} />
                           </div>
                           <div className="permit-field">
-                            <label className="permit-label">Landmark / Area</label>
+                            <label className="permit-label">Landmark / Area <span className="req-star">*</span></label>
                             <input className={`input${missingFields.includes("landmark") ? " input-invalid" : ""}`} value={landmark} onChange={e => { setLandmark(e.target.value); setMissingFields(p => p.filter(f => f !== "landmark")); }} />
                           </div>
                         </div>
@@ -3152,7 +3171,7 @@ if (!paymentApplicationId) {
                         <h4 className="permit-section-subtitle">Owner / Applicant Details</h4>
                         <div className="permit-row permit-row-4">
                           <div className="permit-field">
-                            <label className="permit-label">First Name</label>
+                            <label className="permit-label">First Name <span className="req-star">*</span></label>
                             <input className={`input${missingFields.includes("applicantFirstName") ? " input-invalid" : ""}`} value={firstName} onChange={e => { setFirstName(e.target.value); setMissingFields(p => p.filter(f => f !== "applicantFirstName")); }} />
                           </div>
                           <div className="permit-field">
@@ -3160,7 +3179,7 @@ if (!paymentApplicationId) {
                             <input className="input" value={middleName} onChange={e => setMiddleName(e.target.value)} />
                           </div>
                           <div className="permit-field">
-                            <label className="permit-label">Last Name</label>
+                            <label className="permit-label">Last Name <span className="req-star">*</span></label>
                             <input className={`input${missingFields.includes("applicantLastName") ? " input-invalid" : ""}`} value={lastName} onChange={e => { setLastName(e.target.value); setMissingFields(p => p.filter(f => f !== "applicantLastName")); }} />
                           </div>
                           <div className="permit-field">
@@ -3171,11 +3190,11 @@ if (!paymentApplicationId) {
 
                         <div className="permit-row permit-row-2">
                           <div className="permit-field">
-                            <label className="permit-label">Contact Number</label>
+                            <label className="permit-label">Contact Number <span className="req-star">*</span></label>
                             <input className={`input${missingFields.includes("applicantContactNumber") ? " input-invalid" : ""}`} value={contactNumber} onChange={e => { setContactNumber(e.target.value); setMissingFields(p => p.filter(f => f !== "applicantContactNumber")); }} />
                           </div>
                           <div className="permit-field">
-                            <label className="permit-label">Email Address</label>
+                            <label className="permit-label">Email Address <span className="req-star">*</span></label>
                             <input className={`input${missingFields.includes("applicantEmail") ? " input-invalid" : ""}`} value={applicantEmail} onChange={e => { setApplicantEmail(e.target.value); setMissingFields(p => p.filter(f => f !== "applicantEmail")); }} />
                           </div>
                         </div>
@@ -3186,7 +3205,7 @@ if (!paymentApplicationId) {
                             <input className={`input${missingFields.includes("tin") ? " input-invalid" : ""}`} value={tin} onChange={e => { setTin(e.target.value); setMissingFields(p => p.filter(f => f !== "tin")); }} />
                           </div>
                           <div className="permit-field">
-                            <label className="permit-label">Position</label>
+                            <label className="permit-label">Position <span className="req-star">*</span></label>
                             <select className={`input${missingFields.includes("registrantPosition") ? " input-invalid" : ""}`} value={registrantPosition} onChange={e => { setRegistrantPosition(e.target.value); setMissingFields(p => p.filter(f => f !== "registrantPosition")); }}>
                               <option>Owner</option>
                               <option>Manager</option>
@@ -3351,7 +3370,7 @@ if (!paymentApplicationId) {
                             <input className={`input${missingFields.includes("firstName") ? " input-invalid" : ""}`} value={firstName} onChange={e => { setFirstName(e.target.value); setMissingFields(p => p.filter(f => f !== "firstName")); }} />
                           </div>
                           <div className="permit-field">
-                            <label className="permit-label">Middle Name/Initial</label>
+                            <label className="permit-label">Middle Name/Initial <span className="req-star">*</span></label>
                             <input className="input" value={middleName} onChange={e => setMiddleName(e.target.value)} />
                           </div>
                           <div className="permit-field">
@@ -3365,7 +3384,7 @@ if (!paymentApplicationId) {
                         </div>
                         <div className="permit-row permit-row-4">
                           <div className="permit-field">
-                            <label className="permit-label">Birth Date</label>
+                            <label className="permit-label">Birth Date <span className="req-star">*</span></label>
                             <input className="input" type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} />
                           </div>
                           <div className="permit-field">
@@ -3378,7 +3397,7 @@ if (!paymentApplicationId) {
                             </select>
                           </div>
                           <div className="permit-field">
-                            <label className="permit-label">Civil Status</label>
+                            <label className="permit-label">Civil Status <span className="req-star">*</span></label>
                             <select className="input" value={civilStatus} onChange={e => setCivilStatus(e.target.value)}>
                               <option value=""></option>
                               <option>Single</option>
@@ -3388,7 +3407,7 @@ if (!paymentApplicationId) {
                             </select>
                           </div>
                           <div className="permit-field">
-                            <label className="permit-label">Nationality</label>
+                            <label className="permit-label">Nationality <span className="req-star">*</span></label>
                             <select className="input" value={nationality} onChange={e => setNationality(e.target.value)}>
                               <option>Filipino</option>
                               <option>Foreign</option>
@@ -3420,36 +3439,36 @@ if (!paymentApplicationId) {
                                 <input className="input" value={barangay} onChange={e => setBarangay(e.target.value)} />
                               </div>
                               <div className="permit-field">
-                                <label className="permit-label">Subdivision</label>
+                                <label className="permit-label">Subdivision <span className="req-star">*</span></label>
                                 <input className="input" value={subdivision} onChange={e => setSubdivision(e.target.value)} />
                               </div>
                             </div>
                             <div className="permit-row permit-row-2">
                               <div className="permit-field">
-                                <label className="permit-label">Street</label>
+                                <label className="permit-label">Street <span className="req-star">*</span></label>
                                 <input className="input" value={street} onChange={e => setStreet(e.target.value)} />
                               </div>
                               <div className="permit-field">
-                                <label className="permit-label">Business Address</label>
+                                <label className="permit-label">Business Address <span className="req-star">*</span></label>
                                 <input className="input" value={building} onChange={e => setBuilding(e.target.value)} />
                               </div>
                             </div>
                             <div className="permit-row permit-row-3">
                               <div className="permit-field">
-                                <label className="permit-label">House No.</label>
+                                <label className="permit-label">House No. <span className="req-star">*</span></label>
                                 <input className="input" value={houseNo} onChange={e => setHouseNo(e.target.value)} />
                               </div>
                               <div className="permit-field">
-                                <label className="permit-label">Block</label>
+                                <label className="permit-label">Block <span className="req-star">*</span></label>
                                 <input className="input" value={block} onChange={e => setBlock(e.target.value)} />
                               </div>
                               <div className="permit-field">
-                                <label className="permit-label">Lot</label>
+                                <label className="permit-label">Lot <span className="req-star">*</span></label>
                                 <input className="input" value={lot} onChange={e => setLot(e.target.value)} />
                               </div>
                             </div>
                             <div className="permit-field">
-                              <label className="permit-label">Landmark/Corner/Ave.</label>
+                              <label className="permit-label">Landmark/Corner/Ave. <span className="req-star">*</span></label>
                               <input className="input" value={landmark} onChange={e => setLandmark(e.target.value)} />
                             </div>
                           </div>
@@ -3503,21 +3522,21 @@ if (!paymentApplicationId) {
 
                     <div className="permit-row permit-row-2">
                       <div className="permit-field">
-                        <label className="permit-label">Ownership Type</label>
+                        <label className="permit-label">Ownership Type <span className="req-star">*</span></label>
                         <input className="input" value={ownershipType} onChange={(e) => setOwnershipType(e.target.value)} />
                       </div>
                     </div>
 
                     <div className="permit-row permit-row-2">
                       <div className="permit-field">
-                        <label className="permit-label">Project Type</label>
+                        <label className="permit-label">Project Type <span className="req-star">*</span></label>
                         <select className="input" value={projectType} onChange={(e) => setProjectType(e.target.value)}>
                           <option>Residential</option>
                           <option>Commercial</option>
                         </select>
                       </div>
                       <div className="permit-field">
-                        <label className="permit-label">Zone Type</label>
+                        <label className="permit-label">Zone Type <span className="req-star">*</span></label>
                         <select className="input" value={zoneType} onChange={(e) => setZoneType(e.target.value)}>
                           <option>Residential Zone</option>
                           <option>Commercial Zone</option>
@@ -3527,15 +3546,15 @@ if (!paymentApplicationId) {
 
                     <div className="permit-row permit-row-3">
                       <div className="permit-field">
-                        <label className="permit-label">Business Area (sqm)</label>
+                        <label className="permit-label">Business Area (sqm) <span className="req-star">*</span></label>
                         <input className="input" type="number" value={businessArea} onChange={(e) => setBusinessArea(e.target.value)} />
                       </div>
                       <div className="permit-field">
-                        <label className="permit-label">Male Personnel</label>
+                        <label className="permit-label">Male Personnel <span className="req-star">*</span></label>
                         <input className="input" type="number" value={malePersonnel} onChange={(e) => setMalePersonnel(e.target.value)} />
                       </div>
                       <div className="permit-field">
-                        <label className="permit-label">Female Personnel</label>
+                        <label className="permit-label">Female Personnel <span className="req-star">*</span></label>
                         <input className="input" type="number" value={femalePersonnel} onChange={(e) => setFemalePersonnel(e.target.value)} />
                       </div>
                     </div>
@@ -4828,6 +4847,8 @@ if (!paymentApplicationId) {
         onCancel={modal.onCancel}
         cancelText={modal.cancelText}
         hideActions={modal.hideActions}
+        className={modal.className}
+        overlayClassName={modal.overlayClassName}
       >
         {modal.children}
       </CenteredModal>

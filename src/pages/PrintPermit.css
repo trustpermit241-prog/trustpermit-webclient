@@ -306,6 +306,34 @@
   margin-top: 42px;
   font-size: 2.25rem;
   letter-spacing: 0.12rem;
+  color: #263a9b;
+}
+
+.mayors-permit-document .permit-office-title {
+  margin-top: 8px;
+  color: #263a9b;
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: 0.06rem;
+}
+
+.mayors-permit-document .permit-office-subtitle {
+  color: #263a9b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04rem;
+}
+
+.mayors-permit-document .permit-number-banner {
+  margin-top: 6px;
+  color: #b54252;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.mayors-permit-document .permit-number-banner span {
+  color: #9f3748;
+  letter-spacing: 0.08rem;
 }
 
 .mayors-permit-document .permit-qr-block {

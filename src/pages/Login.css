@@ -172,6 +172,11 @@
   margin-bottom: 0 !important;
 }
 
+.password-input::-ms-reveal,
+.password-input::-ms-clear {
+  display: none;
+}
+
 .password-input-wrap {
   position: relative;
   margin-bottom: 15px;

@@ -4,6 +4,7 @@ import axios from "axios";
 import html2pdf from "html2pdf.js/dist/html2pdf.js";
 import { buildCertificateData } from "./certificates/CertificateSharedData";
 import FireSafetyCertificate from "./certificates/FireSafetyCertificate";
+import BuildingElectricalCertificate from "./certificates/BuildingElectricalCertificate";
 import EnvironmentalPermit from "./certificates/EnvironmentalPermit";
 import ZoningClearance from "./certificates/ZoningClearance";
 import VeterinaryCertificate from "./certificates/VeterinaryCertificate";
@@ -17,6 +18,7 @@ const FRONTEND_URL = "https://trustpermit-webclient.vercel.app";
 
 const CERTIFICATE_COMPONENTS = {
   fire: FireSafetyCertificate,
+  building: BuildingElectricalCertificate,
   environmental: EnvironmentalPermit,
   locational: ZoningClearance,
   veterinary: VeterinaryCertificate,

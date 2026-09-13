@@ -444,13 +444,14 @@ export default function Login() {
             <>
               <div className="login-field-block">
                 <label htmlFor="email" className="login-field-label" style={{ fontSize: 18, color: "#1a237e", fontWeight: 600 }}>
-                  Email
+                  Email <span aria-hidden="true">*</span>
                 </label>
 
                 <div style={{ position: "relative" }}>
                   <input
                     type="email"
                     id="email"
+                    required
                     placeholder="Enter your email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -462,7 +463,7 @@ export default function Login() {
               <div className="login-field-block">
                 <div className="login-password-row">
                   <label htmlFor="password" className="login-field-label" style={{ fontSize: 18, color: "#1a237e", fontWeight: 600 }}>
-                    Password
+                    Password <span aria-hidden="true">*</span>
                   </label>
 
                   <span
@@ -487,6 +488,7 @@ export default function Login() {
                     type={showPassword ? "text" : "password"}
                     id="password"
                     className="password-input"
+                    required
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}

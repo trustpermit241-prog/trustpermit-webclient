@@ -178,7 +178,10 @@ export default function PrintPermit() {
             <div className="permit-government">Republic of the Philippines</div>
             <div className="permit-government">Province of Rizal</div>
             <div className="permit-government">City of Antipolo</div>
-            <h1 className="permit-main-title">MAYOR&apos;S PERMIT</h1>
+            <div className="permit-office-title">OFFICE OF THE MAYOR</div>
+            <div className="permit-office-subtitle">BUSINESS PERMITS AND LICENSING OFFICE</div>
+            <h1 className="permit-main-title">BUSINESS PERMIT</h1>
+            <div className="permit-number-banner">PERMIT NO: <span>{permitNumber}</span></div>
           </div>
           <div className="permit-qr-block">
             {/* Use verify UI route so the scanner opens the blockchain verification page */}
