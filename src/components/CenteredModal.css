@@ -84,6 +84,25 @@
   flex: 1;
   min-height: 0;
   margin: 0;
+  overflow: auto;
+  padding: 0 4px 4px;
+}
+
+.certificate-viewer-modal .permit-print-page,
+.certificate-viewer-modal .certificate-page {
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.certificate-viewer-modal .permit-print-sheet,
+.certificate-viewer-modal .certificate-sheet {
+  width: min(100%, 210mm);
+  max-width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .certificate-viewer-frame {
