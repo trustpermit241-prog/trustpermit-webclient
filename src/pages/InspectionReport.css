@@ -238,6 +238,20 @@ body {
   font-family: Arial, sans-serif;
 }
 
+.inspection-report-staff-header {
+  text-align: center;
+}
+
+.inspection-report-staff-logo {
+  display: block;
+  width: 82px;
+  height: 82px;
+  margin: 0 auto 12px;
+  border: 2px solid #777;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 @media print {
   body {
     background: #fff;
@@ -267,5 +281,1048 @@ body {
   .inspection-report-footer button,
   button {
     display: none !important;
+  }
+}
+
+/* Separate released certificate templates */
+.certificate-page {
+  min-height: 100vh;
+  padding: 28px;
+  background: #e9e9e5;
+  color: #1b1b1b;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.certificate-sheet {
+  position: relative;
+  max-width: 840px;
+  min-height: 1120px;
+  margin: 0 auto;
+  padding: 44px 58px 38px;
+  background: #fffef9;
+  border: 1px solid #777;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.13);
+}
+
+.certificate-sheet::before {
+  content: "";
+  position: absolute;
+  inset: 14px;
+  border: 1px solid #aaa;
+  pointer-events: none;
+}
+
+.certificate-header,
+.certificate-reference,
+.certificate-sheet > main,
+.certificate-actions {
+  position: relative;
+  z-index: 1;
+}
+
+.certificate-header {
+  display: grid;
+  grid-template-columns: 90px 1fr 108px;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 17px;
+  border-bottom: 2px solid #222;
+  text-align: center;
+}
+
+.certificate-seal {
+  width: 80px;
+  height: 80px;
+  overflow: hidden;
+  border: 2px solid #555;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.certificate-seal img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.certificate-government {
+  display: grid;
+  gap: 3px;
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.certificate-government strong {
+  font-size: 16px;
+  letter-spacing: 0.7px;
+}
+
+.certificate-office {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.certificate-government small {
+  font-size: 9px;
+}
+
+.certificate-qr {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  font-family: Arial, sans-serif;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.certificate-qr svg {
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #555;
+}
+
+.certificate-reference {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  font-family: Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.certificate-sheet h1 {
+  margin: 18px 0 20px;
+  text-align: center;
+  font-size: 25px;
+  letter-spacing: 1px;
+}
+
+.certificate-sheet h2 {
+  text-align: center;
+  font-size: 18px;
+  text-transform: uppercase;
+}
+
+.certificate-sheet p {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.certificate-salutation {
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.certificate-details,
+.environmental-grid,
+.veterinary-fields,
+.sanitary-fields {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  margin: 22px 0;
+  border-top: 1px solid #999;
+  border-left: 1px solid #999;
+}
+
+.certificate-details > div,
+.environmental-grid > *,
+.veterinary-fields > *,
+.sanitary-fields > * {
+  min-height: 42px;
+  padding: 9px 11px;
+  border-right: 1px solid #999;
+  border-bottom: 1px solid #999;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.certificate-details b,
+.environmental-grid b,
+.veterinary-fields b,
+.sanitary-fields b {
+  display: flex;
+  align-items: center;
+  font-family: Arial, sans-serif;
+  font-size: 8px;
+  letter-spacing: 0.4px;
+}
+
+.certificate-validity,
+.environmental-validity {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 1fr 1.4fr;
+  border: 1px solid #888;
+  background: #f5f1df;
+}
+
+.certificate-validity > *,
+.environmental-validity > * {
+  padding: 10px;
+  border-right: 1px solid #aaa;
+  font-size: 10px;
+}
+
+.certificate-validity b,
+.environmental-validity b {
+  font-family: Arial, sans-serif;
+  font-size: 8px;
+}
+
+.certificate-record {
+  margin-top: 24px;
+}
+
+.certificate-record h3 {
+  margin: 0;
+  padding-bottom: 6px;
+  border-bottom: 2px solid currentColor;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.certificate-record p {
+  display: flex;
+  gap: 15px;
+  margin: 0;
+  padding: 7px 0;
+  border-bottom: 1px solid #ccc;
+  font-size: 11px;
+}
+
+.certificate-record p b {
+  min-width: 155px;
+  font-family: Arial, sans-serif;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.certificate-signatures {
+  display: flex;
+  justify-content: space-around;
+  gap: 35px;
+  margin-top: 42px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.certificate-signatures > div {
+  flex: 1;
+  padding-top: 28px;
+  border-top: 1px solid #222;
+}
+
+.certificate-signatures span {
+  display: block;
+  margin-top: 6px;
+  font-family: Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 400;
+}
+
+.certificate-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.certificate-actions button {
+  padding: 9px 14px;
+  border: 1px solid #333;
+  background: #f5f1df;
+  color: #222;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.certificate-actions button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.certificate-fire .certificate-sheet { border-color: #8d6e55; }
+.certificate-fire .certificate-header, .certificate-fire .certificate-record h3 { color: #6a3524; }
+.certificate-environmental .certificate-sheet { border-color: #252f5e; background: #fbfbff; }
+.certificate-environmental .certificate-header, .certificate-environmental .certificate-record h3 { color: #252f5e; }
+.certificate-environmental .environmental-grid b { background: #252f5e; color: #fff; }
+.certificate-environmental .environmental-warning { color: #8a3e30; font-weight: 700; text-align: center; }
+.certificate-locational .certificate-sheet { border-color: #77745c; background: #fffef8; }
+.certificate-locational .certificate-header, .certificate-locational .certificate-record h3 { color: #4f5238; }
+.certificate-locational .zoning-body::before { content: "ZONING CLEARANCE"; display: block; margin: 30px auto -55px; color: rgba(130, 126, 83, 0.1); font-size: 46px; font-weight: 800; text-align: center; transform: rotate(-20deg); }
+.certificate-veterinary .certificate-sheet { border-color: #6f9467; background: #fbfffa; }
+.certificate-veterinary .certificate-header, .certificate-veterinary .certificate-record h3 { color: #315d3a; }
+.certificate-veterinary .veterinary-fields { background: #f1f7ef; }
+.certificate-sanitary .certificate-sheet { border-color: #65728b; background: #fff; }
+.certificate-sanitary .certificate-header, .certificate-sanitary .certificate-record h3 { color: #b42318; }
+.certificate-sanitary .sanitary-fields { background: #f1f5fa; }
+.certificate-sanitary .certificate-validity { background: #eef4fb; }
+
+.environmental-subtitle,
+.environmental-validity,
+.environmental-grid,
+.environmental-body .certificate-details,
+.environmental-body .certificate-record { font-family: Arial, sans-serif; }
+
+.vhc-control { margin: -8px 0 20px; text-align: center; font-family: Arial, sans-serif; font-size: 10px; }
+.zoning-issued, .zoning-note { text-align: center; font-weight: 700; }
+.zoning-note { margin-top: 34px; font-size: 10px !important; }
+
+@media print {
+  .certificate-page { padding: 0; background: #fff; }
+  .certificate-sheet { min-height: 0; box-shadow: none; }
+  .certificate-actions { display: none; }
+}
+
+@media (max-width: 700px) {
+  .certificate-page { padding: 10px; }
+  .certificate-sheet { min-height: 0; padding: 30px 24px; }
+  .certificate-header { grid-template-columns: 58px 1fr 70px; gap: 7px; }
+  .certificate-seal { width: 54px; height: 54px; }
+  .certificate-government strong { font-size: 11px; }
+  .certificate-office { font-size: 8px; }
+  .certificate-qr svg { width: 58px; height: 58px; }
+  .certificate-details, .environmental-grid, .veterinary-fields, .sanitary-fields { grid-template-columns: 1fr; }
+  .certificate-validity, .environmental-validity { grid-template-columns: 1fr 1fr; }
+  .certificate-record p { display: grid; gap: 4px; }
+  .certificate-signatures { flex-direction: column; gap: 28px; }
+  .certificate-actions { justify-content: stretch; }
+  .certificate-actions button { flex: 1; }
+}
+
+/* Fire Safety Inspection Certificate layout */
+.inspection-report-page {
+  padding: 30px;
+  background: #e8e8e5;
+  font-family: Georgia, "Times New Roman", serif;
+  color: #171717;
+}
+
+.inspection-report-sheet {
+  position: relative;
+  max-width: 860px;
+  min-height: 1120px;
+  padding: 38px 54px 34px;
+  border: 1px solid #b7b7b2;
+  background: #fffef9;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.inspection-report-sheet::before {
+  content: "";
+  position: absolute;
+  inset: 13px;
+  border: 1px solid #b99758;
+  pointer-events: none;
+}
+
+.inspection-report-header {
+  position: relative;
+  z-index: 1;
+  border-bottom: 2px solid #202020;
+  padding: 0 0 16px;
+  margin-bottom: 18px;
+}
+
+.inspection-report-organization {
+  min-height: 116px;
+  grid-template-columns: 92px 1fr 116px;
+  gap: 12px;
+}
+
+.inspection-report-logo {
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+}
+
+.inspection-report-government {
+  font-size: 11px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.inspection-report-title {
+  margin-top: 2px;
+  font-size: 19px;
+  letter-spacing: 1px;
+}
+
+.inspection-report-subtitle {
+  margin-top: 5px;
+  font-size: 14px;
+  letter-spacing: 0.8px;
+}
+
+.inspection-report-office {
+  margin-top: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.inspection-report-contact {
+  margin-top: 6px;
+  font-size: 9px;
+  color: #444;
+}
+
+.inspection-report-qr-box {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid #777;
+  background: #fff;
+  font-family: Arial, sans-serif;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.inspection-report-qr {
+  display: grid;
+  padding: 3px;
+  background: #fff;
+}
+
+.inspection-report-reference-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 14px;
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.inspection-report-main {
+  margin-top: 12px;
+  font-size: 25px;
+  letter-spacing: 1.2px;
+}
+
+.inspection-report-certificate-type {
+  margin-top: 5px;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: #333;
+}
+
+.inspection-report-certificate-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 720px;
+  margin: 0 auto;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.inspection-report-certificate-copy p {
+  margin: 10px 0;
+}
+
+.inspection-report-certificate-copy .inspection-report-salutation {
+  margin: 2px 0 14px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.inspection-report-certificate-copy h1,
+.inspection-report-certificate-copy h2 {
+  color: #111;
+  margin: 8px 0;
+  letter-spacing: 0.7px;
+}
+
+.inspection-report-certificate-copy h1 {
+  font-size: 22px;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.inspection-report-certificate-copy h2 {
+  font-size: 18px;
+}
+
+.inspection-report-facts,
+.inspection-report-issuance {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid #555;
+  border-left: 1px solid #555;
+  margin: 20px auto 0;
+  max-width: 720px;
+}
+
+.inspection-report-fact,
+.inspection-report-issuance > div {
+  display: grid;
+  gap: 4px;
+  min-height: 52px;
+  padding: 8px 10px;
+  border-right: 1px solid #555;
+  border-bottom: 1px solid #555;
+}
+
+.inspection-report-fact strong,
+.inspection-report-issuance strong {
+  font-family: Arial, sans-serif;
+  font-size: 8px;
+  letter-spacing: 0.5px;
+}
+
+.inspection-report-fact span,
+.inspection-report-issuance span {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.inspection-report-issuance {
+  margin-top: 16px;
+  background: #f7f1df;
+}
+
+.inspection-report-details {
+  position: relative;
+  z-index: 1;
+  max-width: 720px;
+  margin: 20px auto 0;
+}
+
+.inspection-report-section-title {
+  padding-bottom: 5px;
+  border-bottom: 2px solid #222;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.7px;
+}
+
+.inspection-report-row {
+  padding: 7px 0;
+  border-bottom: 1px solid #c9c9c4;
+  font-size: 12px;
+}
+
+.inspection-report-label {
+  min-width: 170px;
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.inspection-report-value {
+  overflow-wrap: anywhere;
+}
+
+.inspection-report-validity-note {
+  position: relative;
+  z-index: 1;
+  max-width: 720px;
+  margin: 18px auto 0;
+  font-size: 10px;
+  font-style: italic;
+  line-height: 1.45;
+}
+
+.inspection-report-signature-row {
+  position: relative;
+  z-index: 1;
+  max-width: 720px;
+  margin: 34px auto 0;
+  gap: 42px;
+}
+
+.inspection-report-signature-title {
+  min-height: 18px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.inspection-report-signature-line {
+  border-color: #222;
+}
+
+.inspection-report-signature-row span {
+  font-family: Arial, sans-serif;
+  font-size: 9px;
+  color: #222;
+}
+
+.inspection-report-footer {
+  position: relative;
+  z-index: 1;
+  margin-top: 24px;
+  gap: 10px;
+}
+
+.inspection-report-footer button {
+  border: 1px solid #7c6332;
+  padding: 9px 14px;
+  background: #f7f1df;
+  color: #211b10;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.inspection-report-footer button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.inspection-report-sanitary::before {
+  border-color: #5f7190;
+}
+
+.inspection-report-sanitary .inspection-report-subtitle {
+  color: #b42318;
+}
+
+.inspection-report-sanitary .inspection-report-main {
+  display: inline-block;
+  width: 100%;
+  padding: 8px 12px;
+  border: 2px solid #4b5563;
+  background: #fff;
+  font-size: 22px;
+}
+
+.inspection-report-sanitary .inspection-report-issuance {
+  background: #eef4fb;
+}
+
+.inspection-report-environmental::before {
+  border-color: #3b476f;
+}
+
+.inspection-report-environmental .inspection-report-subtitle {
+  color: #27335e;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+}
+
+.inspection-report-environmental .inspection-report-office {
+  color: #27335e;
+  font-size: 10px;
+  letter-spacing: 0.4px;
+}
+
+.inspection-report-environmental .inspection-report-main {
+  margin-top: 18px;
+  padding: 10px 12px;
+  color: #252f5e;
+  border: 2px solid #252f5e;
+  background: #fff;
+  font-size: 22px;
+  letter-spacing: 0.7px;
+}
+
+.inspection-report-environmental .inspection-report-certificate-type {
+  color: #252f5e;
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+
+.inspection-report-environmental .inspection-report-certificate-copy {
+  max-width: 720px;
+  text-align: center;
+}
+
+.inspection-report-environmental .inspection-report-certificate-copy h1,
+.inspection-report-environmental .inspection-report-certificate-copy h2 {
+  color: #161d3d;
+  font-family: Arial, sans-serif;
+}
+
+.inspection-report-environmental .inspection-report-facts {
+  border-color: #6c718d;
+  background: #fff;
+}
+
+.inspection-report-environmental .inspection-report-fact {
+  min-height: 62px;
+  border-color: #6c718d;
+  grid-template-columns: 150px 1fr;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+}
+
+.inspection-report-environmental .inspection-report-fact strong {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  padding: 8px 9px;
+  background: #252f5e;
+  color: #fff;
+  font-size: 8px;
+  line-height: 1.2;
+}
+
+.inspection-report-environmental .inspection-report-fact span {
+  padding: 8px 10px;
+  color: #161d3d;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.inspection-report-environmental .inspection-report-issuance {
+  border-color: #6c718d;
+  background: #eef0f8;
+}
+
+.inspection-report-environmental .inspection-report-issuance > div {
+  border-color: #6c718d;
+}
+
+.inspection-report-environmental .inspection-report-section-title {
+  color: #252f5e;
+  border-bottom-color: #252f5e;
+}
+
+.inspection-report-environmental .inspection-report-validity-note {
+  color: #7a3e31;
+  font-weight: 700;
+  text-align: center;
+}
+
+.inspection-report-environmental .inspection-report-signature-line {
+  border-color: #252f5e;
+}
+
+.inspection-report-veterinary::before {
+  border-color: #6f9467;
+}
+
+.inspection-report-veterinary .inspection-report-title,
+.inspection-report-veterinary .inspection-report-subtitle,
+.inspection-report-veterinary .inspection-report-office {
+  color: #315d3a;
+}
+
+.inspection-report-veterinary .inspection-report-subtitle {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 13px;
+  letter-spacing: 0.8px;
+}
+
+.inspection-report-veterinary .inspection-report-office {
+  font-size: 10px;
+  letter-spacing: 0.4px;
+}
+
+.inspection-report-veterinary .inspection-report-main {
+  margin-top: 20px;
+  padding: 6px 0;
+  color: #1f3927;
+  border: none;
+  border-top: 1px solid #6f9467;
+  border-bottom: 1px solid #6f9467;
+  font-size: 24px;
+  letter-spacing: 4px;
+}
+
+.inspection-report-veterinary .inspection-report-certificate-type {
+  color: #315d3a;
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+}
+
+.inspection-report-veterinary .inspection-report-certificate-copy {
+  max-width: 720px;
+  margin-top: 30px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.inspection-report-veterinary .inspection-report-certificate-copy h1,
+.inspection-report-veterinary .inspection-report-certificate-copy h2 {
+  color: #1f3927;
+  font-family: Arial, sans-serif;
+}
+
+.inspection-report-veterinary .inspection-report-facts {
+  border-color: #87a582;
+  background: rgba(248, 252, 246, 0.9);
+}
+
+.inspection-report-veterinary .inspection-report-fact {
+  min-height: 55px;
+  border-color: #87a582;
+  grid-template-columns: 190px 1fr;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+}
+
+.inspection-report-veterinary .inspection-report-fact strong {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  color: #315d3a;
+  font-family: Arial, sans-serif;
+  font-size: 8px;
+  line-height: 1.2;
+}
+
+.inspection-report-veterinary .inspection-report-fact span {
+  padding: 8px 10px;
+  color: #1f2921;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+}
+
+.inspection-report-veterinary .inspection-report-issuance {
+  border-color: #87a582;
+  background: #f1f7ef;
+}
+
+.inspection-report-veterinary .inspection-report-issuance > div {
+  border-color: #87a582;
+}
+
+.inspection-report-veterinary .inspection-report-section-title {
+  color: #315d3a;
+  border-bottom-color: #315d3a;
+}
+
+.inspection-report-veterinary .inspection-report-validity-note {
+  color: #315d3a;
+  text-align: center;
+}
+
+.inspection-report-veterinary .inspection-report-signature-line {
+  border-color: #315d3a;
+}
+
+.inspection-report-locational::before {
+  border-color: #77745c;
+}
+
+.inspection-report-locational .inspection-report-government,
+.inspection-report-locational .inspection-report-title,
+.inspection-report-locational .inspection-report-subtitle,
+.inspection-report-locational .inspection-report-office {
+  color: #34362d;
+}
+
+.inspection-report-locational .inspection-report-subtitle {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 13px;
+}
+
+.inspection-report-locational .inspection-report-office {
+  font-size: 10px;
+  letter-spacing: 0.25px;
+}
+
+.inspection-report-locational .inspection-report-main {
+  margin-top: 20px;
+  padding: 7px 0;
+  color: #25261f;
+  border-top: 2px solid #3e4035;
+  border-bottom: 2px solid #3e4035;
+  font-size: 24px;
+  letter-spacing: 1.8px;
+}
+
+.inspection-report-locational .inspection-report-certificate-type {
+  display: none;
+}
+
+.inspection-report-locational .inspection-report-certificate-copy {
+  position: relative;
+  max-width: 720px;
+  margin-top: 34px;
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.inspection-report-locational .inspection-report-certificate-copy::before {
+  content: "ZONING CLEARANCE";
+  position: absolute;
+  top: 44%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-22deg);
+  color: rgba(134, 130, 90, 0.1);
+  font-family: Arial, sans-serif;
+  font-size: 3.4rem;
+  font-weight: 800;
+  letter-spacing: 0.15rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.inspection-report-locational .inspection-report-certificate-copy p,
+.inspection-report-locational .inspection-report-certificate-copy h1,
+.inspection-report-locational .inspection-report-certificate-copy h2 {
+  position: relative;
+  z-index: 1;
+}
+
+.inspection-report-locational .inspection-report-certificate-copy h1,
+.inspection-report-locational .inspection-report-certificate-copy h2 {
+  color: #25261f;
+  font-family: Georgia, "Times New Roman", serif;
+  text-align: center;
+}
+
+.inspection-report-locational .inspection-report-certificate-copy h1 {
+  font-size: 20px;
+  text-decoration: none;
+}
+
+.inspection-report-locational .inspection-report-facts {
+  border-color: #aaa58a;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.inspection-report-locational .inspection-report-fact {
+  border-color: #aaa58a;
+  grid-template-columns: 175px 1fr;
+}
+
+.inspection-report-locational .inspection-report-fact strong {
+  color: #53533c;
+  font-family: Arial, sans-serif;
+  font-size: 8px;
+}
+
+.inspection-report-locational .inspection-report-fact span {
+  color: #25261f;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 12px;
+}
+
+.inspection-report-locational .inspection-report-issuance {
+  border-color: #aaa58a;
+  background: #f5f2e4;
+}
+
+.inspection-report-locational .inspection-report-issuance > div {
+  border-color: #aaa58a;
+}
+
+.inspection-report-locational .inspection-report-validity-note {
+  color: #414331;
+  text-align: center;
+  font-weight: 700;
+}
+
+.inspection-report-locational .inspection-report-signature-line {
+  border-color: #414331;
+}
+
+@media (max-width: 700px) {
+  .inspection-report-locational .inspection-report-main {
+    font-size: 18px;
+    letter-spacing: 1px;
+  }
+
+  .inspection-report-locational .inspection-report-fact {
+    grid-template-columns: 1fr;
+  }
+
+  .inspection-report-locational .inspection-report-fact strong {
+    min-height: 28px;
+  }
+}
+
+@media (max-width: 700px) {
+  .inspection-report-veterinary .inspection-report-main {
+    font-size: 18px;
+    letter-spacing: 1.8px;
+  }
+
+  .inspection-report-veterinary .inspection-report-fact {
+    grid-template-columns: 1fr;
+  }
+
+  .inspection-report-veterinary .inspection-report-fact strong {
+    min-height: 28px;
+  }
+}
+
+@media (max-width: 700px) {
+  .inspection-report-environmental .inspection-report-fact {
+    grid-template-columns: 1fr;
+  }
+
+  .inspection-report-environmental .inspection-report-fact strong {
+    min-height: 30px;
+  }
+}
+
+@media (max-width: 700px) {
+  .inspection-report-page {
+    padding: 10px;
+  }
+
+  .inspection-report-sheet {
+    min-height: 0;
+    padding: 28px 24px;
+  }
+
+  .inspection-report-organization {
+    grid-template-columns: 58px 1fr 82px;
+    gap: 7px;
+  }
+
+  .inspection-report-logo {
+    width: 54px;
+    height: 54px;
+  }
+
+  .inspection-report-title {
+    font-size: 13px;
+  }
+
+  .inspection-report-subtitle {
+    font-size: 10px;
+  }
+
+  .inspection-report-office,
+  .inspection-report-contact {
+    font-size: 7px;
+  }
+
+  .inspection-report-main {
+    font-size: 18px;
+  }
+
+  .inspection-report-facts,
+  .inspection-report-issuance {
+    grid-template-columns: 1fr;
+  }
+
+  .inspection-report-signature-row {
+    gap: 20px;
+  }
+}
+
+@media print {
+  .inspection-report-page {
+    padding: 0;
+    background: #fff;
+  }
+
+  .inspection-report-sheet {
+    min-height: 0;
+    box-shadow: none;
   }
 }

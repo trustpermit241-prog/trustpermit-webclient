@@ -182,8 +182,8 @@
   right: 14px;
   top: 50%;
   transform: translateY(-50%);
-  width: 22px !important;
-  height: 22px !important;
+  width: 32px !important;
+  height: 32px !important;
   padding: 0 !important;
   margin: 0 !important;
   border: none;
@@ -203,6 +203,9 @@
 
 .password-toggle-btn svg {
   display: block;
+  width: 20px;
+  height: 20px;
+  stroke: #111111;
 }
 
 .password-toggle-btn:hover,

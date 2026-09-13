@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import QRCode from "react-qr-code";
 import axios from "axios";
+import antipoloLogo from "../assets/antipolologo.jpg";
 import "./PrintPermit.css";
 
 const getApiBaseUrl = () => {
@@ -166,10 +167,12 @@ export default function PrintPermit() {
 
   return (
     <div className="permit-print-page">
-      <div className="permit-print-sheet official-permit">
+      <div className="permit-print-sheet official-permit mayors-permit-document">
         <div className="permit-top-row">
           <div className="permit-seal-logo">
-            <div className="seal-circle">City Seal</div>
+            <div className="seal-circle">
+              <img src={antipoloLogo} alt="Antipolo City seal" />
+            </div>
           </div>
           <div className="permit-title-block">
             <div className="permit-government">Republic of the Philippines</div>
@@ -180,6 +183,7 @@ export default function PrintPermit() {
           <div className="permit-qr-block">
             {/* Use verify UI route so the scanner opens the blockchain verification page */}
             <QRCode value={verificationLink} size={110} />
+            <small>Scan to verify</small>
           </div>
         </div>
 
@@ -235,6 +239,10 @@ export default function PrintPermit() {
             <li>The permittee shall cause the posting in its premises, any public announcements/notices that the City Government may require from time to time.</li>
           </ol>
         </div>
+
+        <p className="mayors-permit-clearance-note">
+          NOTE: TO SUBMIT FIRE SAFETY INSPECTION CERTIFICATE (FSIC) AND OTHER NATIONAL AGENCY CLEARANCES, IF APPLICABLE, WITHIN 30 DAYS FROM DATE OF ISSUE.
+        </p>
 
         <div className="permit-bottom-row">
           <div className="permit-bottom-left">

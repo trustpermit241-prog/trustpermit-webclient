@@ -4,6 +4,7 @@ import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import emailjs from "@emailjs/browser";
 import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
+import { Eye, EyeOff } from "lucide-react";
 import CenteredModal from "../components/CenteredModal";
 import "./Login.css";
 
@@ -497,9 +498,10 @@ export default function Login() {
                     className="password-toggle-btn"
                     onClick={() => setShowPassword((prev) => !prev)}
                     aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-pressed={showPassword}
                     title={showPassword ? "Hide password" : "Show password"}
                   >
-                    {showPassword ? "Hide" : "Show"}
+                    {showPassword ? <EyeOff size={20} strokeWidth={2.25} aria-hidden="true" /> : <Eye size={20} strokeWidth={2.25} aria-hidden="true" />}
                   </button>
                 </div>
               </div>

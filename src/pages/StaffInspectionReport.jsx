@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
+import antipoloLogo from "../assets/antipolologo.jpg";
 import "./InspectionReport.css";
 
 const getApiBaseUrl = () => {
@@ -62,6 +63,7 @@ export default function StaffInspectionReport() {
     <div className="inspection-report-page">
       <div className="inspection-report-sheet">
         <div className="inspection-report-header inspection-report-staff-header">
+          <img src={antipoloLogo} alt="Antipolo City seal" className="inspection-report-staff-logo" />
           <div className="inspection-report-title">CITY GOVERNMENT OF ANTIPOLO</div>
           <div className="inspection-report-subtitle">BUSINESS PERMITS AND LICENSING OFFICE</div>
           <div className="inspection-report-contact">Staff Inspection Processing Record</div>
