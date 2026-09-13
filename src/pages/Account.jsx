@@ -10,6 +10,7 @@ import UploadedDocumentsView from "./Dropdown/UploadedDocumentsView";
 import PrintPermit from "./PrintPermit";
 import PrintClearance from "./PrintClearance";
 import InspectionReport from "./InspectionReport";
+import html2pdf from "html2pdf.js/dist/html2pdf.js";
 import { getCanvasPoint } from "./signatureUtils";
 import "./Account.css";
 import CenteredModal from "../components/CenteredModal";
@@ -75,6 +76,8 @@ const Account = ({ initialMenu }) => {
 
   // ================= VIEW DROPDOWN STATE =================
   const [openViewDropdown, setOpenViewDropdown] = useState(null); // track which company dropdown is open
+  const certificateViewerRef = useRef(null);
+  const [certificateDownloading, setCertificateDownloading] = useState(false);
 
   // ================= VIEW DROPDOWN FUNCTIONS =================
   const viewApplicationForm = (applicationId) => {
@@ -2310,21 +2313,97 @@ const Account = ({ initialMenu }) => {
   };
 
   const downloadSelectedClearance = (permit, selection) => {
-    const document = getClearanceDocuments(permit).find((item) => item.key === selection);
-    if (!document?.available) return;
+    const selectedDocument = getClearanceDocuments(permit).find((item) => item.key === selection);
+    if (!selectedDocument?.available) return;
+
+    const downloadCertificate = async () => {
+      if (!certificateViewerRef.current || certificateDownloading) return;
+      setCertificateDownloading(true);
+      let holder;
+      try {
+        const clone = certificateViewerRef.current.cloneNode(true);
+        clone.querySelectorAll("button, .certificate-actions, .permit-print-button").forEach((element) => element.remove());
+        clone.style.width = "190mm";
+        clone.style.maxWidth = "190mm";
+        clone.style.margin = "0 auto";
+        clone.style.background = "#fff";
+
+        const qrImageLoads = Array.from(clone.querySelectorAll(".permit-qr-block svg, .certificate-qr svg")).map((qr) => {
+          qr.setAttribute("width", "160");
+          qr.setAttribute("height", "160");
+          qr.style.width = "160px";
+          qr.style.height = "160px";
+          qr.style.shapeRendering = "crispEdges";
+          qr.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+          return new Promise((resolve) => {
+            const image = window.document.createElement("img");
+            image.width = 160;
+            image.height = 160;
+            image.alt = "QR verification code";
+            image.style.width = "160px";
+            image.style.height = "160px";
+            image.style.display = "block";
+            image.onload = () => {
+              qr.replaceWith(image);
+              resolve();
+            };
+            image.onerror = () => resolve();
+            const svgMarkup = new XMLSerializer().serializeToString(qr);
+            image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgMarkup)}`;
+          });
+        });
+        await Promise.all(qrImageLoads);
+
+        holder = window.document.createElement("div");
+        holder.style.position = "fixed";
+        holder.style.left = "-100000px";
+        holder.style.top = "0";
+        holder.style.width = "190mm";
+        holder.appendChild(clone);
+        window.document.body.appendChild(holder);
+
+        const pageHeightPx = 277 * 3.779527559;
+        const contentHeight = clone.scrollHeight;
+        if (contentHeight > pageHeightPx) {
+          clone.style.transform = `scale(${pageHeightPx / contentHeight})`;
+          clone.style.transformOrigin = "top left";
+          clone.style.height = `${contentHeight}px`;
+        }
+
+        await html2pdf().set({
+          margin: 10,
+          filename: `${selectedDocument.label.replace(/[^a-z0-9]+/gi, "_")}.pdf`,
+          image: { type: "png" },
+          html2canvas: { scale: 4, useCORS: true, backgroundColor: "#fff" },
+          jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
+          pagebreak: { mode: ["avoid-all"] },
+        }).from(clone).save();
+      } finally {
+        holder?.remove();
+        setCertificateDownloading(false);
+      }
+    };
+
     setModal({
       open: true,
-      title: document.label,
+      title: selectedDocument.label,
       message: "",
-      buttonText: "Close",
+      buttonText: certificateDownloading ? "Preparing PDF..." : "Download PDF",
       variant: "default",
-      hideActions: true,
+      hideActions: false,
+      onConfirm: downloadCertificate,
+      cancelText: "Close",
       className: "certificate-viewer-modal",
-      children: document.previewType === "business"
-        ? <PrintPermit permitId={document.permitId} />
-        : document.previewType === "clearance"
-        ? <PrintClearance documentType={document.documentType} permitId={document.permitId} />
-        : <InspectionReport inspectionId={document.inspectionId} />,
+      children: (
+        <div ref={certificateViewerRef} className="certificate-download-sheet">
+          {selectedDocument.previewType === "business"
+            ? <PrintPermit permitId={selectedDocument.permitId} />
+            : selectedDocument.previewType === "clearance"
+            ? <PrintClearance documentType={selectedDocument.documentType} permitId={selectedDocument.permitId} />
+            : <InspectionReport inspectionId={selectedDocument.inspectionId} />}
+        </div>
+      ),
       onClose: () => setModal({ open: false }),
     });
   };

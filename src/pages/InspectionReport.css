@@ -295,10 +295,12 @@ body {
 
 .certificate-sheet {
   position: relative;
-  max-width: 840px;
-  min-height: 1120px;
+  width: 210mm;
+  min-height: 297mm;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 44px 58px 38px;
+  padding: 18mm 16mm;
+  box-sizing: border-box;
   background: #fffef9;
   border: 1px solid #777;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.13);
@@ -638,9 +640,11 @@ body {
 
 .inspection-report-sheet {
   position: relative;
-  max-width: 860px;
-  min-height: 1120px;
-  padding: 38px 54px 34px;
+  width: 210mm;
+  min-height: 297mm;
+  max-width: 100%;
+  padding: 16mm;
+  box-sizing: border-box;
   border: 1px solid #b7b7b2;
   background: #fffef9;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);

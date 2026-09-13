@@ -114,6 +114,48 @@
   border-radius: 8px;
   background: #f3f4f6;
 }
+
+@media print {
+  body:has(.certificate-viewer-modal) * {
+    visibility: hidden !important;
+  }
+
+  body:has(.certificate-viewer-modal) .certificate-download-sheet,
+  body:has(.certificate-viewer-modal) .certificate-download-sheet * {
+    visibility: visible !important;
+  }
+
+  body:has(.certificate-viewer-modal) .certificate-download-sheet {
+    position: absolute;
+    inset: 0;
+    width: 190mm;
+    height: 277mm;
+    overflow: hidden;
+    margin: 0 auto;
+  }
+
+  body:has(.certificate-viewer-modal) .certificate-download-sheet .permit-print-page,
+  body:has(.certificate-viewer-modal) .certificate-download-sheet .certificate-page {
+    min-height: 0;
+    padding: 0;
+  }
+
+  body:has(.certificate-viewer-modal) .certificate-download-sheet .permit-print-sheet,
+  body:has(.certificate-viewer-modal) .certificate-download-sheet .certificate-sheet {
+    width: 190mm;
+    min-height: 277mm;
+    max-height: 277mm;
+    overflow: hidden;
+    margin: 0;
+    box-shadow: none;
+  }
+
+  body:has(.certificate-viewer-modal) .certificate-download-sheet .permit-print-button,
+  body:has(.certificate-viewer-modal) .certificate-download-sheet .certificate-actions {
+    display: none !important;
+  }
+}
+
 .cm-icon {
   font-size: 48px;
   margin-bottom: 6px;
