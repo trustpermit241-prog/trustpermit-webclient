@@ -7,6 +7,9 @@ import PermitProgressRealtime from "./PermitProgressRealtime";
 import PaymentView from "./Dropdown/PaymentView";
 import ApplicationFormView from "./Dropdown/ApplicationFormView";
 import UploadedDocumentsView from "./Dropdown/UploadedDocumentsView";
+import PrintPermit from "./PrintPermit";
+import PrintClearance from "./PrintClearance";
+import InspectionReport from "./InspectionReport";
 import { getCanvasPoint } from "./signatureUtils";
 import "./Account.css";
 import CenteredModal from "../components/CenteredModal";
@@ -2262,6 +2265,9 @@ const Account = ({ initialMenu }) => {
       .map((document) => ({
       key: document.key,
       label: document.label,
+      previewType: "clearance",
+      documentType: document.key,
+      permitId: permit.applicationId,
       url: permit.applicationId
         ? `${window.location.origin}/permit/document/${document.key}/${permit.applicationId}`
         : "",
@@ -2273,6 +2279,8 @@ const Account = ({ initialMenu }) => {
       .map((certificate) => ({
         key: `inspection-${certificate.inspectionId || certificate.type}`,
         label: `${certificate.type} certificate`,
+        previewType: "inspection",
+        inspectionId: certificate.inspectionId,
         url: certificate.inspectionId
           ? `${window.location.origin}/inspection-certificate/${certificate.inspectionId}`
           : (() => {
@@ -2286,6 +2294,8 @@ const Account = ({ initialMenu }) => {
     const mayorPermit = {
       key: "mayors-permit",
       label: "Business Permit",
+      previewType: "business",
+      permitId: permit.applicationId,
       url: permit.applicationId
         ? `${window.location.origin}/permit/print/${permit.applicationId}`
         : "",
@@ -2310,13 +2320,11 @@ const Account = ({ initialMenu }) => {
       variant: "default",
       hideActions: true,
       className: "certificate-viewer-modal",
-      children: (
-        <iframe
-          title={document.label}
-          src={document.url}
-          className="certificate-viewer-frame"
-        />
-      ),
+      children: document.previewType === "business"
+        ? <PrintPermit permitId={document.permitId} />
+        : document.previewType === "clearance"
+        ? <PrintClearance documentType={document.documentType} permitId={document.permitId} />
+        : <InspectionReport inspectionId={document.inspectionId} />,
       onClose: () => setModal({ open: false }),
     });
   };

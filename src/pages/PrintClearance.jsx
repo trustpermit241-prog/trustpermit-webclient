@@ -30,8 +30,10 @@ const DOCUMENTS = {
   },
 };
 
-export default function PrintClearance() {
-  const { documentType, permitId } = useParams();
+export default function PrintClearance({ documentType: propDocumentType, permitId: propPermitId }) {
+  const { documentType: routeDocumentType, permitId: routePermitId } = useParams();
+  const documentType = propDocumentType || routeDocumentType;
+  const permitId = propPermitId || routePermitId;
   const [application, setApplication] = useState(null);
   const [error, setError] = useState("");
   const document = DOCUMENTS[documentType];

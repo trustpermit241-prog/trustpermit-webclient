@@ -25,8 +25,9 @@ const CERTIFICATE_COMPONENTS = {
   sanitary: SanitaryCertificate,
 };
 
-export default function InspectionReport() {
-  const { id } = useParams();
+export default function InspectionReport({ inspectionId: propInspectionId }) {
+  const { id: routeInspectionId } = useParams();
+  const id = propInspectionId || routeInspectionId;
   const [inspection, setInspection] = useState(null);
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);

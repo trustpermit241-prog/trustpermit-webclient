@@ -52,8 +52,9 @@ const readPermitSigners = (permitKey) => {
   return DEFAULT_PERMIT_SIGNERS.map((signer) => ({ ...signer }));
 };
 
-export default function PrintPermit() {
-  const { permitId } = useParams();
+export default function PrintPermit({ permitId: propPermitId }) {
+  const { permitId: routePermitId } = useParams();
+  const permitId = propPermitId || routePermitId;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
