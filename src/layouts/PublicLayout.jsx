@@ -33,6 +33,17 @@ const getStoredValue = (key) => {
   }
 };
 
+const readDismissedNotificationIds = () => {
+  try {
+    const rawValue = getStoredValue("dismissedNotificationIds");
+    if (!rawValue) return new Set();
+    const parsed = JSON.parse(rawValue);
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch (error) {
+    return new Set();
+  }
+};
+
 const removeStoredValue = (key) => {
   try {
     if (typeof window !== "undefined") {
@@ -55,6 +66,8 @@ export default function PublicLayout() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [pendingDeleteIds, setPendingDeleteIds] = useState([]);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [dismissedNotificationIds, setDismissedNotificationIds] = useState(readDismissedNotificationIds);
+  const [toastMessage, setToastMessage] = useState("");
 
   const token = getStoredValue("token");
 
@@ -89,11 +102,34 @@ export default function PublicLayout() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = response.ok ? await response.json() : { notifications: [] };
-      setNotificationItems(Array.isArray(data.notifications) ? data.notifications : []);
+      const notifications = Array.isArray(data.notifications) ? data.notifications : [];
+
+      setNotificationItems((currentItems) => {
+        const filteredCurrentItems = currentItems.filter(
+          (item) => !dismissedNotificationIds.has(getNotificationId(item))
+        );
+        const existingIds = new Set(
+          filteredCurrentItems.map(getNotificationId).filter(Boolean)
+        );
+
+        const mergedItems = [...filteredCurrentItems];
+
+        notifications.forEach((notification) => {
+          const id = getNotificationId(notification);
+          if (!id || dismissedNotificationIds.has(id) || existingIds.has(id)) {
+            return;
+          }
+
+          mergedItems.push(notification);
+          existingIds.add(id);
+        });
+
+        return mergedItems;
+      });
     } catch (err) {
       console.error("Failed to fetch notifications:", err);
     }
-  }, [token]);
+  }, [dismissedNotificationIds, token]);
 
   useEffect(() => {
     if (token) {
@@ -123,9 +159,40 @@ export default function PublicLayout() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const unreadCount = notificationItems.length;
+  const unreadCount = notificationItems.filter(
+    (item) => !dismissedNotificationIds.has(getNotificationId(item))
+  ).length;
 
-  const latestNotifications = notificationItems.slice(0, 8);
+  const latestNotifications = notificationItems.filter(
+    (item) => !dismissedNotificationIds.has(getNotificationId(item))
+  );
+
+  const showToast = (message) => {
+    setToastMessage(message);
+    window.clearTimeout(showToast.timeoutId);
+    showToast.timeoutId = window.setTimeout(() => setToastMessage(""), 2200);
+  };
+
+  const handleNotificationClick = (item) => {
+    if (selectionMode) return;
+    const id = getNotificationId(item);
+    if (!id) return;
+
+    setDismissedNotificationIds((currentIds) => {
+      const nextIds = new Set(currentIds);
+      nextIds.add(id);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("dismissedNotificationIds", JSON.stringify([...nextIds]));
+      }
+      return nextIds;
+    });
+
+    setNotificationItems((items) =>
+      items.filter((notification) => getNotificationId(notification) !== id)
+    );
+
+    showToast("Notification deleted");
+  };
 
   const deleteNotifications = (ids = []) => {
     if (!ids.length) return;
@@ -147,6 +214,7 @@ export default function PublicLayout() {
       setSelectedNotificationIds([]);
       setSelectionMode(false);
       setPendingDeleteIds([]);
+      showToast("Notification deleted");
     } catch (error) {
       console.error("Unable to delete notifications:", error);
     }
@@ -288,7 +356,19 @@ export default function PublicLayout() {
                     <div className="notification-list">
                       {latestNotifications.length > 0 ? (
                         latestNotifications.map((item) => (
-                          <div className="notification-row" key={getNotificationId(item)}>
+                          <div
+                            className="notification-row"
+                            key={getNotificationId(item)}
+                            onClick={() => handleNotificationClick(item)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                handleNotificationClick(item);
+                              }
+                            }}
+                          >
                             {selectionMode && (
                               <input
                                 type="checkbox"
@@ -324,7 +404,10 @@ export default function PublicLayout() {
                             <button
                               type="button"
                               className="notification-delete-btn"
-                              onClick={() => deleteNotifications([getNotificationId(item)])}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                deleteNotifications([getNotificationId(item)]);
+                              }}
                               aria-label={`Delete ${item.title || "notification"}`}
                               title="Delete notification"
                             >
@@ -427,6 +510,12 @@ export default function PublicLayout() {
               + New Permit
             </button>
           </aside>
+        )}
+
+        {toastMessage && (
+          <div className="notification-toast" role="status" aria-live="polite">
+            {toastMessage}
+          </div>
         )}
 
         <main className="page-content">
