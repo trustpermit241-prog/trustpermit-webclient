@@ -99,36 +99,54 @@ export default function InspectionProgress() {
   // ================= SUBMIT NEW INSPECTION =================
   const safeUsers = Array.isArray(users) ? users : [];
 
-const selectedCitizen = safeUsers.find(
-  (u) => u.email === newInspection.citizenEmail
-);
+  const selectedCitizen = safeUsers.find(
+    (u) => u.email === newInspection.citizenEmail
+  );
 
-  // Suggest common inspection types based on business/category hints
-  const suggestTypesForBusiness = (user) => {
-    if (!user) return [];
-    const text = (
-      (user.businessName || "") + " " + (user.lineOfBusiness || "") + " " + (user.businessInfo?.lineOfBusiness || "")
-    ).toLowerCase();
-
+  const getInspectionSuggestionsFromBusinessText = (businessText = "") => {
+    const text = (businessText || "").toLowerCase();
     const suggestions = new Set();
-    if (text.includes("sari") || text.includes("sari-sari") || text.includes("grocery") || text.includes("retail")) {
-      suggestions.add("Fire Safety Inspection");
-      suggestions.add("Sanitary Inspection");
+
+    if (
+      text.includes("sari") ||
+      text.includes("sari-sari") ||
+      text.includes("grocery") ||
+      text.includes("retail") ||
+      text.includes("store")
+    ) {
       suggestions.add("Locational / Zoning");
-    }
-    if (text.includes("restaurant") || text.includes("food") || text.includes("bakery") || text.includes("eat")) {
       suggestions.add("Sanitary Inspection");
       suggestions.add("Fire Safety Inspection");
     }
-    if (text.includes("industrial") || text.includes("factory") || text.includes("auto") || text.includes("workshop")) {
+
+    if (
+      text.includes("restaurant") ||
+      text.includes("food") ||
+      text.includes("bakery") ||
+      text.includes("eat")
+    ) {
+      suggestions.add("Sanitary Inspection");
+      suggestions.add("Fire Safety Inspection");
+    }
+
+    if (
+      text.includes("industrial") ||
+      text.includes("factory") ||
+      text.includes("auto") ||
+      text.includes("workshop")
+    ) {
       suggestions.add("Building & Electrical");
       suggestions.add("Fire Safety Inspection");
     }
-    if (text.includes("environment") || text.includes("chemical") || text.includes("waste")) {
+
+    if (
+      text.includes("environment") ||
+      text.includes("chemical") ||
+      text.includes("waste")
+    ) {
       suggestions.add("Environmental");
     }
 
-    // fallback common set
     if (suggestions.size === 0) {
       suggestions.add("Fire Safety Inspection");
     }
@@ -136,7 +154,114 @@ const selectedCitizen = safeUsers.find(
     return Array.from(suggestions);
   };
 
-  const suggestedTypes = selectedCitizen ? suggestTypesForBusiness(selectedCitizen) : [];
+  // Suggest common inspection types based on the selected citizen's business line
+  const suggestTypesForBusiness = (user, application = null) => {
+    if (!user && !application) return [];
+
+    const businessText = [
+      application?.businessName,
+      application?.businessDetails?.lineOfBusiness,
+      application?.businessInfo?.lineOfBusiness,
+      application?.lineOfBusiness,
+      user?.businessName,
+      user?.lineOfBusiness,
+      user?.businessInfo?.lineOfBusiness,
+      user?.businessDetails?.lineOfBusiness,
+    ].filter(Boolean).join(" ");
+
+    return getInspectionSuggestionsFromBusinessText(businessText);
+  };
+
+  const [selectedBusinessApplication, setSelectedBusinessApplication] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchSelectedCandidateBusiness = async () => {
+      if (!newInspection.citizenEmail) {
+        setSelectedBusinessApplication(null);
+        return;
+      }
+
+      try {
+        const config = getAuthConfig();
+        if (!config) return;
+
+        const res = await axios.get(`${API_BASE_URL}/api/applications`, config);
+        const applications = Array.isArray(res.data) ? res.data : res.data?.applications || [];
+
+        const matchedApplication = applications
+          .filter((application) => {
+            const userId = application.userId?._id || application.userId;
+            const citizenId = application.citizenId?._id || application.citizenId;
+            const applicantEmail = application.applicant?.email || application.contact?.email || application.email;
+            return (
+              (selectedCitizen && (userId === selectedCitizen._id || citizenId === selectedCitizen._id)) ||
+              applicantEmail === newInspection.citizenEmail ||
+              application.businessName === selectedCitizen?.businessName
+            );
+          })
+          .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0];
+
+        if (isMounted) {
+          setSelectedBusinessApplication(matchedApplication || null);
+        }
+      } catch (error) {
+        console.warn("Could not load application details for inspection suggestions:", error);
+        if (isMounted) {
+          setSelectedBusinessApplication(null);
+        }
+      }
+    };
+
+    fetchSelectedCandidateBusiness();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [newInspection.citizenEmail, selectedCitizen]);
+
+  const currentSuggestedTypes = useMemo(() => {
+    if (!newInspection.citizenEmail) {
+      return [];
+    }
+
+    return suggestTypesForBusiness(selectedCitizen, selectedBusinessApplication);
+  }, [newInspection.citizenEmail, selectedCitizen, selectedBusinessApplication]);
+
+  useEffect(() => {
+    if (!newInspection.citizenEmail) {
+      return;
+    }
+
+    if (!currentSuggestedTypes.length) {
+      return;
+    }
+
+    setNewInspection((prev) => {
+      if (!prev.citizenEmail || prev.citizenEmail !== newInspection.citizenEmail) {
+        return prev;
+      }
+
+      const nextTypes = Array.from(new Set(currentSuggestedTypes));
+      const nextSchedule = { ...(prev.typesSchedule || {}) };
+
+      nextTypes.forEach((type) => {
+        if (!nextSchedule[type]) {
+          nextSchedule[type] = {
+            date: prev.date || "",
+            time: prev.time || "",
+          };
+        }
+      });
+
+      return {
+        ...prev,
+        types: nextTypes,
+        typesSchedule: nextSchedule,
+      };
+    });
+  }, [newInspection.citizenEmail, currentSuggestedTypes]);
 
   const handleSubmit = async () => {
     const types = Array.isArray(newInspection.types)
@@ -544,8 +669,8 @@ const selectedCitizen = safeUsers.find(
                         })}
                         </div>
                       )}
-                      {suggestedTypes && suggestedTypes.length > 0 && (!newInspection.types || newInspection.types.length === 0) && (
-                        <div className="ip-suggestion" style={{ marginTop: 8, color: '#6b7280', fontSize: 13 }}>Suggested: {suggestedTypes.join(', ')} <button type="button" style={{ marginLeft: 10, padding: '4px 8px' }} onClick={() => setNewInspection((prev) => ({ ...prev, types: suggestedTypes }))}>Apply</button></div>
+                      {currentSuggestedTypes && currentSuggestedTypes.length > 0 && (!newInspection.types || newInspection.types.length === 0) && (
+                        <div className="ip-suggestion" style={{ marginTop: 8, color: '#6b7280', fontSize: 13 }}>Suggested: {currentSuggestedTypes.join(', ')} <button type="button" style={{ marginLeft: 10, padding: '4px 8px' }} onClick={() => setNewInspection((prev) => ({ ...prev, types: currentSuggestedTypes }))}>Apply</button></div>
                       )}
                     </div>
                 </div>

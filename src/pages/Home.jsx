@@ -124,9 +124,23 @@ export default function Home() {
             role="button"
             tabIndex={0}
             style={{ minHeight: 220, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-            onClick={() => setActiveCard(card.key)}
+            onClick={() => {
+              if (card.key === "apply-permit") {
+                localStorage.removeItem("permitApplicationDraft");
+                localStorage.removeItem("permitApplicationDraft_signature");
+                localStorage.removeItem("permitUploadedFiles");
+              }
+              setActiveCard(card.key);
+            }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") setActiveCard(card.key);
+              if (e.key === "Enter" || e.key === " ") {
+                if (card.key === "apply-permit") {
+                  localStorage.removeItem("permitApplicationDraft");
+                  localStorage.removeItem("permitApplicationDraft_signature");
+                  localStorage.removeItem("permitUploadedFiles");
+                }
+                setActiveCard(card.key);
+              }
             }}
           >
             <div style={{ marginBottom: 18 }}>{card.icon}</div>

@@ -607,11 +607,18 @@ const Account = ({ initialMenu }) => {
   useEffect(() => {
     if (activeMenu === "Apply Permit" && !renewalSourceApplicationId) {
       setIsRenewalMode(false);
-      if (applicationType !== "New Application") {
-        setApplicationType("New Application");
+      setRenewalSourceApplicationId(null);
+      setApplicationType("New Application");
+
+      try {
+        localStorage.removeItem("permitApplicationDraft");
+        localStorage.removeItem("permitApplicationDraft_signature");
+        localStorage.removeItem("permitUploadedFiles");
+      } catch (error) {
+        console.warn("Could not reset permit draft on new application entry:", error);
       }
     }
-  }, [activeMenu, renewalSourceApplicationId, applicationType]);
+  }, [activeMenu, renewalSourceApplicationId]);
 
   const notificationItems = [
     ...inspections.map((inspection) => ({
