@@ -19,7 +19,6 @@ const API_BASE_URL = getApiBaseUrl();
 export default function Verify() {
   const { permitId } = useParams();
 
-  const [verifyType, setVerifyType] = useState("clearance");
   const [input, setInput] = useState(permitId || "");
   const [result, setResult] = useState(null);
   const [details, setDetails] = useState(null);
@@ -27,30 +26,11 @@ export default function Verify() {
 
   useEffect(() => {
     if (permitId) {
-      setVerifyType("permit");
       setInput(permitId);
       verifyPermit(permitId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [permitId]);
-
-  const verifyClearance = async () => {
-    setLoading(true);
-
-    try {
-      const res = await axios.get(
-        `${API_BASE_URL}/clearance/verify/${input}`
-      );
-
-      setResult(res.data.valid ? "VALID CLEARANCE ✅" : "INVALID CLEARANCE ❌");
-      setDetails(null);
-    } catch {
-      setResult("INVALID CLEARANCE ❌");
-      setDetails(null);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const verifyPermit = async (permitInput = input) => {
     setLoading(true);
@@ -108,105 +88,41 @@ export default function Verify() {
       return;
     }
 
-    if (verifyType === "clearance") {
-      verifyClearance();
-    } else {
-      verifyPermit();
-    }
+    verifyPermit();
   };
 
   const isVerifiedPermit = details && result === "BLOCKCHAIN VERIFIED PERMIT ✅";
-  const isValidClearance = result === "VALID CLEARANCE ✅";
-  const isInvalid = result?.includes("INVALID");
   const isEmpty = result === "Please enter a value first.";
+  const isInvalid =
+    !!result &&
+    !isVerifiedPermit &&
+    !isEmpty &&
+    (permitId || result.includes("INVALID") || result.includes("NOT FOUND") || result.includes("NOT RELEASED"));
 
   return (
     <div className="verify-page">
       <div className="verify-card">
-        <header className="verify-header">
-          <div className="verify-title-wrap">
-            <div className="verify-logo">✓</div>
-            <div>
-              <h1>Document Verification</h1>
-              <p>Blockchain Verification System</p>
-            </div>
-          </div>
-
-          <div className="verify-powered">
-            <span>Powered by</span>
-            <strong>Solana</strong>
-          </div>
-        </header>
-
         <div className="verify-body">
-          <aside className="verify-left">
-            <p className="section-label">Verify Type</p>
+          {!permitId && (
+            <aside className="verify-left">
+              <div className="verify-input-group">
+                <label>PERMIT / APPLICATION ID</label>
 
-            <label className={`verify-option ${verifyType === "clearance" ? "active" : ""}`}>
-              <input
-                type="radio"
-                value="clearance"
-                checked={verifyType === "clearance"}
-                onChange={() => {
-                  setVerifyType("clearance");
-                  setInput("");
-                  setResult(null);
-                  setDetails(null);
-                }}
-              />
-              <span>
-                <b>Verify Clearance</b>
-                <small>Validate clearance documents</small>
-              </span>
-            </label>
+                <input
+                  placeholder="6aac116027f8bb62d531f4c3"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                />
+              </div>
 
-            <label className={`verify-option ${verifyType === "permit" ? "active" : ""}`}>
-              <input
-                type="radio"
-                value="permit"
-                checked={verifyType === "permit"}
-                onChange={() => {
-                  setVerifyType("permit");
-                  setInput("");
-                  setResult(null);
-                  setDetails(null);
-                }}
-              />
-              <span>
-                <b>Verify Business Permit</b>
-                <small>Verify business permit on blockchain</small>
-              </span>
-            </label>
-
-            <div className="verify-input-group">
-              <label>
-                {verifyType === "clearance"
-                  ? "Clearance Hash"
-                  : "Permit / Application ID"}
-              </label>
-
-              <input
-                placeholder={
-                  verifyType === "clearance"
-                    ? "Enter clearance hash"
-                    : "Enter application/permit ID"
-                }
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-              />
-            </div>
-
-            <button className="verify-button" onClick={handleVerify} disabled={loading}>
-              {loading ? "Verifying..." : "Verify Document"}
-            </button>
-
-            <p className="verify-note">
-              🔒 All verifications are checked securely through the blockchain record.
-            </p>
-          </aside>
+              <button className="verify-button" onClick={handleVerify} disabled={loading}>
+                {loading ? "Verifying..." : "Verify Permit"}
+              </button>
+            </aside>
+          )}
 
           <main className="verify-right">
-            {!result && !loading && (
+            {!result && !loading && !permitId && (
               <div className="empty-state">
                 <div className="empty-icon">⌕</div>
                 <h2>Ready to Verify</h2>
@@ -225,15 +141,15 @@ export default function Verify() {
             {!loading && isVerifiedPermit && (
               <>
                 <div className="result-banner verified">
-                  <div className="result-icon">✓</div>
-                  <div>
-                    <h2>Verified</h2>
+                  <div className="result-icon verified-icon">✓</div>
+                  <div className="result-text">
+                    <h2>VERIFIED</h2>
                     <p>This document is authentic and verified on the Solana Devnet.</p>
                   </div>
                 </div>
 
                 <div className="details-box">
-                  <h3>Permit Details</h3>
+                  <h3>PERMIT DETAILS</h3>
 
                   <div className="detail-row">
                     <span>Business Name</span>
@@ -271,34 +187,29 @@ export default function Verify() {
                     <span>Verification Status</span>
                     <b className="verified-text">Verified on Solana Devnet</b>
                   </div>
+
+                  <div className="detail-row detail-row--full">
+                    <span>Verification Note</span>
+                    <b>This permit has been officially issued by the City Government and its record matches the secure blockchain ledger for authenticity and integrity.</b>
+                  </div>
                 </div>
               </>
-            )}
-
-            {!loading && isValidClearance && (
-              <div className="result-banner verified">
-                <div className="result-icon">✓</div>
-                <div>
-                  <h2>Valid Clearance</h2>
-                  <p>This clearance document is valid and verified successfully.</p>
-                </div>
-              </div>
             )}
 
             {!loading && isInvalid && (
               <>
                 <div className="result-banner invalid">
-                  <div className="result-icon">×</div>
-                  <div>
-                    <h2>Invalid Permit</h2>
-                    <p>{details?.message || "This document could not be found on the blockchain."}</p>
+                  <div className="result-icon invalid-icon">×</div>
+                  <div className="result-text">
+                    <h2>INVALID PERMIT</h2>
+                    <p>{details?.message || "Failed to verify permit"}</p>
                   </div>
                 </div>
 
                 <div className="invalid-box">
                   {details?.status && (
-                    <div style={{ marginBottom: "16px", padding: "12px", background: "#fef3c7", borderRadius: "8px" }}>
-                      <strong>Current Status:</strong> <span style={{ textTransform: "capitalize" }}>{details.status}</span>
+                    <div className="status-note">
+                      <strong>Current Status:</strong> <span>{details.status}</span>
                     </div>
                   )}
                   {details?.errorCode === 400 && (
@@ -316,11 +227,15 @@ export default function Verify() {
                   {!details?.errorCode && (
                     <>
                       <h3>Possible Reasons</h3>
-                      <p>× The permit ID is incorrect.</p>
-                      <p>× The document has not been released yet.</p>
-                      <p>× The document may be revoked or expired.</p>
+                      <p>• The permit ID is incorrect or incomplete.</p>
+                      <p>• The document has not been released yet by the issuing office.</p>
+                      <p>• The permit may have been revoked, expired, or does not match the official blockchain record.</p>
                     </>
                   )}
+
+                  <div className="invalid-footer-note">
+                    TrustPermit could not confirm this record against the official blockchain ledger. Please verify the ID or contact the City Government for assistance.
+                  </div>
                 </div>
               </>
             )}
