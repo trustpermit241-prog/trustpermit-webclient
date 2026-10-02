@@ -84,7 +84,18 @@ export default function PublicLayout() {
   const userDisplayName =
     getStoredValue("name") || storedUser?.name || "Guest User";
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (token) {
+      try {
+        await fetch(`${API_BASE_URL}/api/auth/logout`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch (error) {
+        console.error("Unable to release staff session:", error);
+      }
+    }
+
     removeStoredValue("token");
     removeStoredValue("role");
     removeStoredValue("user");

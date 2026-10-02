@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import CenteredModal from "../../components/CenteredModal";
 import "./User.css";
 
 const getApiBaseUrl = () => {
@@ -18,9 +19,15 @@ const getApiBaseUrl = () => {
 const API_BASE_URL = getApiBaseUrl();
 
 export default function Users() {
+  const isAdmin = localStorage.getItem("role") === "admin";
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [userPendingDelete, setUserPendingDelete] = useState(null);
+  const [deletingUser, setDeletingUser] = useState(false);
+  const registeredUsers = users.filter(
+    (user) => String(user.role || "citizen").trim().toLowerCase() === "citizen"
+  );
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -48,10 +55,8 @@ export default function Users() {
   }, []);
 
   const handleDeleteUser = async (userId) => {
-    if (!userId) return;
-
-    const confirmed = window.confirm("Are you sure you want to delete this user?");
-    if (!confirmed) return;
+    if (!userId || deletingUser) return;
+    setDeletingUser(true);
 
     try {
       const token = localStorage.getItem("token");
@@ -67,10 +72,13 @@ export default function Users() {
 
       setUsers((prevUsers) => prevUsers.filter((user) => user._id !== userId));
       setError("");
-      return;
+      setUserPendingDelete(null);
     } catch (err) {
       console.error("Error deleting user:", err);
       setError("Unable to delete the user right now.");
+      setUserPendingDelete(null);
+    } finally {
+      setDeletingUser(false);
     }
   };
 
@@ -83,60 +91,65 @@ export default function Users() {
       ) : error ? (
         <p style={{ color: "red" }}>{error}</p>
       ) : (
-        <table className="users-table">
-          <thead>
-            <tr>
-              <th>Full Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Email Verified</th>
-              <th>Status</th>
-              <th>Created At</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {users.length === 0 ? (
+        <div className="users-table-container">
+          <table className="users-table">
+            <thead>
               <tr>
-                <td colSpan="6">No users found.</td>
+                <th>Full Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Email Verified</th>
+                <th>Status</th>
+                <th>Created At</th>
               </tr>
-            ) : (
-              users.map((user) => (
-                <tr key={user._id}>
-                  <td>{user.fullName || user.name || "No name"}</td>
-                  <td>{user.email}</td>
-                  <td>{user.role || "citizen"}</td>
-                  <td>{user.isVerified ? "Yes" : "No"}</td>
-                  <td>{user.status || "Active"}</td>
-                  <td>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span>
-                        {user.createdAt
-                          ? new Date(user.createdAt).toLocaleString()
-                          : "N/A"}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteUser(user._id)}
-                        style={{
-                          padding: "4px 8px",
-                          border: "none",
-                          borderRadius: "4px",
-                          backgroundColor: "#dc3545",
-                          color: "white",
-                          cursor: "pointer",
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
+            </thead>
+
+            <tbody>
+              {registeredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan="6">No users found.</td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                registeredUsers.map((user) => (
+                  <tr key={user._id}>
+                    <td>{user.fullName || user.name || "No name"}</td>
+                    <td>{user.email}</td>
+                    <td>{user.role || "citizen"}</td>
+                    <td>{user.isVerified ? "Yes" : "No"}</td>
+                    <td>{user.status || "Active"}</td>
+                    <td className="users-created-cell">
+                      <span>{user.createdAt ? new Date(user.createdAt).toLocaleString() : "N/A"}</span>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          className="users-delete-button"
+                          onClick={() => setUserPendingDelete(user)}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
+
+      <CenteredModal
+        open={Boolean(userPendingDelete)}
+        title="Delete user?"
+        message={`Are you sure you want to delete ${userPendingDelete?.fullName || userPendingDelete?.email || "this user"}? This action cannot be undone.`}
+        buttonText={deletingUser ? "Deleting..." : "Delete"}
+        cancelText="Cancel"
+        variant="error"
+        className="users-delete-confirmation"
+        onConfirm={() => handleDeleteUser(userPendingDelete?._id)}
+        onCancel={() => {
+          if (!deletingUser) setUserPendingDelete(null);
+        }}
+      />
     </div>
   );
 }

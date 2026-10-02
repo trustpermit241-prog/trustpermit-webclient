@@ -94,10 +94,28 @@ export default function StaffDashboard() {
   const location = useLocation();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const token = localStorage.getItem("token");
+    const configuredUrl = (process.env.REACT_APP_API_URL || "").replace(/\/+$/, "");
+    const apiBaseUrl = typeof window !== "undefined" && ["localhost", "127.0.0.1"].includes(window.location.hostname)
+      ? "http://localhost:5000/api"
+      : `${configuredUrl || "https://trustpermit-backend.onrender.com"}/api`;
+
+    if (token) {
+      try {
+        await fetch(`${apiBaseUrl}/auth/logout`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch (error) {
+        console.error("Unable to release staff session:", error);
+      }
+    }
+
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     localStorage.removeItem("user");
+    localStorage.removeItem("trustpermit_session");
     navigate("/");
   };
 
@@ -126,6 +144,9 @@ export default function StaffDashboard() {
       case path === "/staff/requests":
         return <Requests />;
 
+      case path === "/staff/users":
+        return <Users />;
+
       case path === "/staff/inspection":
         return <InspectionProgress />;
 
@@ -137,9 +158,6 @@ export default function StaffDashboard() {
 
       case path === "/staff/network":
         return <Network />;
-
-      case path === "/staff/users":
-        return <Users />;
 
       default:
         return <Dashboard />;
@@ -226,6 +244,7 @@ export default function StaffDashboard() {
           >
             <Icons.Users /> Users
           </button>
+
         </nav>
 
         <div className="mission-card">

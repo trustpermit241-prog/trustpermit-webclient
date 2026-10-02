@@ -84,6 +84,12 @@ export default function Login() {
     localStorage.setItem("citizenId", userId);
     localStorage.setItem("name", userName);
     localStorage.setItem("email", userEmail);
+    localStorage.setItem("trustpermit_session", JSON.stringify({
+      userId,
+      role,
+      token,
+      timestamp: Date.now(),
+    }));
     localStorage.setItem("user", JSON.stringify({
       id: userId,
       _id: userId,
@@ -209,6 +215,12 @@ export default function Login() {
       localStorage.setItem("citizenId", userId);
       localStorage.setItem("name", userName);
       localStorage.setItem("email", userEmail);
+      localStorage.setItem("trustpermit_session", JSON.stringify({
+        userId,
+        role,
+        token,
+        timestamp: Date.now(),
+      }));
 
       localStorage.setItem(
         "user",

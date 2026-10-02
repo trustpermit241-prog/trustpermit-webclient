@@ -37,7 +37,26 @@ import UploadedDocumentsView from "./pages/Dropdown/UploadedDocumentsView";
 
 import StaffDashboard from "./pages/cityhall/StaffDashboard";
 
-const isAuthenticated = () => localStorage.getItem("token") !== null;
+const SESSION_LOCK_KEY = "trustpermit_session";
+
+const getActiveSession = () => {
+  try {
+    const raw = localStorage.getItem(SESSION_LOCK_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const isAuthenticated = () => {
+  const token = localStorage.getItem("token");
+  const session = getActiveSession();
+
+  if (!token) return false;
+  if (!session) return true;
+
+  return session.token === token;
+};
 
 const normalizeRole = (role = "") => {
   const rawRole = String(role || "")
@@ -106,6 +125,11 @@ const StaffPage = () => (
     </StaffRoute>
   </PrivateRoute>
 );
+
+const redirectToHomeIfNoPermission = (role) => {
+  const normalizedRole = normalizeRole(role);
+  return normalizedRole === "staff" || normalizedRole === "admin" ? false : true;
+};
 
 function App() {
   return (

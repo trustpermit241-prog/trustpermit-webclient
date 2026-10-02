@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import "./AdminDashboard.css";
 import LogoutConfirmModal from "../../components/LogoutConfirmModal";
@@ -75,6 +75,19 @@ const safeArray = (data) => {
   return [];
 };
 
+const getWeeklyActivityPercent = (records) => {
+  if (!records.length) return 0;
+
+  const now = Date.now();
+  const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const recentRecords = records.filter((record) => {
+    const createdAt = new Date(record.createdAt).getTime();
+    return Number.isFinite(createdAt) && createdAt >= weekAgo && createdAt <= now;
+  }).length;
+
+  return Math.round((recentRecords / records.length) * 100);
+};
+
 const logTypeConfig = {
   security: {
     cls: "badge-security",
@@ -111,31 +124,44 @@ const PaginationControls = ({ currentPage, totalItems, onPageChange }) => {
 
   if (totalPages <= 1) return null;
 
+  const pageWindowStart = Math.floor((currentPage - 1) / 10) * 10 + 1;
+  const pageWindowEnd = Math.min(pageWindowStart + 9, totalPages);
+  const visiblePages = Array.from(
+    { length: pageWindowEnd - pageWindowStart + 1 },
+    (_, index) => pageWindowStart + index
+  );
+
   return (
-    <div className="pagination-controls">
+    <div className="pagination-controls" aria-label="Pagination">
       <button
         type="button"
-        className="pagination-btn"
-        onClick={() => onPageChange(currentPage - 1)}
-        disabled={currentPage === 1}
+        className="pagination-btn nav-btn"
+        onClick={() => onPageChange(Math.max(1, pageWindowStart - 10))}
+        disabled={pageWindowStart === 1}
+        aria-label="Previous page group"
       >
         Previous
       </button>
-      {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+
+      {visiblePages.map((page) => (
         <button
           key={page}
           type="button"
-          className={`pagination-btn${currentPage === page ? " active" : ""}`}
+          className={`pagination-btn page-btn${currentPage === page ? " active" : ""}`}
           onClick={() => onPageChange(page)}
+          aria-label={`Go to page ${page}`}
+          aria-current={currentPage === page ? "page" : undefined}
         >
           {page}
         </button>
       ))}
+
       <button
         type="button"
-        className="pagination-btn"
-        onClick={() => onPageChange(currentPage + 1)}
-        disabled={currentPage === totalPages}
+        className="pagination-btn nav-btn"
+        onClick={() => onPageChange(Math.min(totalPages, pageWindowEnd + 1))}
+        disabled={pageWindowEnd >= totalPages}
+        aria-label="Next page group"
       >
         Next
       </button>
@@ -163,6 +189,12 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
 
   const [activePage, setActivePage] = useState(defaultPage);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [userPendingDelete, setUserPendingDelete] = useState(null);
+  const [deleteUserError, setDeleteUserError] = useState("");
+  const [deletingUser, setDeletingUser] = useState(false);
+  const [hoveredCard, setHoveredCard] = useState(null);
+  const [hoveredDashboardPanel, setHoveredDashboardPanel] = useState(null);
+  const [selectedDashboardPanel, setSelectedDashboardPanel] = useState("overview");
   const [logFilter, setLogFilter] = useState("today");
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -204,32 +236,35 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
     year: "numeric",
   });
 
-  const authHeaders = () => {
+  const authHeaders = useCallback(() => {
     const token = localStorage.getItem("token");
     return token ? { Authorization: `Bearer ${token}` } : {};
-  };
+  }, []);
 
-  const fetchFirstWorking = async (paths) => {
-    for (const path of paths) {
-      try {
-        const res = await fetch(`${API_BASE}${path}`, {
-          headers: {
-            "Content-Type": "application/json",
-            ...authHeaders(),
-          },
-        });
+  const fetchFirstWorking = useCallback(
+    async (paths) => {
+      for (const path of paths) {
+        try {
+          const res = await fetch(`${API_BASE}${path}`, {
+            headers: {
+              "Content-Type": "application/json",
+              ...authHeaders(),
+            },
+          });
 
-        if (!res.ok) continue;
+          if (!res.ok) continue;
 
-        const data = await res.json();
-        return safeArray(data);
-      } catch (err) {
-        console.warn(`Failed endpoint: ${path}`, err);
+          const data = await res.json();
+          return safeArray(data);
+        } catch (err) {
+          console.warn(`Failed endpoint: ${path}`, err);
+        }
       }
-    }
 
-    return [];
-  };
+      return [];
+    },
+    [authHeaders]
+  );
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -251,9 +286,9 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
     };
 
     fetchUsers();
-  }, []);
+  }, [authHeaders]);
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     setLoadingLogs(true);
 
     try {
@@ -273,9 +308,9 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
     } finally {
       setLoadingLogs(false);
     }
-  };
+  }, [authHeaders]);
 
-  const fetchAuditTrail = async () => {
+  const fetchAuditTrail = useCallback(async () => {
     setLoadingAudit(true);
 
     try {
@@ -297,12 +332,12 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
     } finally {
       setLoadingAudit(false);
     }
-  };
+  }, [fetchFirstWorking]);
 
   useEffect(() => {
     fetchLogs();
     fetchAuditTrail();
-  }, []);
+  }, [fetchLogs, fetchAuditTrail]);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -375,13 +410,55 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
     }
   };
 
+  const handleDeleteUser = async (userId, userName) => {
+    if (!userId || deletingUser) return;
+    setDeletingUser(true);
+    setDeleteUserError("");
+
+    try {
+      const res = await fetch(`${API_BASE}/users/${userId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders(),
+        },
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to delete user.");
+      }
+
+      setUsers((prev) => prev.filter((user) => (user._id || user.id) !== userId));
+      setLogs((prev) => [
+        {
+          date: today,
+          time: new Date().toLocaleTimeString(),
+          type: "user",
+          message: `User ${userName || "record"} deleted by admin`,
+        },
+        ...prev,
+      ]);
+      setUserPendingDelete(null);
+    } catch (error) {
+      console.error("Delete user error:", error);
+      setDeleteUserError(error.message || "Unable to delete user right now.");
+    } finally {
+      setDeletingUser(false);
+    }
+  };
+
   const normalizedUsers = users.map((u) => ({ ...u, role: normalizeRole(u.role) }));
-
-  const cityHallStaff = normalizedUsers.filter((u) => u.role === "staff").length;
-
-  const staffAddedToday = normalizedUsers.filter(
-    (u) => u.role === "staff" && u.createdAt?.slice(0, 10) === today
-  ).length;
+  const registeredUsers = normalizedUsers.filter((user) => user.role === "citizen");
+  const staffUsers = normalizedUsers.filter((user) => user.role === "staff");
+  const cityHallStaff = staffUsers.length;
+  const usersWeeklyPercent = getWeeklyActivityPercent(users);
+  const staffWeeklyPercent = getWeeklyActivityPercent(staffUsers);
+  const applicationsWeeklyPercent = getWeeklyActivityPercent(applications);
+  const inspectionsWeeklyPercent = getWeeklyActivityPercent(inspections);
+  const documentsWeeklyPercent = getWeeklyActivityPercent(uploadedDocuments);
+  const paymentsWeeklyPercent = getWeeklyActivityPercent(payments);
 
   const auditActivities = useMemo(() => {
     return auditRecords.map((item) => ({
@@ -412,9 +489,6 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
     return matchesSearch && matchesFilter;
   });
 
-  if (!role) return <Navigate to="/" replace />;
-  if (!isAdmin) return <Navigate to="/home" replace />;
-
   const statCards = [
     {
       label: "Total users",
@@ -422,8 +496,10 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
       icon: "ti-users",
       iconBg: "#eff6ff",
       iconColor: "#2563eb",
-      trend: "+12.5% this week",
+      trend: `${usersWeeklyPercent}% added this week`,
       trendUp: true,
+      narrative:
+        `This reflects the total number of registered user accounts. ${usersWeeklyPercent}% of accounts were created in the last seven days.`,
     },
     {
       label: "Applications",
@@ -431,8 +507,10 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
       icon: "ti-file-description",
       iconBg: "#ecfdf5",
       iconColor: "#059669",
-      trend: "Fetched",
+      trend: `${applicationsWeeklyPercent}% added this week`,
       trendUp: true,
+      narrative:
+        "This is the current count of permit applications submitted and available in the system. It shows how much demand the city is processing, and a higher number usually reflects stronger service demand or increased public awareness of permit procedures.",
     },
     {
       label: "Inspections",
@@ -440,8 +518,10 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
       icon: "ti-clipboard-check",
       iconBg: "#fff7ed",
       iconColor: "#d97706",
-      trend: "Fetched",
+      trend: `${inspectionsWeeklyPercent}% added this week`,
       trendUp: true,
+      narrative:
+        "This count includes inspection records scheduled across TrustPermit, including inspections that are pending, approved, or rejected. It provides a current view of inspection workload.",
     },
     {
       label: "Uploaded docs",
@@ -449,8 +529,10 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
       icon: "ti-file-upload",
       iconBg: "#faf5ff",
       iconColor: "#7c3aed",
-      trend: "Fetched",
+      trend: `${documentsWeeklyPercent}% added this week`,
       trendUp: true,
+      narrative:
+        "This shows how many supporting documents have been uploaded to the platform. A growing number usually indicates more complete applications and stronger digital processing, which reduces manual bottlenecks and speeds up verification.",
     },
     {
       label: "Payments",
@@ -458,8 +540,10 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
       icon: "ti-credit-card",
       iconBg: "#fefce8",
       iconColor: "#ca8a04",
-      trend: "Fetched",
+      trend: `${paymentsWeeklyPercent}% added this week`,
       trendUp: true,
+      narrative:
+        "This count captures payment records connected to business permits and related transactions. It helps the administration measure revenue flow and confirms whether permit processing is being completed through the digital payment workflow.",
     },
     {
       label: "City Hall staff",
@@ -467,19 +551,37 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
       icon: "ti-building",
       iconBg: "#f0fdf4",
       iconColor: "#16a34a",
-      trend: "+8.2% this week",
+      trend: `${staffWeeklyPercent}% added this week`,
       trendUp: true,
-    },
-    {
-      label: "Staff added today",
-      value: staffAddedToday,
-      icon: "ti-user-plus",
-      iconBg: "#eff6ff",
-      iconColor: "#3b82f6",
-      trend: "+2 new today",
-      trendUp: true,
+      narrative:
+        `This is the number of city staff accounts assigned to operational roles. ${staffWeeklyPercent}% of staff accounts were created in the last seven days.`,
     },
   ];
+
+  const dashboardNarrative = useMemo(() => {
+    return `TrustPermit currently has ${users.length.toLocaleString()} user accounts, ${applications.length.toLocaleString()} applications, ${inspections.length.toLocaleString()} inspection records, ${uploadedDocuments.length.toLocaleString()} uploaded documents, and ${payments.length.toLocaleString()} payment records. Each weekly percentage shows the share of that category created in the last seven days.`;
+  }, [users.length, applications.length, inspections.length, uploadedDocuments.length, payments.length]);
+
+  const dashboardPanelNarratives = {
+    overview: {
+      title: "Recent system overview",
+      description:
+        "This summary shows the current composition of system activity across applications, inspections, uploaded documents, and payments. It helps administrators quickly judge which parts of the permitting workflow are most active.",
+    },
+    weekly: {
+      title: "Activity summary this week",
+      description:
+        "This chart highlights weekly activity patterns so city staff can compare workload trends over the past seven days and spot operational peaks or slow periods.",
+    },
+    audit: {
+      title: "Recent audit activity",
+      description:
+        "This log captures recent administrative actions and changes across the platform, making it easier to monitor who performed key actions and whether those events were successful.",
+    },
+  };
+
+  if (!role) return <Navigate to="/" replace />;
+  if (!isAdmin) return <Navigate to="/home" replace />;
 
   const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const weekHeights = [55, 70, 48, 62, 40, 90, 30];
@@ -617,9 +719,26 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
         <div className="adm-content">
           {activePage === "dashboard" && (
             <>
+              <div className="dash-narrative-banner">
+                <div className="dash-panel-title">
+                  <i className="ti ti-chart-pie" />
+                  Detailed narrative analytics
+                </div>
+                <p>{dashboardNarrative}</p>
+              </div>
+
               <div className="dash-stats-grid">
                 {statCards.map((card, i) => (
-                  <div className="dash-stat-card" key={i}>
+                  <div
+                    className="dash-stat-card"
+                    key={i}
+                    onMouseEnter={() => setHoveredCard(i)}
+                    onMouseLeave={() => setHoveredCard(null)}
+                    onFocus={() => setHoveredCard(i)}
+                    onBlur={() => setHoveredCard(null)}
+                    tabIndex={0}
+                    aria-label={`${card.label}: ${card.trend}. ${card.narrative}`}
+                  >
                     <div className="dsc-top">
                       <div>
                         <div className="dsc-label">{card.label}</div>
@@ -643,13 +762,40 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                     >
                       {card.trend}
                     </div>
+
+                    {hoveredCard === i && (
+                      <div className="dsc-narrative">
+                        <div className="dsc-narrative-label">Narrative insight</div>
+                        <p>{card.narrative}</p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
 
               <div className="dash-bottom-grid">
                 <div className="dash-left-col">
-                  <div className="dash-panel">
+                  <div
+                    className={`dash-panel interactive-panel${selectedDashboardPanel === "overview" ? " is-selected" : ""}`}
+                    onMouseEnter={() => setHoveredDashboardPanel("overview")}
+                    onMouseLeave={() => setHoveredDashboardPanel(null)}
+                    onClick={() => setSelectedDashboardPanel("overview")}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelectedDashboardPanel("overview");
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={selectedDashboardPanel === "overview"}
+                  >
+                    {hoveredDashboardPanel === "overview" && (
+                      <div className="panel-narrative-tooltip">
+                        <div className="panel-narrative-title">{dashboardPanelNarratives.overview.title}</div>
+                        <div className="panel-narrative-text">{dashboardPanelNarratives.overview.description}</div>
+                      </div>
+                    )}
                     <div className="dash-panel-hd">
                       <div className="dash-panel-title">
                         <i className="ti ti-chart-donut" />
@@ -723,7 +869,28 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                     </div>
                   </div>
 
-                  <div className="dash-panel" style={{ flex: 1 }}>
+                  <div
+                    className={`dash-panel interactive-panel${selectedDashboardPanel === "weekly" ? " is-selected" : ""}`}
+                    style={{ flex: 1 }}
+                    onMouseEnter={() => setHoveredDashboardPanel("weekly")}
+                    onMouseLeave={() => setHoveredDashboardPanel(null)}
+                    onClick={() => setSelectedDashboardPanel("weekly")}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelectedDashboardPanel("weekly");
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={selectedDashboardPanel === "weekly"}
+                  >
+                    {hoveredDashboardPanel === "weekly" && (
+                      <div className="panel-narrative-tooltip">
+                        <div className="panel-narrative-title">{dashboardPanelNarratives.weekly.title}</div>
+                        <div className="panel-narrative-text">{dashboardPanelNarratives.weekly.description}</div>
+                      </div>
+                    )}
                     <div className="dash-panel-hd">
                       <div className="dash-panel-title">
                         <i className="ti ti-chart-bar" />
@@ -761,7 +928,27 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                   </div>
                 </div>
 
-                <div className="dash-panel dash-logs-preview">
+                <div
+                  className={`dash-panel dash-logs-preview interactive-panel${selectedDashboardPanel === "audit" ? " is-selected" : ""}`}
+                  onMouseEnter={() => setHoveredDashboardPanel("audit")}
+                  onMouseLeave={() => setHoveredDashboardPanel(null)}
+                  onClick={() => setSelectedDashboardPanel("audit")}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedDashboardPanel("audit");
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={selectedDashboardPanel === "audit"}
+                >
+                  {hoveredDashboardPanel === "audit" && (
+                    <div className="panel-narrative-tooltip">
+                      <div className="panel-narrative-title">{dashboardPanelNarratives.audit.title}</div>
+                      <div className="panel-narrative-text">{dashboardPanelNarratives.audit.description}</div>
+                    </div>
+                  )}
                   <div className="dash-panel-hd">
                     <div className="dash-panel-title">
                       <i className="ti ti-list-details" />
@@ -770,7 +957,10 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                     <button
                       type="button"
                       className="dash-view-all"
-                      onClick={() => setActivePage("auditTrail")}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setActivePage("auditTrail");
+                      }}
                     >
                       View all <i className="ti ti-arrow-right" style={{ fontSize: 12 }} />
                     </button>
@@ -1047,7 +1237,7 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                   <i className="ti ti-users" />
                   Registered users
                 </div>
-                <span className="log-count-badge">{users.length} total</span>
+                <span className="log-count-badge">{registeredUsers.length} total</span>
               </div>
 
               {loading ? (
@@ -1061,52 +1251,81 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                         <th>Email</th>
                         <th>Role</th>
                         <th>Created at</th>
+                        <th>Action</th>
                       </tr>
                     </thead>
 
                     <tbody>
-                      {users.length === 0 ? (
+                      {registeredUsers.length === 0 ? (
                         <tr>
-                          <td colSpan="4" style={{ textAlign: "center", color: "#9ca3af" }}>
+                          <td colSpan="5" style={{ textAlign: "center", color: "#9ca3af" }}>
                             No users found.
                           </td>
                         </tr>
                       ) : (
-                        users
+                        registeredUsers
                           .slice(
                             (usersCurrentPage - 1) * ITEMS_PER_PAGE,
                             usersCurrentPage * ITEMS_PER_PAGE
                           )
-                          .map((user) => (
-                          <tr key={user._id || user.id}>
-                            <td>{user.fullName || user.name}</td>
-                            <td>{user.email}</td>
-                            <td>
-                              <span
-                                className={`role-pill ${
-                                  normalizeRole(user.role) === "admin"
-                                    ? "role-admin"
-                                    : normalizeRole(user.role) === "staff"
-                                    ? "role-staff"
-                                    : "role-user"
-                                }`}
-                              >
-                                {roleLabel(user.role)}
-                              </span>
-                            </td>
-                            <td>
-                              {user.createdAt
-                                ? new Date(user.createdAt).toLocaleString()
-                                : "N/A"}
-                            </td>
-                          </tr>
-                          ))
+                          .map((user) => {
+                            const userId = user._id || user.id;
+                            const userName = user.fullName || user.name || user.email;
+                            const userRole = normalizeRole(user.role);
+
+                            return (
+                              <tr key={userId}>
+                                <td>{userName}</td>
+                                <td>{user.email}</td>
+                                <td>
+                                  <span
+                                    className={`role-pill ${
+                                      userRole === "admin"
+                                        ? "role-admin"
+                                        : userRole === "staff"
+                                        ? "role-staff"
+                                        : "role-user"
+                                    }`}
+                                  >
+                                    {roleLabel(user.role)}
+                                  </span>
+                                </td>
+                                <td>
+                                  {user.createdAt
+                                    ? new Date(user.createdAt).toLocaleString()
+                                    : "N/A"}
+                                </td>
+                                <td>
+                                  <button
+                                    type="button"
+                                    className="delete-user-btn"
+                                    onClick={() => {
+                                      setDeleteUserError("");
+                                      setUserPendingDelete({ id: userId, name: userName });
+                                    }}
+                                    style={{
+                                      background: "#dc2626",
+                                      color: "#fff",
+                                      border: "none",
+                                      borderRadius: 6,
+                                      padding: "7px 12px",
+                                      fontSize: 12,
+                                      fontWeight: 700,
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
                       )}
                     </tbody>
                   </table>
                   <PaginationControls
                     currentPage={usersCurrentPage}
-                    totalItems={users.length}
+                    totalItems={registeredUsers.length}
                     onPageChange={setUsersCurrentPage}
                   />
                 </div>
@@ -1200,6 +1419,23 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
         open={showLogoutConfirm}
         onCancel={() => setShowLogoutConfirm(false)}
         onConfirm={handleLogout}
+      />
+      <LogoutConfirmModal
+        open={Boolean(userPendingDelete)}
+        eyebrow={deleteUserError ? "Action failed" : "User management"}
+        title={deleteUserError ? "Unable to delete user" : "Delete this user?"}
+        message={deleteUserError || `Are you sure you want to delete ${userPendingDelete?.name || "this user"}? This action cannot be undone.`}
+        cancelText="Cancel"
+        confirmText={deleteUserError ? "Try again" : "Delete user"}
+        destructive
+        busy={deletingUser}
+        onCancel={() => {
+          if (!deletingUser) {
+            setUserPendingDelete(null);
+            setDeleteUserError("");
+          }
+        }}
+        onConfirm={() => handleDeleteUser(userPendingDelete?.id, userPendingDelete?.name)}
       />
     </div>
   );
