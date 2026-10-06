@@ -559,9 +559,11 @@ const Account = ({ initialMenu }) => {
     setPaymentsLoading(true);
     setPaymentsError(null);
 
-    const userEmail = localStorage.getItem("email") || userEmail;
-    if (!userEmail) {
+    const currentEmail = localStorage.getItem("email") || userEmail;
+    const token = localStorage.getItem("token");
+    if (!currentEmail || !token) {
       setPayments([]);
+      setPaymentHistory([]);
       setPaymentsError("Not logged in. Please sign in to view your payments.");
       setPaymentsLoading(false);
       return;
@@ -569,7 +571,7 @@ const Account = ({ initialMenu }) => {
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/payments`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) {
@@ -580,13 +582,19 @@ const Account = ({ initialMenu }) => {
       const data = await res.json();
       if (Array.isArray(data.payments)) {
         setPayments(data.payments);
+        setPaymentHistory(data.payments.filter((payment) => {
+          const paymentEmail = String(payment.email || payment.userId?.email || "").toLowerCase();
+          return paymentEmail === currentEmail.toLowerCase();
+        }));
       } else {
         setPayments([]);
+        setPaymentHistory([]);
         setPaymentsError("No payment data returned from server.");
       }
     } catch (err) {
       console.error("Fetch payments error:", err);
       setPayments([]);
+      setPaymentHistory([]);
       setPaymentsError(err.message || "Failed to fetch payments.");
     } finally {
       setPaymentsLoading(false);
@@ -1982,17 +1990,6 @@ const Account = ({ initialMenu }) => {
     }
   };
 
-  const deletePayment = (reference) => {
-    try {
-      const list = JSON.parse(localStorage.getItem("paymentHistory") || "[]");
-      const filtered = list.filter((p) => p.reference !== reference);
-      localStorage.setItem("paymentHistory", JSON.stringify(filtered));
-      setPaymentHistory(filtered);
-    } catch (e) {
-      console.error("Failed to delete payment:", e);
-    }
-  };
-
   const compressImageToDataUrl = (file, maxWidth = 900, quality = 0.72) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -2048,14 +2045,7 @@ const Account = ({ initialMenu }) => {
     }
   };
 
-  // Payment history (persisted locally)
-  const [paymentHistory, setPaymentHistory] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("paymentHistory") || "[]");
-    } catch (e) {
-      return [];
-    }
-  });
+  const [paymentHistory, setPaymentHistory] = useState([]);
 
   // Released permits / registered companies shown in the List of Companies section.
   // In a real staff approval flow, save released permits from your backend response.
@@ -2415,23 +2405,6 @@ const Account = ({ initialMenu }) => {
     });
   };
 
-  const savePaymentRecord = (record) => {
-    try {
-      const list = JSON.parse(localStorage.getItem("paymentHistory") || "[]");
-      const enriched = {
-        ...record,
-        email: record.email || userEmail || "",
-        reference: record.reference || record.paymentReference || record._id || record.id || `TP-${Date.now()}`,
-        timestamp: record.createdAt || record.updatedAt || record.timestamp || new Date().toISOString(),
-      };
-      list.unshift(enriched);
-      localStorage.setItem("paymentHistory", JSON.stringify(list));
-      setPaymentHistory(list);
-    } catch (e) {
-      console.error("Failed to save payment record:", e);
-    }
-  };
-
   // ================= CONTENT RENDER =================
   const handlePayment = async () => {
     if (!canProceedToPayment) {
@@ -2595,7 +2568,7 @@ if (!paymentApplicationId) {
           details: record,
         });
 
-        savePaymentRecord(record);
+        await fetchPayments();
         setPaymentCompleted(true);
 
         await fetchReleasedPermits();
@@ -4064,7 +4037,15 @@ if (!paymentApplicationId) {
               These are your completed payments and receipts. Only your payment history is shown here.
             </p>
 
-            {filteredPaymentHistory.length === 0 ? (
+            {paymentsLoading ? (
+              <div className="empty-state" style={{ padding: 28, background: "#f8fafc", borderRadius: 12 }}>
+                <p style={{ margin: 0, color: "#475569" }}>Loading payment history...</p>
+              </div>
+            ) : paymentsError ? (
+              <div className="empty-state" role="alert" style={{ padding: 28, background: "#f8fafc", borderRadius: 12 }}>
+                <p style={{ margin: 0, color: "#475569" }}>{paymentsError}</p>
+              </div>
+            ) : filteredPaymentHistory.length === 0 ? (
               <div className="empty-state" style={{ padding: 28, background: "#f8fafc", borderRadius: 12 }}>
                 <p style={{ margin: 0, color: "#475569" }}>
                   No payment history found yet. Complete a payment first and it will appear here.
