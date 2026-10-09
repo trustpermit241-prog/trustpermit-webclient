@@ -580,28 +580,63 @@ input, select, textarea { font: inherit; }
   display: flex;
   align-items: center;
   gap: 20px;
+  position: relative;
 }
 .donut-ring-wrap { flex-shrink: 0; }
-.donut-legend { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.donut-legend { display: flex; flex-direction: column; gap: 10px; flex: 1; }
 .donut-legend-item {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: 13px;
   color: #6b7280;
 }
 .donut-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 .donut-lbl { flex: 1; }
 .donut-val {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   color: #111827;
   text-align: right;
+}
+.donut-legend-item:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+.donut-hover-tooltip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  width: min(270px, 100%);
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 9px;
+  background: rgba(15, 23, 42, 0.97);
+  color: #f8fafc;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.22);
+  pointer-events: none;
+}
+.donut-hover-tooltip strong,
+.donut-hover-tooltip span {
+  display: block;
+  font-size: 11px;
+}
+.donut-hover-tooltip span {
+  margin-top: 3px;
+  color: #bfdbfe;
+}
+.donut-hover-tooltip p {
+  margin: 5px 0 0;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #e2e8f0;
 }
 
 /* ── Bar chart ── */
@@ -610,6 +645,7 @@ input, select, textarea { font: inherit; }
   gap: 4px;
   height: 110px;
   align-items: flex-end;
+  position: relative;
 }
 .bar-y-axis {
   display: flex;
@@ -642,6 +678,12 @@ input, select, textarea { font: inherit; }
   flex: 1;
   height: 100%;
   justify-content: flex-end;
+  cursor: pointer;
+}
+.bar-col:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+  border-radius: 3px;
 }
 .bar {
   width: 100%;
@@ -661,6 +703,46 @@ input, select, textarea { font: inherit; }
 .bar-lbl.bar-lbl-today {
   color: #2563eb;
   font-weight: 600;
+}
+.weekly-day-tooltip {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  width: min(250px, calc(100% - 24px));
+  padding: 9px 11px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.97);
+  color: #f8fafc;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.2);
+  pointer-events: none;
+}
+.weekly-day-tooltip strong,
+.weekly-day-tooltip > span {
+  display: block;
+  font-size: 11px;
+}
+.weekly-day-tooltip > span {
+  margin-top: 2px;
+  color: #bfdbfe;
+}
+.weekly-day-breakdown {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 10px;
+  margin-top: 7px;
+}
+.weekly-day-breakdown span {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 10px;
+  color: #e2e8f0;
+}
+.weekly-day-breakdown b {
+  color: #fff;
 }
 
 /* ============================================================
@@ -1021,4 +1103,8 @@ input, select, textarea { font: inherit; }
 @media (max-width: 600px) {
   .dash-stats-grid { grid-template-columns: 1fr; }
   .tb-date, .tb-user-name { display: none; }
+  .donut-section { gap: 12px; }
+  .donut-ring-wrap svg { width: 132px; height: 132px; }
+  .donut-legend-item { gap: 5px; font-size: 11px; }
+  .donut-val { font-size: 11px; }
 }

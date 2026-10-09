@@ -194,6 +194,8 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
   const [deletingUser, setDeletingUser] = useState(false);
   const [hoveredCard, setHoveredCard] = useState(null);
   const [hoveredDashboardPanel, setHoveredDashboardPanel] = useState(null);
+  const [hoveredOverviewCategory, setHoveredOverviewCategory] = useState(null);
+  const [hoveredWeekday, setHoveredWeekday] = useState(null);
   const [selectedDashboardPanel, setSelectedDashboardPanel] = useState("overview");
   const [logFilter, setLogFilter] = useState("today");
   const [users, setUsers] = useState([]);
@@ -338,6 +340,13 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
     fetchLogs();
     fetchAuditTrail();
   }, [fetchLogs, fetchAuditTrail]);
+
+  useEffect(() => {
+    if (activePage !== "dashboard") return undefined;
+
+    const refreshTimer = window.setInterval(fetchAuditTrail, 30000);
+    return () => window.clearInterval(refreshTimer);
+  }, [activePage, fetchAuditTrail]);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -563,11 +572,6 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
   }, [users.length, applications.length, inspections.length, uploadedDocuments.length, payments.length]);
 
   const dashboardPanelNarratives = {
-    overview: {
-      title: "Recent system overview",
-      description:
-        "This summary shows the current composition of system activity across applications, inspections, uploaded documents, and payments. It helps administrators quickly judge which parts of the permitting workflow are most active.",
-    },
     weekly: {
       title: "Activity summary this week",
       description:
@@ -583,14 +587,68 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
   if (!role) return <Navigate to="/" replace />;
   if (!isAdmin) return <Navigate to="/home" replace />;
 
-  const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const weekHeights = [55, 70, 48, 62, 40, 90, 30];
+  const currentDate = new Date();
+  const currentDateKey = `${currentDate.getFullYear()}-${String(
+    currentDate.getMonth() + 1
+  ).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
+  const mondayOffset = (currentDate.getDay() + 6) % 7;
+  const weekStart = new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth(),
+    currentDate.getDate() - mondayOffset
+  );
+  const getLocalDateKey = (date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+      date.getDate()
+    ).padStart(2, "0")}`;
+  const weeklyActivityByDay = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate() + index);
+    return {
+      key: getLocalDateKey(date),
+      date,
+      label: date.toLocaleDateString("en-US", { weekday: "short" }),
+      isToday: getLocalDateKey(date) === currentDateKey,
+      applications: 0,
+      inspections: 0,
+      documents: 0,
+      payments: 0,
+      total: 0,
+    };
+  });
+  const weeklyDayMap = new Map(weeklyActivityByDay.map((day) => [day.key, day]));
+  [
+    { key: "applications", records: applications },
+    { key: "inspections", records: inspections },
+    { key: "documents", records: uploadedDocuments },
+    { key: "payments", records: payments },
+  ].forEach(({ key, records }) => {
+    records.forEach((record) => {
+      if (!record.createdAt) return;
+      const createdAt = new Date(record.createdAt);
+      if (Number.isNaN(createdAt.getTime())) return;
+      const day = weeklyDayMap.get(getLocalDateKey(createdAt));
+      if (day && day.key <= currentDateKey) {
+        day[key] += 1;
+        day.total += 1;
+      }
+    });
+  });
+  const maxWeeklyActivity = Math.max(
+    0,
+    ...weeklyActivityByDay.map((day) => day.total)
+  );
+  const weeklyChartMaximum = Math.max(3, Math.ceil(maxWeeklyActivity / 3) * 3);
+  const activeWeekday = weeklyActivityByDay.find(
+    (day) => day.key === hoveredWeekday
+  );
 
   const donutData = [
     {
       label: "Applications",
       value: applications.length,
       color: "#2563eb",
+      description: "Permit applications submitted by applicants.",
       pct: auditActivities.length
         ? ((applications.length / auditActivities.length) * 100).toFixed(1)
         : 0,
@@ -599,6 +657,7 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
       label: "Inspections",
       value: inspections.length,
       color: "#16a34a",
+      description: "Inspection records created for permit reviews.",
       pct: auditActivities.length
         ? ((inspections.length / auditActivities.length) * 100).toFixed(1)
         : 0,
@@ -607,6 +666,7 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
       label: "Uploaded docs",
       value: uploadedDocuments.length,
       color: "#7c3aed",
+      description: "Supporting documents uploaded for review.",
       pct: auditActivities.length
         ? ((uploadedDocuments.length / auditActivities.length) * 100).toFixed(1)
         : 0,
@@ -615,11 +675,15 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
       label: "Payments",
       value: payments.length,
       color: "#ca8a04",
+      description: "Permit fee payment records in the system.",
       pct: auditActivities.length
         ? ((payments.length / auditActivities.length) * 100).toFixed(1)
         : 0,
     },
   ];
+  const activeOverviewCategory = donutData.find(
+    (item) => item.label === hoveredOverviewCategory
+  );
 
   return (
     <div className="adm-layout">
@@ -790,12 +854,6 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                     tabIndex={0}
                     aria-pressed={selectedDashboardPanel === "overview"}
                   >
-                    {hoveredDashboardPanel === "overview" && (
-                      <div className="panel-narrative-tooltip">
-                        <div className="panel-narrative-title">{dashboardPanelNarratives.overview.title}</div>
-                        <div className="panel-narrative-text">{dashboardPanelNarratives.overview.description}</div>
-                      </div>
-                    )}
                     <div className="dash-panel-hd">
                       <div className="dash-panel-title">
                         <i className="ti ti-chart-donut" />
@@ -806,7 +864,7 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                     <div className="dash-panel-body">
                       <div className="donut-section">
                         <div className="donut-ring-wrap">
-                          <svg viewBox="0 0 120 120" width="120" height="120">
+                          <svg viewBox="0 0 120 120" width="160" height="160">
                             {(() => {
                               const total =
                                 donutData.reduce((s, d) => s + Math.max(d.value, 0), 0) ||
@@ -822,6 +880,7 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                                 const dash = pct * circ;
                                 const rot = offset * 360 - 90;
                                 offset += pct;
+                                const result = `${d.value.toLocaleString()} records, ${d.pct}% of audit activities`;
 
                                 return (
                                   <circle
@@ -831,9 +890,15 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                                     r={r}
                                     fill="none"
                                     stroke={d.color}
-                                    strokeWidth="16"
+                                    strokeWidth="12"
                                     strokeDasharray={`${dash} ${circ - dash}`}
                                     transform={`rotate(${rot} ${cx} ${cy})`}
+                                    tabIndex="0"
+                                    aria-label={`${d.label}: ${result}. ${d.description}`}
+                                    onMouseEnter={() => setHoveredOverviewCategory(d.label)}
+                                    onMouseLeave={() => setHoveredOverviewCategory(null)}
+                                    onFocus={() => setHoveredOverviewCategory(d.label)}
+                                    onBlur={() => setHoveredOverviewCategory(null)}
                                   />
                                 );
                               });
@@ -856,7 +921,15 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
 
                         <div className="donut-legend">
                           {donutData.map((d, i) => (
-                            <div className="donut-legend-item" key={i}>
+                            <div
+                              className="donut-legend-item"
+                              key={i}
+                              tabIndex="0"
+                              onMouseEnter={() => setHoveredOverviewCategory(d.label)}
+                              onMouseLeave={() => setHoveredOverviewCategory(null)}
+                              onFocus={() => setHoveredOverviewCategory(d.label)}
+                              onBlur={() => setHoveredOverviewCategory(null)}
+                            >
                               <span className="donut-dot" style={{ background: d.color }} />
                               <span className="donut-lbl">{d.label}</span>
                               <span className="donut-val">
@@ -865,6 +938,16 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                             </div>
                           ))}
                         </div>
+                        {activeOverviewCategory && (
+                          <div className="donut-hover-tooltip" role="status">
+                            <strong>{activeOverviewCategory.label}</strong>
+                            <span>
+                              {activeOverviewCategory.value.toLocaleString()} records
+                              ({activeOverviewCategory.pct}% of audit activities)
+                            </span>
+                            <p>{activeOverviewCategory.description}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -885,12 +968,6 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                     tabIndex={0}
                     aria-pressed={selectedDashboardPanel === "weekly"}
                   >
-                    {hoveredDashboardPanel === "weekly" && (
-                      <div className="panel-narrative-tooltip">
-                        <div className="panel-narrative-title">{dashboardPanelNarratives.weekly.title}</div>
-                        <div className="panel-narrative-text">{dashboardPanelNarratives.weekly.description}</div>
-                      </div>
-                    )}
                     <div className="dash-panel-hd">
                       <div className="dash-panel-title">
                         <i className="ti ti-chart-bar" />
@@ -901,7 +978,12 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                     <div className="dash-panel-body">
                       <div className="bar-chart-wrap">
                         <div className="bar-y-axis">
-                          {[150, 100, 50, 0].map((v) => (
+                          {[
+                            weeklyChartMaximum,
+                            (weeklyChartMaximum * 2) / 3,
+                            weeklyChartMaximum / 3,
+                            0,
+                          ].map((v) => (
                             <span key={v} className="bar-y-lbl">
                               {v}
                             </span>
@@ -909,20 +991,58 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                         </div>
 
                         <div className="bar-columns">
-                          {weekDays.map((day, i) => (
-                            <div className="bar-col" key={day}>
+                          {weeklyActivityByDay.map((day) => (
+                            <div
+                              className="bar-col"
+                              key={day.key}
+                              tabIndex={0}
+                              aria-label={`${day.date.toLocaleDateString("en-US", {
+                                weekday: "long",
+                                month: "long",
+                                day: "numeric",
+                              })}: ${day.total} total activities`}
+                              onMouseEnter={() => setHoveredWeekday(day.key)}
+                              onMouseLeave={() => setHoveredWeekday(null)}
+                              onFocus={() => setHoveredWeekday(day.key)}
+                              onBlur={() => setHoveredWeekday(null)}
+                            >
                               <div
-                                className={`bar${day === "Sat" ? " bar-today" : ""}`}
-                                style={{ height: `${weekHeights[i]}%` }}
+                                className={`bar${day.isToday ? " bar-today" : ""}`}
+                                style={{
+                                  height: `${(day.total / weeklyChartMaximum) * 100}%`,
+                                }}
                               />
                               <div
-                                className={`bar-lbl${day === "Sat" ? " bar-lbl-today" : ""}`}
+                                className={`bar-lbl${day.isToday ? " bar-lbl-today" : ""}`}
                               >
-                                {day}
+                                {day.label}
                               </div>
                             </div>
                           ))}
                         </div>
+
+                        {activeWeekday && (
+                          <div className="weekly-day-tooltip" role="status" aria-live="polite">
+                            <strong>
+                              {activeWeekday.date.toLocaleDateString("en-US", {
+                                weekday: "long",
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </strong>
+                            <span>
+                              {activeWeekday.total === 0
+                                ? "No activity recorded on this day"
+                                : `${activeWeekday.total} total activities recorded`}
+                            </span>
+                            <div className="weekly-day-breakdown">
+                              <span>Applications <b>{activeWeekday.applications}</b></span>
+                              <span>Inspections <b>{activeWeekday.inspections}</b></span>
+                              <span>Uploaded docs <b>{activeWeekday.documents}</b></span>
+                              <span>Payments <b>{activeWeekday.payments}</b></span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
