@@ -462,7 +462,7 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
   const registeredUsers = normalizedUsers.filter((user) => user.role === "citizen");
   const staffUsers = normalizedUsers.filter((user) => user.role === "staff");
   const cityHallStaff = staffUsers.length;
-  const usersWeeklyPercent = getWeeklyActivityPercent(users);
+  const registeredUsersWeeklyPercent = getWeeklyActivityPercent(registeredUsers);
   const staffWeeklyPercent = getWeeklyActivityPercent(staffUsers);
   const applicationsWeeklyPercent = getWeeklyActivityPercent(applications);
   const inspectionsWeeklyPercent = getWeeklyActivityPercent(inspections);
@@ -500,15 +500,14 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
 
   const statCards = [
     {
-      label: "Total users",
-      value: users.length,
+      label: "Registered citizens",
+      value: registeredUsers.length,
       icon: "ti-users",
       iconBg: "#eff6ff",
       iconColor: "#2563eb",
-      trend: `${usersWeeklyPercent}% added this week`,
+      trend: `${registeredUsersWeeklyPercent}% added this week`,
       trendUp: true,
-      narrative:
-        `This reflects the total number of registered user accounts. ${usersWeeklyPercent}% of accounts were created in the last seven days.`,
+      narrative: "Citizen accounts only.",
     },
     {
       label: "Applications",
@@ -518,8 +517,7 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
       iconColor: "#059669",
       trend: `${applicationsWeeklyPercent}% added this week`,
       trendUp: true,
-      narrative:
-        "This is the current count of permit applications submitted and available in the system. It shows how much demand the city is processing, and a higher number usually reflects stronger service demand or increased public awareness of permit procedures.",
+      narrative: "Permit applications submitted through TrustPermit.",
     },
     {
       label: "Inspections",
@@ -529,8 +527,7 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
       iconColor: "#d97706",
       trend: `${inspectionsWeeklyPercent}% added this week`,
       trendUp: true,
-      narrative:
-        "This count includes inspection records scheduled across TrustPermit, including inspections that are pending, approved, or rejected. It provides a current view of inspection workload.",
+      narrative: "Inspection records across all permit applications.",
     },
     {
       label: "Uploaded docs",
@@ -540,8 +537,7 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
       iconColor: "#7c3aed",
       trend: `${documentsWeeklyPercent}% added this week`,
       trendUp: true,
-      narrative:
-        "This shows how many supporting documents have been uploaded to the platform. A growing number usually indicates more complete applications and stronger digital processing, which reduces manual bottlenecks and speeds up verification.",
+      narrative: "Supporting documents uploaded for permit review.",
     },
     {
       label: "Payments",
@@ -551,8 +547,7 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
       iconColor: "#ca8a04",
       trend: `${paymentsWeeklyPercent}% added this week`,
       trendUp: true,
-      narrative:
-        "This count captures payment records connected to business permits and related transactions. It helps the administration measure revenue flow and confirms whether permit processing is being completed through the digital payment workflow.",
+      narrative: "Payment transactions recorded for permit services.",
     },
     {
       label: "City Hall staff",
@@ -562,14 +557,13 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
       iconColor: "#16a34a",
       trend: `${staffWeeklyPercent}% added this week`,
       trendUp: true,
-      narrative:
-        `This is the number of city staff accounts assigned to operational roles. ${staffWeeklyPercent}% of staff accounts were created in the last seven days.`,
+      narrative: "Staff accounts assigned to City Hall operations.",
     },
   ];
 
   const dashboardNarrative = useMemo(() => {
-    return `TrustPermit currently has ${users.length.toLocaleString()} user accounts, ${applications.length.toLocaleString()} applications, ${inspections.length.toLocaleString()} inspection records, ${uploadedDocuments.length.toLocaleString()} uploaded documents, and ${payments.length.toLocaleString()} payment records. Each weekly percentage shows the share of that category created in the last seven days.`;
-  }, [users.length, applications.length, inspections.length, uploadedDocuments.length, payments.length]);
+    return `TrustPermit currently has ${registeredUsers.length.toLocaleString()} registered citizen accounts, ${applications.length.toLocaleString()} applications, ${inspections.length.toLocaleString()} inspection records, ${uploadedDocuments.length.toLocaleString()} uploaded documents, and ${payments.length.toLocaleString()} payment records. Each weekly percentage shows the share of that category created in the last seven days.`;
+  }, [registeredUsers.length, applications.length, inspections.length, uploadedDocuments.length, payments.length]);
 
   const dashboardPanelNarratives = {
     weekly: {
