@@ -67,6 +67,7 @@ const formatDateTime = (value) => {
 const safeArray = (data) => {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.records)) return data.records;
   if (Array.isArray(data?.applications)) return data.applications;
   if (Array.isArray(data?.inspections)) return data.inspections;
   if (Array.isArray(data?.documents)) return data.documents;
@@ -86,6 +87,19 @@ const getWeeklyActivityPercent = (records) => {
   }).length;
 
   return Math.round((recentRecords / records.length) * 100);
+};
+
+const getRecentCount = (records, days = 7) => {
+  if (!Array.isArray(records) || !records.length) return 0;
+
+  const now = Date.now();
+  const cutoff = now - days * 24 * 60 * 60 * 1000;
+
+  return records.filter((record) => {
+    if (!record?.createdAt) return false;
+    const createdAt = new Date(record.createdAt).getTime();
+    return Number.isFinite(createdAt) && createdAt >= cutoff && createdAt <= now;
+  }).length;
 };
 
 const logTypeConfig = {
@@ -197,6 +211,7 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
   const [hoveredOverviewCategory, setHoveredOverviewCategory] = useState(null);
   const [hoveredWeekday, setHoveredWeekday] = useState(null);
   const [selectedDashboardPanel, setSelectedDashboardPanel] = useState("overview");
+  const [selectedWeeklyCategory, setSelectedWeeklyCategory] = useState("all");
   const [logFilter, setLogFilter] = useState("today");
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -210,6 +225,7 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
   const [uploadedDocuments, setUploadedDocuments] = useState([]);
   const [payments, setPayments] = useState([]);
   const [auditRecords, setAuditRecords] = useState([]);
+  const [auditTotalCount, setAuditTotalCount] = useState(0);
 
   const [loadingAudit, setLoadingAudit] = useState(true);
   const [auditSearch, setAuditSearch] = useState("");
@@ -316,25 +332,38 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
     setLoadingAudit(true);
 
     try {
-      const [apps, insp, docs, pays, audit] = await Promise.all([
+      const [apps, insp, docs, pays, auditResponse] = await Promise.all([
         fetchFirstWorking(["/applications"]),
         fetchFirstWorking(["/inspection"]),
         fetchFirstWorking(["/applications/upload-documents"]),
         fetchFirstWorking(["/payments"]),
-        fetchFirstWorking(["/audit"]),
+        fetch(`${API_BASE}/audit`, {
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders(),
+          },
+        }).then(async (res) => {
+          if (!res.ok) return { total: 0, records: [] };
+          const data = await res.json();
+          return {
+            total: Number.isFinite(data?.total) ? Number(data.total) : safeArray(data).length,
+            records: safeArray(data),
+          };
+        }),
       ]);
 
       setApplications(apps);
       setInspections(insp);
       setUploadedDocuments(docs);
       setPayments(pays);
-      setAuditRecords(audit);
+      setAuditRecords(auditResponse.records || []);
+      setAuditTotalCount(auditResponse.total || auditResponse.records?.length || 0);
     } catch (err) {
       console.error("Error fetching audit trail:", err);
     } finally {
       setLoadingAudit(false);
     }
-  }, [fetchFirstWorking]);
+  }, [authHeaders, fetchFirstWorking]);
 
   useEffect(() => {
     fetchLogs();
@@ -344,9 +373,16 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
   useEffect(() => {
     if (activePage !== "dashboard") return undefined;
 
-    const refreshTimer = window.setInterval(fetchAuditTrail, 30000);
+    fetchLogs();
+    fetchAuditTrail();
+
+    const refreshTimer = window.setInterval(() => {
+      fetchLogs();
+      fetchAuditTrail();
+    }, 8000);
+
     return () => window.clearInterval(refreshTimer);
-  }, [activePage, fetchAuditTrail]);
+  }, [activePage, fetchLogs, fetchAuditTrail]);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -595,6 +631,14 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
     `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
       date.getDate()
     ).padStart(2, "0")}`;
+  const weeklyCategoryMeta = [
+    { key: "applications", label: "Applications", color: "#2563eb" },
+    { key: "inspections", label: "Inspections", color: "#16a34a" },
+    { key: "documents", label: "Uploaded docs", color: "#7c3aed" },
+    { key: "payments", label: "Payments", color: "#ca8a04" },
+    { key: "users", label: "Users", color: "#ec4899" },
+  ];
+
   const weeklyActivityByDay = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(weekStart);
     date.setDate(weekStart.getDate() + index);
@@ -607,7 +651,12 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
       inspections: 0,
       documents: 0,
       payments: 0,
+      users: 0,
       total: 0,
+      categories: weeklyCategoryMeta.map((category) => ({
+        ...category,
+        value: 0,
+      })),
     };
   });
   const weeklyDayMap = new Map(weeklyActivityByDay.map((day) => [day.key, day]));
@@ -616,6 +665,7 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
     { key: "inspections", records: inspections },
     { key: "documents", records: uploadedDocuments },
     { key: "payments", records: payments },
+    { key: "users", records: registeredUsers },
   ].forEach(({ key, records }) => {
     records.forEach((record) => {
       if (!record.createdAt) return;
@@ -625,6 +675,10 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
       if (day && day.key <= currentDateKey) {
         day[key] += 1;
         day.total += 1;
+        const category = day.categories.find((item) => item.key === key);
+        if (category) {
+          category.value += 1;
+        }
       }
     });
   });
@@ -637,44 +691,147 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
     (day) => day.key === hoveredWeekday
   );
 
+  const overviewActivityTotal =
+    applications.length + inspections.length + uploadedDocuments.length + payments.length + registeredUsers.length;
+
   const donutData = [
     {
       label: "Applications",
       value: applications.length,
       color: "#2563eb",
       description: "Permit applications submitted by applicants.",
-      pct: auditActivities.length
-        ? ((applications.length / auditActivities.length) * 100).toFixed(1)
-        : 0,
+      pct: overviewActivityTotal ? ((applications.length / overviewActivityTotal) * 100).toFixed(1) : 0,
     },
     {
       label: "Inspections",
       value: inspections.length,
       color: "#16a34a",
       description: "Inspection records created for permit reviews.",
-      pct: auditActivities.length
-        ? ((inspections.length / auditActivities.length) * 100).toFixed(1)
-        : 0,
+      pct: overviewActivityTotal ? ((inspections.length / overviewActivityTotal) * 100).toFixed(1) : 0,
     },
     {
       label: "Uploaded docs",
       value: uploadedDocuments.length,
       color: "#7c3aed",
       description: "Supporting documents uploaded for review.",
-      pct: auditActivities.length
-        ? ((uploadedDocuments.length / auditActivities.length) * 100).toFixed(1)
-        : 0,
+      pct: overviewActivityTotal ? ((uploadedDocuments.length / overviewActivityTotal) * 100).toFixed(1) : 0,
     },
     {
       label: "Payments",
       value: payments.length,
       color: "#ca8a04",
       description: "Permit fee payment records in the system.",
-      pct: auditActivities.length
-        ? ((payments.length / auditActivities.length) * 100).toFixed(1)
-        : 0,
+      pct: overviewActivityTotal ? ((payments.length / overviewActivityTotal) * 100).toFixed(1) : 0,
+    },
+    {
+      label: "Users",
+      value: registeredUsers.length,
+      color: "#ec4899",
+      description: "Registered citizen accounts in the platform.",
+      pct: overviewActivityTotal ? ((registeredUsers.length / overviewActivityTotal) * 100).toFixed(1) : 0,
     },
   ];
+
+  const weeklySummaryData = [
+    {
+      label: "Applications",
+      value: getRecentCount(applications, 7),
+      color: "#2563eb",
+      key: "applications",
+    },
+    {
+      label: "Inspections",
+      value: getRecentCount(inspections, 7),
+      color: "#16a34a",
+      key: "inspections",
+    },
+    {
+      label: "Uploaded docs",
+      value: getRecentCount(uploadedDocuments, 7),
+      color: "#7c3aed",
+      key: "documents",
+    },
+    {
+      label: "Payments",
+      value: getRecentCount(payments, 7),
+      color: "#ca8a04",
+      key: "payments",
+    },
+    {
+      label: "Users",
+      value: getRecentCount(registeredUsers, 7),
+      color: "#ec4899",
+      key: "users",
+    },
+  ];
+
+  const formatWeeklyRecordLabel = (record, key) => {
+    if (!record) return "Recent record";
+
+    if (key === "applications") return record.applicantName || record.businessName || record.companyName || record.name || record.email || "Application";
+    if (key === "inspections") return record.inspectionType || record.type || record.name || record.businessName || record.companyName || "Inspection";
+    if (key === "documents") return record.fileName || record.name || record.documentType || "Document";
+    if (key === "payments") return record.reference || record.paymentMethod || record.transactionId || record.payerName || record.name || "Payment";
+    if (key === "users") return record.fullName || record.name || record.email || "User";
+
+    return record.name || record.title || record.email || "Record";
+  };
+
+  const weeklyCategoryRecords = [
+    { key: "applications", label: "Applications", items: applications.filter((item) => item?.createdAt && new Date(item.createdAt).getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000) },
+    { key: "inspections", label: "Inspections", items: inspections.filter((item) => item?.createdAt && new Date(item.createdAt).getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000) },
+    { key: "documents", label: "Uploaded docs", items: uploadedDocuments.filter((item) => item?.createdAt && new Date(item.createdAt).getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000) },
+    { key: "payments", label: "Payments", items: payments.filter((item) => item?.createdAt && new Date(item.createdAt).getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000) },
+    { key: "users", label: "Users", items: registeredUsers.filter((item) => item?.createdAt && new Date(item.createdAt).getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000) },
+  ];
+
+  const activeWeeklyCategory = selectedWeeklyCategory === "all"
+    ? null
+    : weeklyCategoryRecords.find((item) => item.key === selectedWeeklyCategory) || null;
+
+  const selectedWeeklyItems = selectedWeeklyCategory === "all"
+    ? weeklyCategoryRecords.flatMap((group) =>
+        group.items.map((item) => ({
+          ...item,
+          categoryKey: group.key,
+          categoryLabel: group.label,
+          categoryColor: weeklySummaryData.find((summary) => summary.key === group.key)?.color || "#2563eb",
+        }))
+      )
+    : activeWeeklyCategory?.items.map((item) => ({
+        ...item,
+        categoryKey: activeWeeklyCategory.key,
+        categoryLabel: activeWeeklyCategory.label,
+        categoryColor: activeWeeklyCategory.color || weeklySummaryData.find((summary) => summary.key === activeWeeklyCategory.key)?.color || "#2563eb",
+      })) || [];
+
+  const selectedWeeklyItemsSorted = selectedWeeklyItems
+    .filter((item) => item?.createdAt)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 8);
+
+  const activitySummaryBarMax = Math.max(10, ...weeklySummaryData.map((item) => Number(item.value) || 0));
+  const getWeeklySummaryNarrative = () => {
+    if (selectedWeeklyCategory === "all") {
+      const totalWeeklyActivity = weeklySummaryData.reduce((sum, item) => sum + Number(item.value || 0), 0);
+      const availableCounts = weeklySummaryData.filter((item) => Number(item.value || 0) > 0);
+
+      if (!availableCounts.length) {
+        return "No recorded activity was found in the last 7 days.";
+      }
+
+      const summaryParts = availableCounts.map((item) => `${item.value} ${item.label.toLowerCase()}`);
+      return `All weekly activity: this week, the system recorded ${totalWeeklyActivity} activities in total across the platform: ${summaryParts.join(", ")}.`;
+    }
+
+    const selectedCategory = weeklySummaryData.find((item) => item.key === selectedWeeklyCategory);
+    if (!selectedCategory) {
+      return "No activity was found for this category in the last 7 days.";
+    }
+
+    return `All ${selectedCategory.label.toLowerCase()} made this week: there were ${selectedCategory.value} ${selectedCategory.label.toLowerCase()} recorded in the system.`;
+  };
+  const totalOverviewActivities = donutData.reduce((sum, item) => sum + Number(item.value || 0), 0);
   const activeOverviewCategory = donutData.find(
     (item) => item.label === hoveredOverviewCategory
   );
@@ -715,7 +872,7 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
               <i className={`ti ${item.icon}`} />
               <span>{item.label}</span>
               {item.key === "users" && (
-                <span className="sb-nav-badge">{users.length.toLocaleString()}</span>
+                <span className="sb-nav-badge">{registeredUsers.length.toLocaleString()}</span>
               )}
             </button>
           ))}
@@ -731,7 +888,7 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
               <i className={`ti ${item.icon}`} />
               <span>{item.label}</span>
               {item.key === "auditTrail" && (
-                <span className="sb-nav-badge">{auditActivities.length}</span>
+                <span className="sb-nav-badge">{(auditTotalCount || auditActivities.length).toLocaleString()}</span>
               )}
             </button>
           ))}
@@ -905,7 +1062,7 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                               fontWeight="500"
                               fill="currentColor"
                             >
-                              {auditActivities.length}
+                              {totalOverviewActivities}
                             </text>
                             <text x="60" y="68" textAnchor="middle" fontSize="8" fill="#9ca3af">
                               Activities
@@ -947,159 +1104,162 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                   </div>
 
                   <div
-                    className={`dash-panel interactive-panel${selectedDashboardPanel === "weekly" ? " is-selected" : ""}`}
-                    style={{ flex: 1 }}
-                    onMouseEnter={() => setHoveredDashboardPanel("weekly")}
+                    className={`dash-panel dash-logs-preview interactive-panel${selectedDashboardPanel === "audit" ? " is-selected" : ""}`}
+                    onMouseEnter={() => setHoveredDashboardPanel("audit")}
                     onMouseLeave={() => setHoveredDashboardPanel(null)}
-                    onClick={() => setSelectedDashboardPanel("weekly")}
+                    onClick={() => setSelectedDashboardPanel("audit")}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();
-                        setSelectedDashboardPanel("weekly");
+                        setSelectedDashboardPanel("audit");
                       }
                     }}
                     role="button"
                     tabIndex={0}
-                    aria-pressed={selectedDashboardPanel === "weekly"}
+                    aria-pressed={selectedDashboardPanel === "audit"}
                   >
+                    {hoveredDashboardPanel === "audit" && (
+                      <div className="panel-narrative-tooltip">
+                        <div className="panel-narrative-title">{dashboardPanelNarratives.audit.title}</div>
+                        <div className="panel-narrative-text">{dashboardPanelNarratives.audit.description}</div>
+                      </div>
+                    )}
                     <div className="dash-panel-hd">
                       <div className="dash-panel-title">
-                        <i className="ti ti-chart-bar" />
-                        Activity summary this week
+                        <i className="ti ti-list-details" />
+                        Recent audit activity
                       </div>
+                      <button
+                        type="button"
+                        className="dash-view-all"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setActivePage("auditTrail");
+                        }}
+                      >
+                        View all <i className="ti ti-arrow-right" style={{ fontSize: 12 }} />
+                      </button>
                     </div>
 
-                    <div className="dash-panel-body">
-                      <div className="bar-chart-wrap">
-                        <div className="bar-y-axis">
-                          {[
-                            weeklyChartMaximum,
-                            (weeklyChartMaximum * 2) / 3,
-                            weeklyChartMaximum / 3,
-                            0,
-                          ].map((v) => (
-                            <span key={v} className="bar-y-lbl">
-                              {v}
-                            </span>
-                          ))}
-                        </div>
-
-                        <div className="bar-columns">
-                          {weeklyActivityByDay.map((day) => (
-                            <div
-                              className="bar-col"
-                              key={day.key}
-                              tabIndex={0}
-                              aria-label={`${day.date.toLocaleDateString("en-US", {
-                                weekday: "long",
-                                month: "long",
-                                day: "numeric",
-                              })}: ${day.total} total activities`}
-                              onMouseEnter={() => setHoveredWeekday(day.key)}
-                              onMouseLeave={() => setHoveredWeekday(null)}
-                              onFocus={() => setHoveredWeekday(day.key)}
-                              onBlur={() => setHoveredWeekday(null)}
-                            >
-                              <div
-                                className={`bar${day.isToday ? " bar-today" : ""}`}
-                                style={{
-                                  height: `${(day.total / weeklyChartMaximum) * 100}%`,
-                                }}
-                              />
-                              <div
-                                className={`bar-lbl${day.isToday ? " bar-lbl-today" : ""}`}
-                              >
-                                {day.label}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        {activeWeekday && (
-                          <div className="weekly-day-tooltip" role="status" aria-live="polite">
-                            <strong>
-                              {activeWeekday.date.toLocaleDateString("en-US", {
-                                weekday: "long",
-                                month: "short",
-                                day: "numeric",
-                              })}
-                            </strong>
-                            <span>
-                              {activeWeekday.total === 0
-                                ? "No activity recorded on this day"
-                                : `${activeWeekday.total} total activities recorded`}
-                            </span>
-                            <div className="weekly-day-breakdown">
-                              <span>Applications <b>{activeWeekday.applications}</b></span>
-                              <span>Inspections <b>{activeWeekday.inspections}</b></span>
-                              <span>Uploaded docs <b>{activeWeekday.documents}</b></span>
-                              <span>Payments <b>{activeWeekday.payments}</b></span>
+                    <div className="log-scroll">
+                      {auditActivities.slice(0, 6).map((item) => (
+                        <div className="log-entry" key={`${item.type}-${item.id}`}>
+                          <div className="le-icon icon-system">
+                            <i className={`ti ${item.icon}`} />
+                          </div>
+                          <div className="le-time">{formatDateTime(item.date)}</div>
+                          <div className="le-body">
+                            <div className="le-actor">{item.title}</div>
+                            <div className="le-meta">
+                              {item.type} • {item.user}
                             </div>
                           </div>
-                        )}
-                      </div>
+                          <span className="le-badge badge-system">{item.status}</span>
+                        </div>
+                      ))}
+
+                      {auditActivities.length === 0 && !loadingAudit && (
+                        <div className="empty-state">No audit activity found.</div>
+                      )}
                     </div>
                   </div>
                 </div>
 
                 <div
-                  className={`dash-panel dash-logs-preview interactive-panel${selectedDashboardPanel === "audit" ? " is-selected" : ""}`}
-                  onMouseEnter={() => setHoveredDashboardPanel("audit")}
+                  className={`dash-panel interactive-panel${selectedDashboardPanel === "weekly" ? " is-selected" : ""}`}
+                  style={{ flex: 1 }}
+                  onMouseEnter={() => setHoveredDashboardPanel("weekly")}
                   onMouseLeave={() => setHoveredDashboardPanel(null)}
-                  onClick={() => setSelectedDashboardPanel("audit")}
+                  onClick={() => setSelectedDashboardPanel("weekly")}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
-                      setSelectedDashboardPanel("audit");
+                      setSelectedDashboardPanel("weekly");
                     }
                   }}
                   role="button"
                   tabIndex={0}
-                  aria-pressed={selectedDashboardPanel === "audit"}
+                  aria-pressed={selectedDashboardPanel === "weekly"}
                 >
-                  {hoveredDashboardPanel === "audit" && (
-                    <div className="panel-narrative-tooltip">
-                      <div className="panel-narrative-title">{dashboardPanelNarratives.audit.title}</div>
-                      <div className="panel-narrative-text">{dashboardPanelNarratives.audit.description}</div>
-                    </div>
-                  )}
                   <div className="dash-panel-hd">
-                    <div className="dash-panel-title">
-                      <i className="ti ti-list-details" />
-                      Recent audit activity
-                    </div>
                     <button
                       type="button"
-                      className="dash-view-all"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setActivePage("auditTrail");
-                      }}
+                      className="dash-panel-title dash-panel-title-button"
+                      onClick={() => setSelectedWeeklyCategory("all")}
+                      onMouseEnter={() => setSelectedWeeklyCategory("all")}
+                      onFocus={() => setSelectedWeeklyCategory("all")}
                     >
-                      View all <i className="ti ti-arrow-right" style={{ fontSize: 12 }} />
+                      <i className="ti ti-chart-bar" />
+                      Activity summary this week
                     </button>
                   </div>
 
-                  <div className="log-scroll">
-                    {auditActivities.slice(0, 6).map((item) => (
-                      <div className="log-entry" key={`${item.type}-${item.id}`}>
-                        <div className="le-icon icon-system">
-                          <i className={`ti ${item.icon}`} />
-                        </div>
-                        <div className="le-time">{formatDateTime(item.date)}</div>
-                        <div className="le-body">
-                          <div className="le-actor">{item.title}</div>
-                          <div className="le-meta">
-                            {item.type} • {item.user}
+                  <div className="dash-panel-body">
+                    <div className="activity-bar-chart-wrapper">
+                      <div className="activity-bar-grid">
+                        {weeklySummaryData.map((category) => (
+                          <div
+                            key={category.label}
+                            className={`activity-bar-col${selectedWeeklyCategory === category.key ? " is-selected" : ""}`}
+                            onClick={() => setSelectedWeeklyCategory(category.key)}
+                            onMouseEnter={() => setSelectedWeeklyCategory(category.key)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                setSelectedWeeklyCategory(category.key);
+                              }
+                            }}
+                          >
+                            <div className="activity-bar-value">{category.value}</div>
+                            <div
+                              className="activity-bar"
+                              style={{
+                                height: `${(category.value / activitySummaryBarMax) * 100}%`,
+                                background: category.color,
+                              }}
+                            />
+                            <div className="activity-bar-label">{category.label}</div>
                           </div>
-                        </div>
-                        <span className="le-badge badge-system">{item.status}</span>
+                        ))}
                       </div>
-                    ))}
 
-                    {auditActivities.length === 0 && !loadingAudit && (
-                      <div className="empty-state">No audit activity found.</div>
-                    )}
+                      <div className="weekly-summary-detail">
+                        <div className="weekly-summary-header">
+                          <strong>
+                            {selectedWeeklyCategory === "all"
+                              ? "All weekly activity"
+                              : `${weeklySummaryData.find((item) => item.key === selectedWeeklyCategory)?.label || "Selected"} this week`}
+                          </strong>
+                          <span>
+                            {selectedWeeklyItemsSorted.length} activity{selectedWeeklyItemsSorted.length === 1 ? "" : "ies"}
+                          </span>
+                        </div>
+
+                        <div className="weekly-summary-text">
+                          {selectedWeeklyItemsSorted.length === 0 ? (
+                            <div className="weekly-summary-empty">No activity in the last 7 days.</div>
+                          ) : (
+                            <p>{getWeeklySummaryNarrative()}</p>
+                          )}
+                        </div>
+
+                        {selectedWeeklyCategory !== "all" && selectedWeeklyItemsSorted.length > 0 && (
+                          <div className="weekly-summary-list">
+                            {selectedWeeklyItemsSorted.map((item, index) => (
+                              <div key={`${item.categoryKey}-${item._id || index}`} className="weekly-summary-item">
+                                <span className="weekly-summary-dot" style={{ background: item.categoryColor || '#2563eb' }} />
+                                <div>
+                                  <div className="weekly-summary-name">{formatWeeklyRecordLabel(item, item.categoryKey)}</div>
+                                  <div className="weekly-summary-meta">{item.categoryLabel} • {formatDateTime(item.createdAt)}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -607,7 +607,7 @@ const Account = ({ initialMenu }) => {
 
 
   useEffect(() => {
-    if (activeMenu === "Application Forms") {
+    if (activeMenu === "Application Forms") { 
       setActiveMenu("Apply Permit");
     }
   }, [activeMenu]);
