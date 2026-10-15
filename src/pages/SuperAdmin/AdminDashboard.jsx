@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
+import { io } from "socket.io-client";
 import "./AdminDashboard.css";
 import LogoutConfirmModal from "../../components/LogoutConfirmModal";
 
@@ -21,6 +22,7 @@ const getApiBaseUrl = () => {
 };
 
 const API_BASE = getApiBaseUrl();
+const SOCKET_URL = API_BASE.replace(/\/api$/, "");
 
 const roleOptions = [{ value: "staff", label: "City Hall Staff" }];
 
@@ -89,18 +91,13 @@ const getWeeklyActivityPercent = (records) => {
   return Math.round((recentRecords / records.length) * 100);
 };
 
-const getRecentCount = (records, days = 7) => {
-  if (!Array.isArray(records) || !records.length) return 0;
+const getLocalDateKey = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate()
+  ).padStart(2, "0")}`;
 
-  const now = Date.now();
-  const cutoff = now - days * 24 * 60 * 60 * 1000;
-
-  return records.filter((record) => {
-    if (!record?.createdAt) return false;
-    const createdAt = new Date(record.createdAt).getTime();
-    return Number.isFinite(createdAt) && createdAt >= cutoff && createdAt <= now;
-  }).length;
-};
+const getRecordStatus = (record) =>
+  String(record?.status || record?.approvalStatus || record?.inspectionStatus || "").trim();
 
 const logTypeConfig = {
   security: {
@@ -212,6 +209,10 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
   const [hoveredWeekday, setHoveredWeekday] = useState(null);
   const [selectedDashboardPanel, setSelectedDashboardPanel] = useState("overview");
   const [selectedWeeklyCategory, setSelectedWeeklyCategory] = useState("all");
+  const [activityPeriod, setActivityPeriod] = useState("week");
+  const [activityWeekDate, setActivityWeekDate] = useState(() => getLocalDateKey(new Date()));
+  const [activityMonth, setActivityMonth] = useState(() => getLocalDateKey(new Date()).slice(0, 7));
+  const [activityStatus, setActivityStatus] = useState("all");
   const [logFilter, setLogFilter] = useState("today");
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -284,27 +285,27 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
     [authHeaders]
   );
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/users`, {
-          headers: {
-            "Content-Type": "application/json",
-            ...authHeaders(),
-          },
-        });
+  const fetchUsers = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/users`, {
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders(),
+        },
+      });
 
-        const data = await res.json();
-        setUsers(safeArray(data));
-      } catch (err) {
-        console.error("Error fetching users:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUsers();
+      const data = await res.json();
+      setUsers(safeArray(data));
+    } catch (err) {
+      console.error("Error fetching users:", err);
+    } finally {
+      setLoading(false);
+    }
   }, [authHeaders]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const fetchLogs = useCallback(async () => {
     setLoadingLogs(true);
@@ -373,16 +374,38 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
   useEffect(() => {
     if (activePage !== "dashboard") return undefined;
 
-    fetchLogs();
-    fetchAuditTrail();
-
-    const refreshTimer = window.setInterval(() => {
+    const refreshDashboard = () => {
+      fetchUsers();
       fetchLogs();
       fetchAuditTrail();
+    };
+    const socket = io(SOCKET_URL, {
+      path: "/socket.io",
+      transports: ["websocket", "polling"],
+      auth: { token: localStorage.getItem("token") },
+    });
+    const activityEvents = [
+      "new-application",
+      "application-status-updated",
+      "uploaded-document-status-updated",
+      "inspection-created",
+      "inspection-updated",
+      "payment-updated",
+    ];
+
+    refreshDashboard();
+    activityEvents.forEach((eventName) => socket.on(eventName, refreshDashboard));
+
+    const refreshTimer = window.setInterval(() => {
+      refreshDashboard();
     }, 8000);
 
-    return () => window.clearInterval(refreshTimer);
-  }, [activePage, fetchLogs, fetchAuditTrail]);
+    return () => {
+      window.clearInterval(refreshTimer);
+      activityEvents.forEach((eventName) => socket.off(eventName, refreshDashboard));
+      socket.disconnect();
+    };
+  }, [activePage, fetchUsers, fetchLogs, fetchAuditTrail]);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -621,16 +644,59 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
   const currentDateKey = `${currentDate.getFullYear()}-${String(
     currentDate.getMonth() + 1
   ).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
+  const selectedActivityDate = new Date(
+    `${activityPeriod === "month" ? `${activityMonth}-01` : activityWeekDate}T00:00:00`
+  );
+  const activityRangeStart = new Date(selectedActivityDate);
+  const activityRangeEnd = new Date(selectedActivityDate);
+  if (activityPeriod === "month") {
+    activityRangeStart.setDate(1);
+    activityRangeEnd.setMonth(activityRangeEnd.getMonth() + 1, 0);
+  } else {
+    activityRangeStart.setDate(
+      activityRangeStart.getDate() - ((activityRangeStart.getDay() + 6) % 7)
+    );
+    activityRangeEnd.setTime(activityRangeStart.getTime());
+    activityRangeEnd.setDate(activityRangeStart.getDate() + 6);
+  }
+  activityRangeStart.setHours(0, 0, 0, 0);
+  activityRangeEnd.setHours(23, 59, 59, 999);
+  const isInActivityRange = (record) => {
+    const createdAt = new Date(record?.createdAt).getTime();
+    return Number.isFinite(createdAt) && createdAt >= activityRangeStart.getTime() && createdAt <= activityRangeEnd.getTime();
+  };
+  const activitySources = [
+    { key: "applications", label: "Applications", records: applications, color: "#2563eb" },
+    { key: "inspections", label: "Inspections", records: inspections, color: "#16a34a" },
+    { key: "documents", label: "Uploaded docs", records: uploadedDocuments, color: "#7c3aed" },
+    { key: "payments", label: "Payments", records: payments, color: "#ca8a04" },
+    { key: "users", label: "Users", records: registeredUsers, color: "#ec4899" },
+  ];
+  const activityStatusSource = selectedWeeklyCategory === "all"
+    ? activitySources
+    : activitySources.filter((source) => source.key === selectedWeeklyCategory);
+  const activityStatusOptions = [...new Set([
+    "Pending",
+    "Approved",
+    "Rejected",
+    ...activityStatusSource.flatMap((source) => source.records.map(getRecordStatus).filter(Boolean)),
+  ])].sort((a, b) => {
+    const commonStatuses = ["Pending", "Approved", "Rejected"];
+    const aIndex = commonStatuses.findIndex((status) => status.toLowerCase() === a.toLowerCase());
+    const bIndex = commonStatuses.findIndex((status) => status.toLowerCase() === b.toLowerCase());
+    if (aIndex !== -1 || bIndex !== -1) {
+      return (aIndex === -1 ? commonStatuses.length : aIndex) - (bIndex === -1 ? commonStatuses.length : bIndex);
+    }
+    return a.localeCompare(b);
+  });
+  const matchesActivityStatus = (record) =>
+    activityStatus === "all" || getRecordStatus(record).toLowerCase() === activityStatus.toLowerCase();
   const mondayOffset = (currentDate.getDay() + 6) % 7;
   const weekStart = new Date(
     currentDate.getFullYear(),
     currentDate.getMonth(),
     currentDate.getDate() - mondayOffset
   );
-  const getLocalDateKey = (date) =>
-    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
-      date.getDate()
-    ).padStart(2, "0")}`;
   const weeklyCategoryMeta = [
     { key: "applications", label: "Applications", color: "#2563eb" },
     { key: "inspections", label: "Inspections", color: "#16a34a" },
@@ -732,38 +798,29 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
     },
   ];
 
-  const weeklySummaryData = [
-    {
-      label: "Applications",
-      value: getRecentCount(applications, 7),
-      color: "#2563eb",
-      key: "applications",
-    },
-    {
-      label: "Inspections",
-      value: getRecentCount(inspections, 7),
-      color: "#16a34a",
-      key: "inspections",
-    },
-    {
-      label: "Uploaded docs",
-      value: getRecentCount(uploadedDocuments, 7),
-      color: "#7c3aed",
-      key: "documents",
-    },
-    {
-      label: "Payments",
-      value: getRecentCount(payments, 7),
-      color: "#ca8a04",
-      key: "payments",
-    },
-    {
-      label: "Users",
-      value: getRecentCount(registeredUsers, 7),
-      color: "#ec4899",
-      key: "users",
-    },
-  ];
+  const weeklyCategoryRecords = activitySources.map((source) => ({
+    key: source.key,
+    label: source.label,
+    color: source.color,
+    items: source.records.filter((item) => isInActivityRange(item) && matchesActivityStatus(item)),
+  }));
+  const weeklySummaryData = weeklyCategoryRecords.map((category) => ({
+    label: category.label,
+    value: category.items.length,
+    color: category.color,
+    key: category.key,
+  }));
+  const activityRangeLabel = activityPeriod === "week" ? "week" : "month";
+  const activityRangeDescription = activityPeriod === "week"
+    ? `the week of ${activityRangeStart.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} to ${activityRangeEnd.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`
+    : activityRangeStart.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const activityCategoryDescription = selectedWeeklyCategory === "all"
+    ? "all activities"
+    : weeklySummaryData.find((item) => item.key === selectedWeeklyCategory)?.label.toLowerCase() || "selected activities";
+  const activityStatusDescription = activityStatus === "all"
+    ? "all statuses"
+    : `${activityStatus} status`;
+  const activitySummaryDescription = `Showing ${activityCategoryDescription} with ${activityStatusDescription} during ${activityRangeDescription}. New records and status changes appear live, with an 8-second refresh as backup.`;
 
   const formatWeeklyRecordLabel = (record, key) => {
     if (!record) return "Recent record";
@@ -776,14 +833,6 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
 
     return record.name || record.title || record.email || "Record";
   };
-
-  const weeklyCategoryRecords = [
-    { key: "applications", label: "Applications", items: applications.filter((item) => item?.createdAt && new Date(item.createdAt).getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000) },
-    { key: "inspections", label: "Inspections", items: inspections.filter((item) => item?.createdAt && new Date(item.createdAt).getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000) },
-    { key: "documents", label: "Uploaded docs", items: uploadedDocuments.filter((item) => item?.createdAt && new Date(item.createdAt).getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000) },
-    { key: "payments", label: "Payments", items: payments.filter((item) => item?.createdAt && new Date(item.createdAt).getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000) },
-    { key: "users", label: "Users", items: registeredUsers.filter((item) => item?.createdAt && new Date(item.createdAt).getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000) },
-  ];
 
   const activeWeeklyCategory = selectedWeeklyCategory === "all"
     ? null
@@ -817,19 +866,19 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
       const availableCounts = weeklySummaryData.filter((item) => Number(item.value || 0) > 0);
 
       if (!availableCounts.length) {
-        return "No recorded activity was found in the last 7 days.";
+        return `No recorded activity was found this ${activityRangeLabel}.`;
       }
 
       const summaryParts = availableCounts.map((item) => `${item.value} ${item.label.toLowerCase()}`);
-      return `All weekly activity: this week, the system recorded ${totalWeeklyActivity} activities in total across the platform: ${summaryParts.join(", ")}.`;
+      return `All activity this ${activityRangeLabel}: the system recorded ${totalWeeklyActivity} activities across the platform: ${summaryParts.join(", ")}.`;
     }
 
     const selectedCategory = weeklySummaryData.find((item) => item.key === selectedWeeklyCategory);
     if (!selectedCategory) {
-      return "No activity was found for this category in the last 7 days.";
+      return `No activity was found for this category this ${activityRangeLabel}.`;
     }
 
-    return `All ${selectedCategory.label.toLowerCase()} made this week: there were ${selectedCategory.value} ${selectedCategory.label.toLowerCase()} recorded in the system.`;
+    return `There were ${selectedCategory.value} ${selectedCategory.label.toLowerCase()} recorded this ${activityRangeLabel}.`;
   };
   const totalOverviewActivities = donutData.reduce((sum, item) => sum + Number(item.value || 0), 0);
   const activeOverviewCategory = donutData.find(
@@ -1185,30 +1234,68 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                     <button
                       type="button"
                       className="dash-panel-title dash-panel-title-button"
-                      onClick={() => setSelectedWeeklyCategory("all")}
-                      onMouseEnter={() => setSelectedWeeklyCategory("all")}
-                      onFocus={() => setSelectedWeeklyCategory("all")}
+                      onClick={() => {
+                        setSelectedWeeklyCategory("all");
+                        setActivityStatus("all");
+                      }}
                     >
                       <i className="ti ti-chart-bar" />
-                      Activity summary this week
+                      Activity summary this {activityRangeLabel}
                     </button>
+                    <div className="activity-summary-controls" onClick={(event) => event.stopPropagation()}>
+                      <div className="activity-period-toggle" role="group" aria-label="Activity date range">
+                        <button
+                          type="button"
+                          className={activityPeriod === "week" ? "active" : ""}
+                          onClick={() => setActivityPeriod("week")}
+                        >
+                          Weekly
+                        </button>
+                        <button
+                          type="button"
+                          className={activityPeriod === "month" ? "active" : ""}
+                          onClick={() => setActivityPeriod("month")}
+                        >
+                          Monthly
+                        </button>
+                      </div>
+                      <label className="activity-date-filter">
+                        <span>{activityPeriod === "week" ? "Week containing" : "Month"}</span>
+                        <input
+                          type={activityPeriod === "week" ? "date" : "month"}
+                          aria-label={activityPeriod === "week" ? "Choose a week" : "Choose a month"}
+                          value={activityPeriod === "week" ? activityWeekDate : activityMonth}
+                          onChange={(event) => {
+                            if (activityPeriod === "week") setActivityWeekDate(event.target.value);
+                            else setActivityMonth(event.target.value);
+                          }}
+                        />
+                      </label>
+                    </div>
                   </div>
 
                   <div className="dash-panel-body">
                     <div className="activity-bar-chart-wrapper">
+                      <div className="activity-summary-description">
+                        <span className="activity-live-dot" />
+                        {activitySummaryDescription}
+                      </div>
                       <div className="activity-bar-grid">
                         {weeklySummaryData.map((category) => (
                           <div
                             key={category.label}
                             className={`activity-bar-col${selectedWeeklyCategory === category.key ? " is-selected" : ""}`}
-                            onClick={() => setSelectedWeeklyCategory(category.key)}
-                            onMouseEnter={() => setSelectedWeeklyCategory(category.key)}
+                            onClick={() => {
+                              setSelectedWeeklyCategory(category.key);
+                              setActivityStatus("all");
+                            }}
                             role="button"
                             tabIndex={0}
                             onKeyDown={(event) => {
                               if (event.key === "Enter" || event.key === " ") {
                                 event.preventDefault();
                                 setSelectedWeeklyCategory(category.key);
+                                setActivityStatus("all");
                               }
                             }}
                           >
@@ -1229,17 +1316,32 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                         <div className="weekly-summary-header">
                           <strong>
                             {selectedWeeklyCategory === "all"
-                              ? "All weekly activity"
-                              : `${weeklySummaryData.find((item) => item.key === selectedWeeklyCategory)?.label || "Selected"} this week`}
+                              ? `All activity this ${activityRangeLabel}`
+                              : `${weeklySummaryData.find((item) => item.key === selectedWeeklyCategory)?.label || "Selected"} this ${activityRangeLabel}`}
                           </strong>
-                          <span>
-                            {selectedWeeklyItemsSorted.length} activity{selectedWeeklyItemsSorted.length === 1 ? "" : "ies"}
-                          </span>
+                          <div className="weekly-summary-header-controls">
+                            <label className="weekly-status-filter">
+                              <span>Status</span>
+                              <select
+                                aria-label="Filter activity by status"
+                                value={activityStatus}
+                                onChange={(event) => setActivityStatus(event.target.value)}
+                              >
+                                <option value="all">All statuses</option>
+                                {activityStatusOptions.map((status) => (
+                                  <option key={status} value={status}>{status}</option>
+                                ))}
+                              </select>
+                            </label>
+                            <span>
+                              {selectedWeeklyItems.length} activit{selectedWeeklyItems.length === 1 ? "y" : "ies"}
+                            </span>
+                          </div>
                         </div>
 
                         <div className="weekly-summary-text">
                           {selectedWeeklyItemsSorted.length === 0 ? (
-                            <div className="weekly-summary-empty">No activity in the last 7 days.</div>
+                            <div className="weekly-summary-empty">No activity matches these filters.</div>
                           ) : (
                             <p>{getWeeklySummaryNarrative()}</p>
                           )}
@@ -1252,7 +1354,7 @@ export default function AdminDashboard({ defaultPage = "dashboard" }) {
                                 <span className="weekly-summary-dot" style={{ background: item.categoryColor || '#2563eb' }} />
                                 <div>
                                   <div className="weekly-summary-name">{formatWeeklyRecordLabel(item, item.categoryKey)}</div>
-                                  <div className="weekly-summary-meta">{item.categoryLabel} • {formatDateTime(item.createdAt)}</div>
+                                  <div className="weekly-summary-meta">{item.categoryLabel} • {formatDateTime(item.createdAt)} • {getRecordStatus(item) || "No status"}</div>
                                 </div>
                               </div>
                             ))}

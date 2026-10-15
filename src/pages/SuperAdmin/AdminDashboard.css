@@ -711,6 +711,72 @@ input, select, textarea { font: inherit; }
   gap: 8px;
   cursor: pointer;
 }
+.activity-summary-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-left: auto;
+}
+.activity-summary-description {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 2px 10px;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.activity-live-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: #16a34a;
+  animation: livePulse 1.4s ease-in-out infinite;
+}
+.activity-period-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+.activity-period-toggle button {
+  min-height: 28px;
+  padding: 4px 9px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #64748b;
+  font-size: 11px;
+}
+.activity-period-toggle button.active {
+  background: #fff;
+  color: #1d4ed8;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+}
+.activity-date-filter,
+.weekly-status-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+.activity-date-filter input,
+.weekly-status-filter select {
+  min-height: 30px;
+  max-width: 150px;
+  padding: 4px 7px;
+  border: 1px solid #dbe2ea;
+  border-radius: 5px;
+  background: #fff;
+  color: #334155;
+  font-size: 11px;
+}
 .weekly-summary-detail {
   margin-top: 14px;
   border: 1px solid #e5e7eb;
@@ -735,6 +801,15 @@ input, select, textarea { font: inherit; }
 .weekly-summary-header span {
   font-size: 11px;
   color: #6b7280;
+}
+.weekly-summary-header-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.weekly-status-filter select {
+  max-width: 145px;
 }
 .weekly-summary-text {
   display: flex;
@@ -1210,4 +1285,13 @@ input, select, textarea { font: inherit; }
   .donut-ring-wrap svg { width: 132px; height: 132px; }
   .donut-legend-item { gap: 5px; font-size: 11px; }
   .donut-val { font-size: 11px; }
+  .activity-summary-controls {
+    width: 100%;
+    justify-content: space-between;
+    margin-left: 0;
+  }
+  .activity-date-filter { gap: 4px; }
+  .activity-date-filter input { max-width: 132px; }
+  .weekly-summary-header { align-items: flex-start; }
+  .weekly-summary-header-controls { flex-wrap: wrap; gap: 6px; }
 }
