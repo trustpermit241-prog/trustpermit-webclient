@@ -4,7 +4,9 @@ import {
   Route,
   Navigate,
   useLocation,
+  useNavigate,
 } from "react-router-dom";
+import { useEffect } from "react";
 
 import PublicLayout from "./layouts/PublicLayout";
 
@@ -38,6 +40,27 @@ import UploadedDocumentsView from "./pages/Dropdown/UploadedDocumentsView";
 import StaffDashboard from "./pages/cityhall/StaffDashboard";
 
 const SESSION_LOCK_KEY = "trustpermit_session";
+const SESSION_ACTIVITY_KEY = "trustpermit_last_activity";
+const SESSION_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+const SESSION_HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000;
+const ADMIN_SESSION_CHECK_INTERVAL_MS = 10 * 1000;
+
+const getAuthApiBaseUrl = () => {
+  const configuredUrl = (process.env.REACT_APP_API_URL || "").replace(/\/+$/, "");
+
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:5000/api";
+    }
+
+    if (hostname.endsWith(".vercel.app") || hostname === "trustpermit.com" || hostname === "www.trustpermit.com") {
+      return configuredUrl ? `${configuredUrl}/api` : "https://trustpermit-backend.onrender.com/api";
+    }
+  }
+
+  return configuredUrl ? `${configuredUrl}/api` : "https://trustpermit-backend.onrender.com/api";
+};
 
 const getActiveSession = () => {
   try {
@@ -126,6 +149,137 @@ const StaffPage = () => (
   </PrivateRoute>
 );
 
+const SessionTimeout = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return undefined;
+    const isAdminSession = getStoredRole() === "admin";
+
+    let idleTimer;
+    let lastHeartbeatAt = Date.now();
+    let lastActivityWriteAt = 0;
+    let loggingOut = false;
+    let lastActivityAt;
+    let shouldSaveInitialActivity = false;
+
+    try {
+      const savedActivity = JSON.parse(localStorage.getItem(SESSION_ACTIVITY_KEY) || "null");
+      if (savedActivity?.token === token && Number.isFinite(savedActivity.timestamp)) {
+        lastActivityAt = savedActivity.timestamp;
+      } else {
+        lastActivityAt = Date.now();
+        shouldSaveInitialActivity = true;
+      }
+    } catch {
+      lastActivityAt = Date.now();
+      shouldSaveInitialActivity = true;
+    }
+
+    const saveActivity = (timestamp) => {
+      localStorage.setItem(SESSION_ACTIVITY_KEY, JSON.stringify({ token, timestamp }));
+      lastActivityWriteAt = timestamp;
+    };
+
+    if (shouldSaveInitialActivity) saveActivity(lastActivityAt);
+
+    const endSession = (releaseServerSession = true) => {
+      if (loggingOut || localStorage.getItem("token") !== token) return;
+      loggingOut = true;
+      window.clearTimeout(idleTimer);
+
+      if (releaseServerSession) {
+        fetch(`${getAuthApiBaseUrl()}/auth/logout`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          keepalive: true,
+        }).catch(() => {});
+      }
+
+      ["token", "role", "user", "citizenId", "name", "email", SESSION_LOCK_KEY, SESSION_ACTIVITY_KEY]
+        .forEach((key) => localStorage.removeItem(key));
+      navigate("/", { replace: true, state: { sessionExpired: true } });
+    };
+
+    const scheduleLogout = () => {
+      window.clearTimeout(idleTimer);
+      const remaining = SESSION_IDLE_TIMEOUT_MS - (Date.now() - lastActivityAt);
+      idleTimer = window.setTimeout(endSession, Math.max(remaining, 0));
+    };
+
+    const refreshBackendSession = (force = false) => {
+      const now = Date.now();
+      if (!force && now - lastHeartbeatAt < SESSION_HEARTBEAT_INTERVAL_MS) return;
+      lastHeartbeatAt = now;
+
+      fetch(`${getAuthApiBaseUrl()}/auth/session`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((response) => {
+        if (response.status === 401) endSession(false);
+      }).catch(() => {});
+    };
+
+    const recordActivity = () => {
+      if (localStorage.getItem("token") !== token || loggingOut) return;
+      const now = Date.now();
+      if (now - lastActivityAt >= SESSION_IDLE_TIMEOUT_MS) {
+        endSession();
+        return;
+      }
+      lastActivityAt = now;
+      if (now - lastActivityWriteAt >= 1000) saveActivity(now);
+      scheduleLogout();
+      refreshBackendSession();
+    };
+
+    const handleStorage = (event) => {
+      if (event.key === "token" && event.newValue !== token) {
+        window.location.reload();
+        return;
+      }
+
+      if (event.key !== SESSION_ACTIVITY_KEY || !event.newValue) return;
+      try {
+        const sharedActivity = JSON.parse(event.newValue);
+        if (sharedActivity?.token === token && sharedActivity.timestamp > lastActivityAt) {
+          lastActivityAt = sharedActivity.timestamp;
+          scheduleLogout();
+        }
+      } catch {
+        return;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+      scheduleLogout();
+      if (isAdminSession) refreshBackendSession(true);
+    };
+
+    const activityEvents = ["pointerdown", "pointermove", "keydown", "touchstart", "wheel"];
+    activityEvents.forEach((eventName) => window.addEventListener(eventName, recordActivity, { passive: true }));
+    window.addEventListener("storage", handleStorage);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    scheduleLogout();
+    const sessionCheckTimer = isAdminSession
+      ? window.setInterval(() => {
+          if (document.visibilityState === "visible") refreshBackendSession(true);
+        }, ADMIN_SESSION_CHECK_INTERVAL_MS)
+      : null;
+
+    return () => {
+      window.clearTimeout(idleTimer);
+      if (sessionCheckTimer) window.clearInterval(sessionCheckTimer);
+      activityEvents.forEach((eventName) => window.removeEventListener(eventName, recordActivity));
+      window.removeEventListener("storage", handleStorage);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [navigate]);
+
+  return null;
+};
+
 const redirectToHomeIfNoPermission = (role) => {
   const normalizedRole = normalizeRole(role);
   return normalizedRole === "staff" || normalizedRole === "admin" ? false : true;
@@ -134,6 +288,7 @@ const redirectToHomeIfNoPermission = (role) => {
 function App() {
   return (
     <BrowserRouter>
+      <SessionTimeout />
       <Routes>
         {/* PUBLIC PAGES WITH NAVBAR */}
         <Route element={<PublicLayout />}>
